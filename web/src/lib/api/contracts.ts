@@ -93,36 +93,60 @@ export function createOverlayCallbacks(fetchSnapshot: () => Promise<OverlaySnaps
 export function createOverlayRebaser(fetchSnapshot: () => Promise<OverlaySnapshot>, apply: (event: OverlayEvent) => void, replace: (snapshot: OverlaySnapshot) => void, onError: (error: unknown) => void = () => {}) {
   let snapshot: OverlaySnapshot | undefined;
   const pending: OverlayEvent[] = [];
-  let flight: Promise<void> | undefined;
+  let generation = 0;
+  let flight: { generation: number; promise: Promise<void> } | undefined;
   const enqueue = (event: OverlayEvent) => { if (pending.length === 128) pending.shift(); pending.push(event); };
   const receive = (event: OverlayEvent) => {
-    if (!snapshot) { enqueue(event); void rebase().catch(onError); return; }
-    if (event.epoch !== snapshot.epoch || event.sequence > snapshot.sequence + 1) { snapshot = undefined; enqueue(event); void rebase().catch(onError); return; }
+    if (!snapshot) { enqueue(event); void refresh(generation).catch(onError); return; }
+    // Once a new authoritative epoch is installed, late replay from the old
+    // process is obsolete and must not start another rebase.
+    if (event.epoch !== snapshot.epoch) return;
+    if (event.sequence > snapshot.sequence + 1) { snapshot = undefined; enqueue(event); void refresh(generation).catch(onError); return; }
     if (event.sequence > snapshot.sequence) { snapshot = { ...snapshot, sequence: event.sequence }; apply(event); }
   };
-  const rebase = (): Promise<void> => {
-    if (flight) return flight;
-    // Synchronously stop applying events against the old version while the
-    // authoritative read is pending. Events are bounded in pending meanwhile.
-    snapshot = undefined;
-    flight = (async () => {
+  const refresh = (requestedGeneration: number): Promise<void> => {
+    if (requestedGeneration !== generation) return Promise.resolve();
+    if (flight?.generation === requestedGeneration) return flight.promise;
+    const record = { generation: requestedGeneration, promise: Promise.resolve() };
+    flight = record;
+    const pendingFlight = (async () => {
       try {
         for (let attempt = 0; attempt < 3; attempt++) {
           const next = decodeSnapshot(await fetchSnapshot());
+          if (requestedGeneration !== generation) return;
           snapshot = { ...next };
           replace(snapshot);
           let gap = false;
           for (const event of pending.splice(0).sort((a, b) => a.sequence - b.sequence)) {
-            if (event.epoch !== snapshot.epoch || event.sequence > snapshot.sequence + 1) { enqueue(event); gap = true; continue; }
+            // The snapshot is authoritative across process epochs. Drop old
+            // frames instead of retrying forever on events that can never fit.
+            if (event.epoch !== snapshot.epoch || event.sequence <= snapshot.sequence) continue;
+            if (event.sequence > snapshot.sequence + 1) { enqueue(event); gap = true; continue; }
             if (event.sequence > snapshot.sequence) { snapshot = { ...snapshot, sequence: event.sequence }; apply(event); }
           }
           if (!gap && pending.length === 0) return;
+          snapshot = undefined;
         }
         throw new Error('overlay stream could not rebase');
-      } catch (error) { snapshot = undefined; throw error; }
-      finally { flight = undefined; }
+      } catch (error) {
+        if (requestedGeneration !== generation) return;
+        snapshot = undefined;
+        throw error;
+      }
+      finally { if (flight === record) flight = undefined; }
     })();
-    return flight;
+    record.promise = pendingFlight;
+    return pendingFlight;
+  };
+  const rebase = (): Promise<void> => {
+    // A Chaaya catchUp marks a new connection. It supersedes unresolved reads
+    // and frames from the previous connection; generation checks keep a late
+    // response from replacing this connection's snapshot.
+    generation++;
+    snapshot = undefined;
+    pending.length = 0;
+    flight = undefined;
+    return refresh(generation);
   };
   return { receive, rebase };
 }
