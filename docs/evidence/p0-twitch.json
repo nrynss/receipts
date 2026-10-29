@@ -1,0 +1,23 @@
+{
+  "channel": "nrynss",
+  "Received": "2026-10-29T17:03:54.098564813Z",
+  "Replied": "2026-10-29T17:03:54.392808369Z",
+  "Created": "2026-10-29T17:03:55.16858162Z",
+  "Ready": "2026-10-29T17:04:00.06702101Z",
+  "playback_verified": true,
+  "playback_origin": "http://localhost:18082",
+  "playback_mode": "manual click to play in in-app browser iframe, parent=localhost",
+  "playback_duration_seconds": 30.021,
+  "playback_ended": true,
+  "obs_process_verified": true,
+  "self_trigger": true,
+  "submission_media_eligible": false,
+  "media_note": "Test broadcast showed third-party game-store artwork. No media copied into repository; clip references omitted from submission-facing evidence.",
+  "obs_verification_source": "owner report in chat",
+  "obs_video_verified": true,
+  "obs_audio_verified": true,
+  "obs_autoplay_verified": true,
+  "obs_click_to_play_verified": true,
+  "obs_origin": "http://localhost:18082",
+  "deployed_origin_verified": false
+}

@@ -1,0 +1,9 @@
+{
+  "channel": "nrynss",
+  "checked_at": "2026-10-29T17:09:44.666678+00:00",
+  "twitch_reports_live": false,
+  "audio_capture_started": false,
+  "result": "Existing live capture probe refused startup at its offline precondition",
+  "continuous_shutdown_verified": false,
+  "model_spend": 0
+}

@@ -4,7 +4,10 @@
 
 Chat types `!receipt` when a streamer promises something on stream. Receipts clips the moment and keeps the claim. When the streamer later goes back on it, a **RECEIPT** stamp lands on the overlay with the old clip, and chat votes on the appeal. `!lore` gives new viewers the channel's running promises and the ones that broke.
 
-> **Status:** entry for the Codex × TwitchCon Hackathon, in development. Nothing below is implemented yet; see [`product.md`](product.md).
+> **Status:** entry for the Codex × TwitchCon Hackathon, in development. The server/overlay scaffold, offline gate and evaluation fixtures exist. The live receipt and appeal experience below is still planned; see [`product.md`](product.md).
+
+Implementation phases, task dependencies and acceptance criteria are in the [development diary](dev-diary/README.md).
+Build and run the current scaffold using the [development instructions](docs/development.md).
 
 ## Usage (planned)
 

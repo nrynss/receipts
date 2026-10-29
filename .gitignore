@@ -4,3 +4,12 @@
 .env
 receipts.toml
 /data/
+/web/.svelte-kit/
+/web/.vite/
+/web/coverage/
+/web/package-lock.json.tmp
+/receipts
+/receipts.db*
+
+/cmd/receipts/static/*
+!/cmd/receipts/static/.gitkeep

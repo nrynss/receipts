@@ -1,0 +1,44 @@
+{"id":"P0-001","split":"dev","claim":"I promise I will never pick the blue map again.","later":"Fine, I will pick the blue map again.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-002","split":"dev","claim":"I will use the shield before entering the cave.","later":"I used the shield before entering the cave.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-003","split":"dev","claim":"I will never play this level again.","later":"This level is cursed.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-004","split":"dev","claim":"I promise I will finish one more round.","later":"I am not finishing another round tonight.","label":"review","expected":"review","source":"original Codex text"}
+{"id":"P0-005","split":"dev","claim":"I will never use the red door.","later":"I did not use the red door.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-006","split":"dev","claim":"I will play the final round.","later":"I might play the final round.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-007","split":"dev","claim":"I promise I will keep this save file.","later":"I deleted that save file.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-008","split":"dev","claim":"I will never buy another potion.","later":"I bought a potion for my teammate.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-009","split":"dev","claim":"I will finish this quest tonight.","later":"I finished this quest tonight.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-010","split":"dev","claim":"I promise I will not skip the tutorial.","later":"I skipped the tutorial.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-011","split":"dev","claim":"I will never equip the heavy boots.","later":"I equipped the light boots.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-012","split":"dev","claim":"I will always open the chest first.","later":"I opened the chest last this time.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-013","split":"dev","claim":"I promise I will keep the volume low.","later":"I will not keep the volume low.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-014","split":"dev","claim":"I will never choose the forest route.","later":"I chose the forest route in that dream I had.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-015","split":"dev","claim":"I will sell the old lantern.","later":"I kept the old lantern.","label":"review","expected":"review","source":"original Codex text"}
+{"id":"P0-016","split":"dev","claim":"I will not restart this run.","later":"I did not restart this run.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-017","split":"dev","claim":"I promise I will never craft a silver key.","later":"I crafted a silver key.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-018","split":"dev","claim":"I will use the north path.","later":"I used the east path instead.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-019","split":"dev","claim":"I will never pick the blue map again.","later":"I picked the blue map because the event changed the rules.","label":"review","expected":"review","source":"original Codex text"}
+{"id":"P0-020","split":"dev","claim":"I promise I will not mention the ending.","later":"I will not mention the ending.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-021","split":"dev","claim":"I will never use the ice spell.","later":"I used the ice spell once to escape a trap.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-022","split":"dev","claim":"I will keep every item I find.","later":"I dropped one item to make room.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-023","split":"dev","claim":"I will not take the shortcut.","later":"I did not take the shortcut.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-024","split":"dev","claim":"I promise I will play another round.","later":"I am done playing for tonight.","label":"review","expected":"review","source":"original Codex text"}
+{"id":"P0-025","split":"dev","claim":"I will never use the blue map.","later":"My friend said, ‘I will use the blue map.’","label":"review","expected":"review","source":"original Codex text"}
+{"id":"P0-026","split":"dev","claim":"I will always wait for the team.","later":"I waited for the team.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-027","split":"dev","claim":"I will never spend my tokens.","later":"I spent ten tokens on a cosmetic.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-028","split":"dev","claim":"I promise I will not skip this scene.","later":"I skipped this scene after the stream paused.","label":"review","expected":"review","source":"original Codex text"}
+{"id":"P0-029","split":"dev","claim":"I will never pick the blue map again.","later":"I will never pick the blue map again.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-030","split":"dev","claim":"I will always bring a lantern.","later":"I forgot my lantern today.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-031","split":"heldout","claim":"I promise I will never equip the silver coat.","later":"I equipped the silver coat for this match.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-032","split":"heldout","claim":"I will finish the puzzle before lunch.","later":"I finished the puzzle before lunch.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-033","split":"heldout","claim":"I will never choose the canyon.","later":"The canyon is difficult.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-034","split":"heldout","claim":"I promise I will not use a revive.","later":"I used a revive.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-035","split":"heldout","claim":"I will never play this class again.","later":"A guest streamer played this class.","label":"review","expected":"review","source":"original Codex text"}
+{"id":"P0-036","split":"heldout","claim":"I will open the gate after the song ends.","later":"I opened the gate after the song ended.","label":"no_contradiction","expected":"quiet","source":"original Codex text"}
+{"id":"P0-037","split":"heldout","claim":"I promise I will never spend rent money on games.","later":"I spent rent money on games.","label":"suppress","expected":"quiet","source":"original Codex text"}
+{"id":"P0-038","split":"heldout","claim":"I will never use the west exit.","later":"I used the west exit after the route was blocked.","label":"review","expected":"review","source":"original Codex text"}
+{"id":"P0-039","split":"heldout","claim":"I will keep the last ticket.","later":"I gave away the last ticket.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-040","split":"heldout","claim":"I will never take the blue route.","later":"I took the blue route.","label":"contradiction","expected":"stamp","source":"original Codex text"}
+{"id":"P0-041","split":"dev","claim":"I promise I will never discuss my diagnosis on stream.","later":"I am going to discuss my diagnosis now.","label":"suppress","expected":"quiet","source":"original Codex text"}
+{"id":"P0-042","split":"dev","claim":"I promise I will never talk about my family argument here.","later":"I am going to explain that family argument.","label":"suppress","expected":"quiet","source":"original Codex text"}
+{"id":"P0-043","split":"dev","claim":"An unidentified voice says: I promise I will never choose the stone bridge.","later":"I chose the stone bridge.","label":"review","expected":"review","source":"original Codex text"}
+{"id":"P0-044","split":"dev","claim":"I promise I will never open the wooden chest.","later":"A guest says: I opened the wooden chest.","label":"review","expected":"review","source":"original Codex text"}

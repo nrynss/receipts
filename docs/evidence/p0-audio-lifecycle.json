@@ -1,0 +1,14 @@
+{
+  "channel": "nrynss",
+  "controlled_interruption": true,
+  "interruption_cleanup_ms": 6,
+  "reconnect_audio_observed": true,
+  "reconnected_at": "2026-10-29T18:36:50.738160557Z",
+  "offline_observed_at": "2026-10-29T18:37:37.00669395Z",
+  "capture_ended_at": "2026-10-29T18:37:26.896573894Z",
+  "offline_cleanup_ms": 0,
+  "source_ended_before_offline_confirmation": true,
+  "status_checks": 26,
+  "audio_retained": false,
+  "model_spend": 0
+}

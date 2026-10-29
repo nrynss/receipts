@@ -31,6 +31,7 @@ It works on any stream with someone talking: games, IRL, just chatting, tabletop
 - **The streamer is in charge.** Stamps can be paused (`!receipts off`), a receipt can be voided by the streamer or a mod, and a cooldown keeps stamps from landing back to back.
 - **A wrong stamp is worse than a missed one.** The check only fires when it's confident; anything less goes to a quiet mod queue, not the overlay.
 - **Only the streamer's own words.** Receipts transcribes the broadcast, but only claims made in it can be receipted. It never records chat text as a claim.
+- **Listening belongs to a live session.** Broadcast audio is the default source. The mic dock fallback requires the streamer to explicitly enable it for each live session and shows a clear listening indicator and stop control. It captures only while that session is confirmed live; going offline, losing live-status confirmation, or disconnecting the dock stops capture and discards unsent audio. Reopening the dock never resumes capture automatically. A mic can hear speech that OBS mutes, so the dock must make that limitation clear before listening starts.
 - **No receipts on sensitive topics.** Health, family, money troubles and anything a mod voids stay off the overlay and out of `!lore`.
 
 ## Shape
@@ -42,7 +43,7 @@ One Go binary, `receipts`, and a Svelte 5 overlay it serves. One SQLite file. Ru
 | Twitch events | EventSub over WebSocket: `channel.chat.message`. No public callback needed |
 | Bot replies | Helix `POST /chat/messages` |
 | Clips | Helix `POST /clips` (`clips:edit`, live only), then `GET /clips` until the clip is ready |
-| Live audio | `streamlink` pulls the public stream, ffmpeg turns it into audio chunks (Keel `ffmpeg`, so ffmpeg dies with its job). Fallback: an OBS dock page that captures the streamer's mic in the browser (Chaaya audio) |
+| Live audio | `streamlink` pulls the public stream, ffmpeg turns it into audio chunks (Keel `ffmpeg`, so ffmpeg dies with its job). Fallback: an OBS mic dock (Chaaya audio), explicitly enabled per confirmed live session and stopped when that session ends or live-status confirmation is lost |
 | Transcript | OpenAI speech-to-text into a rolling window. The receipt's claim comes from this window, so the clip itself is never transcribed |
 | Contradiction check | Embeddings pick the 3–5 nearest receipts for each new line; one small model decides contradicts / doesn't / unsure. Plain cosine in Go; a channel has hundreds of receipts, not millions |
 | Store | Keel `sqlite`: receipts, verdicts, votes, the transcript window |
@@ -83,7 +84,7 @@ The README opens with a "For judges: start here" table: the video, a recorded st
 
 ## Open questions
 
-- **Does streamlink hold a live stream for hours?** Probe it before anything depends on it; the mic dock is the fallback.
+- **Does streamlink hold a live stream for hours?** Probe it before anything depends on it; the mic dock is the fallback, subject to the live-session listening rules above.
 - **Clip timing.** A clip covers about the last 30 seconds. A slow `!receipt` can miss the promise on video; the transcript window keeps the text either way. Decide whether a receipt can point at a clip *and* a transcript offset.
 - **What counts as a claim.** Promises, predictions, "never" and "always" statements, bets. Settle the list with the labelled set.
 - **A streamer to demo with**, or our own channel.

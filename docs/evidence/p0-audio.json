@@ -1,0 +1,22 @@
+{
+  "channel": "nrynss",
+  "source": "Streamlink to Keel-managed ffmpeg",
+  "requested_seconds": 10,
+  "chunks": [
+    {
+      "sequence": 0,
+      "captured_at_estimate": "2026-10-29T17:02:04.71921505Z",
+      "duration": 5012000000,
+      "bytes": 160472
+    },
+    {
+      "sequence": 1,
+      "captured_at_estimate": "2026-10-29T17:02:09.71921505Z",
+      "duration": 4988000000,
+      "bytes": 159684
+    }
+  ],
+  "live_before": true,
+  "live_after": true,
+  "audio_retained": false
+}
