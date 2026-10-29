@@ -143,8 +143,8 @@ func (m *Manager) Resolve(authority auth.ChannelContext) (*Channel, error) {
 }
 
 func (m *Manager) SetPaused(authority auth.ChannelContext, paused bool) error {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	channel := m.active[authority.ChannelID]
 	if channel == nil || channel.Context.Err() != nil || channel.Authority.AccountID != authority.AccountID ||
 		channel.Authority.LiveSessionID != authority.LiveSessionID || channel.Authority.Generation != authority.Generation {
@@ -299,3 +299,14 @@ func (m *Manager) RevokeAccount(accountID string) {
 }
 
 func (m *Manager) Count() int { m.mu.RLock(); defer m.mu.RUnlock(); return len(m.active) }
+
+// WithActive serializes a short commit against stop, revocation and pause.
+func (m *Manager) WithActive(authority auth.ChannelContext, commit func(*Channel) error) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	c := m.active[authority.ChannelID]
+	if c == nil || c.Context.Err() != nil || c.Authority.AccountID != authority.AccountID || c.Authority.LiveSessionID != authority.LiveSessionID || c.Authority.Generation != authority.Generation {
+		return ErrStale
+	}
+	return commit(c)
+}
