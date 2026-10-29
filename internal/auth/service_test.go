@@ -26,15 +26,20 @@ func (c *authClock) Now() time.Time      { c.mu.Lock(); defer c.mu.Unlock(); ret
 func (c *authClock) Add(d time.Duration) { c.mu.Lock(); c.now = c.now.Add(d); c.mu.Unlock() }
 
 type fakeProvider struct {
-	mu            sync.Mutex
-	grant         Grant
-	tokens        Tokens
-	refreshTokens Tokens
-	refreshCalls  int
-	refreshErr    error
-	refreshWait   time.Duration
-	validateErr   error
-	exchangeCalls int
+	mu             sync.Mutex
+	grant          Grant
+	tokens         Tokens
+	refreshTokens  Tokens
+	refreshCalls   int
+	refreshErr     error
+	refreshWait    time.Duration
+	validateErr    error
+	exchangeCalls  int
+	validateCalls  int
+	onRefresh      func(context.Context)
+	refreshStarted chan struct{}
+	refreshRelease chan struct{}
+	validateNotify chan struct{}
 }
 
 func (p *fakeProvider) AuthorizeURL(state, redirect string, scopes []string) string {
@@ -51,18 +56,39 @@ func (p *fakeProvider) ExchangeCode(context.Context, string, string) (Tokens, er
 	p.exchangeCalls++
 	return p.tokens, nil
 }
-func (p *fakeProvider) Validate(context.Context, string) (Grant, error) {
+func (p *fakeProvider) Validate(ctx context.Context, _ string) (Grant, error) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.grant, p.validateErr
+	p.validateCalls++
+	grant, err, notify := p.grant, p.validateErr, p.validateNotify
+	p.mu.Unlock()
+	if notify != nil {
+		select {
+		case notify <- struct{}{}:
+		default:
+		}
+	}
+	if ctx.Err() != nil {
+		return Grant{}, ctx.Err()
+	}
+	return grant, err
 }
-func (p *fakeProvider) Refresh(context.Context, string) (Tokens, error) {
+func (p *fakeProvider) Refresh(ctx context.Context, _ string) (Tokens, error) {
 	p.mu.Lock()
 	p.refreshCalls++
 	delay, tokens, err := p.refreshWait, p.refreshTokens, p.refreshErr
+	started, release, onRefresh := p.refreshStarted, p.refreshRelease, p.onRefresh
 	p.mu.Unlock()
+	if started != nil {
+		close(started)
+	}
+	if release != nil {
+		<-release
+	}
 	if delay > 0 {
 		time.Sleep(delay)
+	}
+	if onRefresh != nil {
+		onRefresh(ctx)
 	}
 	return tokens, err
 }
@@ -361,7 +387,7 @@ func TestConcurrentRefreshRotatesOnceAndSurvivesRestart(t *testing.T) {
 
 func TestRefreshRevocationRequiresReconnectAndErrorsAreRedacted(t *testing.T) {
 	f := newAuthFixture(t, filepath.Join(t.TempDir(), "auth.db"), nil)
-	_, _, a := login(t, f.service)
+	session, _, a := login(t, f.service)
 	f.clock.Add(2 * time.Hour)
 	f.provider.refreshErr = ErrAuthorizationLost
 	if _, err := f.service.AccessToken(context.Background(), a.ID); !errors.Is(err, ErrReconnect) {
@@ -373,6 +399,11 @@ func TestRefreshRevocationRequiresReconnectAndErrorsAreRedacted(t *testing.T) {
 	}
 	if strings.Contains(ErrReconnect.Error(), "refresh-secret") {
 		t.Fatal("reconnect error exposed token")
+	}
+	r := httptest.NewRequest(http.MethodGet, "/private", nil)
+	r.AddCookie(session)
+	if _, err := f.service.Current(r); !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("revoked provider grant left browser session active: %v", err)
 	}
 }
 
@@ -414,5 +445,262 @@ func TestUnauthorizedRefreshSkipsAStaleRejectionAndRotatesCurrentToken(t *testin
 	f.provider.mu.Unlock()
 	if calls != 1 {
 		t.Fatalf("refresh calls=%d, want 1", calls)
+	}
+}
+
+func TestLoginUpsertSerializesWithRefresh(t *testing.T) {
+	f := newAuthFixture(t, filepath.Join(t.TempDir(), "auth.db"), nil)
+	_, _, account := login(t, f.service)
+	f.clock.Add(2 * time.Hour)
+	started, release := make(chan struct{}), make(chan struct{})
+	f.provider.mu.Lock()
+	f.provider.refreshTokens = Tokens{AccessToken: "rotated-before-login", RefreshToken: "refresh-before-login", ExpiresIn: time.Hour}
+	f.provider.refreshStarted, f.provider.refreshRelease = started, release
+	f.provider.mu.Unlock()
+	refreshDone := make(chan error, 1)
+	go func() {
+		_, err := f.service.AccessToken(context.Background(), account.ID)
+		refreshDone <- err
+	}()
+	<-started
+	newTokens, err := f.service.seal(account.TwitchID, storedTokens{Access: "new-login-access", Refresh: "new-login-refresh"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	upsertDone := make(chan error, 1)
+	go func() {
+		_, err := f.service.upsertAccount(context.Background(), Grant{ClientID: "app-1", UserID: account.TwitchID, Login: "owner", Scopes: append([]string(nil), DefaultScopes...), Expires: time.Hour}, newTokens, time.Hour)
+		upsertDone <- err
+	}()
+	select {
+	case err := <-upsertDone:
+		t.Fatalf("login upsert crossed in-flight refresh: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	close(release)
+	if err := <-refreshDone; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-upsertDone; err != nil {
+		t.Fatal(err)
+	}
+	f.provider.mu.Lock()
+	f.provider.refreshStarted, f.provider.refreshRelease = nil, nil
+	f.provider.mu.Unlock()
+	got, err := f.service.AccessToken(context.Background(), account.ID)
+	if err != nil || got != "new-login-access" {
+		t.Fatalf("login credentials lost after refresh: %v", err)
+	}
+}
+
+func TestProviderRevocationSerializesWithRefreshAndRevokesSessions(t *testing.T) {
+	f := newAuthFixture(t, filepath.Join(t.TempDir(), "auth.db"), nil)
+	session, _, account := login(t, f.service)
+	f.clock.Add(2 * time.Hour)
+	started, release := make(chan struct{}), make(chan struct{})
+	f.provider.mu.Lock()
+	f.provider.refreshTokens = Tokens{AccessToken: "rotated-access", RefreshToken: "rotated-refresh", ExpiresIn: time.Hour}
+	f.provider.refreshStarted, f.provider.refreshRelease = started, release
+	f.provider.mu.Unlock()
+	refreshDone := make(chan error, 1)
+	go func() { _, err := f.service.AccessToken(context.Background(), account.ID); refreshDone <- err }()
+	<-started
+	revokeDone := make(chan error, 1)
+	go func() { revokeDone <- f.service.RevokeProviderAuthorization(context.Background(), account.ID) }()
+	select {
+	case err := <-revokeDone:
+		t.Fatalf("revoke crossed in-flight refresh: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	close(release)
+	if err := <-refreshDone; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-revokeDone; err != nil {
+		t.Fatal(err)
+	}
+	f.provider.mu.Lock()
+	f.provider.refreshStarted, f.provider.refreshRelease = nil, nil
+	f.provider.mu.Unlock()
+	var status string
+	if err := f.db.Reader().QueryRow(`SELECT status FROM accounts WHERE id=?`, account.ID).Scan(&status); err != nil || status != "reconnect_required" {
+		t.Fatalf("account status=%q err=%v", status, err)
+	}
+	r := httptest.NewRequest(http.MethodGet, "/private", nil)
+	r.AddCookie(session)
+	if _, err := f.service.Current(r); !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("provider revocation left browser session active: %v", err)
+	}
+}
+
+func TestSessionCannotBeIssuedAfterRevocationBetweenLoginSteps(t *testing.T) {
+	f := newAuthFixture(t, filepath.Join(t.TempDir(), "auth.db"), nil)
+	session, _, account := login(t, f.service)
+	newTokens, err := f.service.seal(account.TwitchID, storedTokens{Access: "reconnected-access", Refresh: "reconnected-refresh"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.service.upsertAccount(context.Background(), Grant{ClientID: "app-1", UserID: account.TwitchID, Login: "owner", Scopes: append([]string(nil), DefaultScopes...), Expires: time.Hour}, newTokens, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	// This is the callback interleaving between account upsert and session
+	// issuance: revocation must prevent the callback from minting a fresh row.
+	if err := f.service.RevokeProviderAuthorization(context.Background(), account.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := f.service.issueSession(context.Background(), account.ID, session.Value); !errors.Is(err, ErrReconnect) {
+		t.Fatalf("session issued after provider revocation: %v", err)
+	}
+	r := httptest.NewRequest(http.MethodGet, "/private", nil)
+	r.AddCookie(session)
+	if _, err := f.service.Current(r); !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("old session survived callback/revoke interleaving: %v", err)
+	}
+	var active int
+	if err := f.db.Reader().QueryRow(`SELECT count(*) FROM browser_sessions WHERE account_id=? AND revoked_at IS NULL`, account.ID).Scan(&active); err != nil || active != 0 {
+		t.Fatalf("active sessions=%d err=%v", active, err)
+	}
+}
+
+func TestSuccessfulRefreshPersistsWhenCallerCancelsAndValidationTemporarilyFails(t *testing.T) {
+	f := newAuthFixture(t, filepath.Join(t.TempDir(), "auth.db"), nil)
+	_, _, account := login(t, f.service)
+	f.clock.Add(2 * time.Hour)
+	f.provider.refreshTokens = Tokens{AccessToken: "rotated-access", RefreshToken: "rotated-refresh", ExpiresIn: time.Hour}
+	ctx, cancel := context.WithCancel(context.Background())
+	f.provider.onRefresh = func(context.Context) { cancel() }
+	got, err := f.service.AccessToken(ctx, account.ID)
+	if err != nil || got != "rotated-access" {
+		t.Fatalf("caller cancellation lost rotation: %v", err)
+	}
+	f.provider.onRefresh = nil
+	if got, err = f.service.AccessToken(context.Background(), account.ID); err != nil || got != "rotated-access" {
+		t.Fatalf("persisted rotation was not reused: %v", err)
+	}
+	f.provider.mu.Lock()
+	calls := f.provider.refreshCalls
+	f.provider.mu.Unlock()
+	if calls != 1 {
+		t.Fatalf("refresh calls after cancellation=%d, want 1", calls)
+	}
+
+	g := newAuthFixture(t, filepath.Join(t.TempDir(), "validation-outage.db"), nil)
+	_, _, nextAccount := login(t, g.service)
+	g.clock.Add(2 * time.Hour)
+	g.provider.refreshTokens = Tokens{AccessToken: "outage-rotated-access", RefreshToken: "outage-rotated-refresh", ExpiresIn: time.Hour}
+	g.provider.mu.Lock()
+	g.provider.validateErr = errors.New("temporary provider outage")
+	g.provider.mu.Unlock()
+	if _, err := g.service.AccessToken(context.Background(), nextAccount.ID); err == nil {
+		t.Fatal("temporary validation outage was accepted")
+	}
+	var pending int
+	if err := g.db.Reader().QueryRow(`SELECT token_validation_pending FROM accounts WHERE id=?`, nextAccount.ID).Scan(&pending); err != nil || pending != 1 {
+		t.Fatalf("rotated pair pending=%d err=%v", pending, err)
+	}
+	g.provider.mu.Lock()
+	g.provider.validateErr = nil
+	refreshCalls := g.provider.refreshCalls
+	g.provider.mu.Unlock()
+	got, err = g.service.AccessToken(context.Background(), nextAccount.ID)
+	if err != nil || got != "outage-rotated-access" {
+		t.Fatalf("pending token did not recover: %v", err)
+	}
+	g.provider.mu.Lock()
+	defer g.provider.mu.Unlock()
+	if g.provider.refreshCalls != refreshCalls {
+		t.Fatalf("validation recovery spent another refresh token: calls=%d before=%d", g.provider.refreshCalls, refreshCalls)
+	}
+}
+
+func TestStartupHourlyAndIdleMaintenanceValidation(t *testing.T) {
+	f := newAuthFixture(t, filepath.Join(t.TempDir(), "auth.db"), nil)
+	f.provider.tokens.ExpiresIn = 4 * time.Hour
+	f.provider.grant.Expires = 4 * time.Hour
+	_, _, account := login(t, f.service)
+	f.provider.mu.Lock()
+	loginValidations := f.provider.validateCalls
+	f.provider.mu.Unlock()
+	if loginValidations != 1 {
+		t.Fatalf("login validations=%d, want 1", loginValidations)
+	}
+	// Constructing a second service over the durable account is the restart
+	// boundary; New must validate before it returns.
+	restarted, err := New(context.Background(), Config{DB: f.db, Provider: f.provider, ClientID: "app-1", RedirectURL: "https://receipts.example/auth/twitch/callback", PublicOrigin: "https://receipts.example", EncryptionKey: bytes32('k'), SecureCookie: true, Now: f.clock.Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.provider.mu.Lock()
+	startupValidations := f.provider.validateCalls
+	f.provider.mu.Unlock()
+	if startupValidations != loginValidations+1 {
+		t.Fatalf("startup validations=%d, want %d", startupValidations, loginValidations+1)
+	}
+	f.clock.Add(59 * time.Minute)
+	if _, err := restarted.AccessToken(context.Background(), account.ID); err != nil {
+		t.Fatal(err)
+	}
+	f.provider.mu.Lock()
+	beforeHour := f.provider.validateCalls
+	f.provider.mu.Unlock()
+	if beforeHour != startupValidations {
+		t.Fatalf("early validation count=%d, want %d", beforeHour, startupValidations)
+	}
+	f.clock.Add(time.Minute)
+	if _, err := restarted.AccessToken(context.Background(), account.ID); err != nil {
+		t.Fatal(err)
+	}
+	f.provider.mu.Lock()
+	afterHour := f.provider.validateCalls
+	f.provider.mu.Unlock()
+	if afterHour != beforeHour+1 {
+		t.Fatalf("hourly validation count=%d, want %d", afterHour, beforeHour+1)
+	}
+
+	restarted.validationInterval = 5 * time.Millisecond
+	notify := make(chan struct{}, 1)
+	f.provider.mu.Lock()
+	f.provider.validateNotify = notify
+	f.provider.mu.Unlock()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { restarted.Maintain(ctx, nil); close(done) }()
+	select {
+	case <-notify:
+	case <-time.After(time.Second):
+		cancel()
+		t.Fatal("idle maintenance did not validate connected accounts")
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("maintenance did not stop when its context was canceled")
+	}
+}
+
+func TestTokenCiphertextCannotMoveBetweenAccounts(t *testing.T) {
+	f := newAuthFixture(t, filepath.Join(t.TempDir(), "auth.db"), nil)
+	_, _, first := login(t, f.service)
+	f.provider.mu.Lock()
+	f.provider.grant.UserID = "owner-2"
+	f.provider.grant.Login = "owner_two"
+	f.provider.mu.Unlock()
+	_, _, second := login(t, f.service)
+	var firstCipher, secondCipher []byte
+	if err := f.db.Reader().QueryRow(`SELECT token_ciphertext FROM accounts WHERE id=?`, first.ID).Scan(&firstCipher); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.db.Reader().QueryRow(`SELECT token_ciphertext FROM accounts WHERE id=?`, second.ID).Scan(&secondCipher); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.db.Writer().Exec(`UPDATE accounts SET token_ciphertext=? WHERE id=?`, secondCipher, first.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.db.Writer().Exec(`UPDATE accounts SET token_ciphertext=? WHERE id=?`, firstCipher, second.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.service.AccessToken(context.Background(), first.ID); err == nil || err.Error() != "auth: credentials unavailable" {
+		t.Fatalf("swapped ciphertext result=%v", err)
 	}
 }

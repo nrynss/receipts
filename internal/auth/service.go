@@ -40,17 +40,18 @@ var (
 var DefaultScopes = []string{"user:read:chat", "user:write:chat", "clips:edit"}
 
 type Config struct {
-	DB            *sqlite.DB
-	Provider      Provider
-	ClientID      string
-	RedirectURL   string
-	PublicOrigin  string
-	EncryptionKey []byte
-	Scopes        []string
-	SessionTTL    time.Duration
-	StateTTL      time.Duration
-	SecureCookie  bool
-	Now           func() time.Time
+	DB                 *sqlite.DB
+	Provider           Provider
+	ClientID           string
+	RedirectURL        string
+	PublicOrigin       string
+	EncryptionKey      []byte
+	Scopes             []string
+	SessionTTL         time.Duration
+	StateTTL           time.Duration
+	ValidationInterval time.Duration
+	SecureCookie       bool
+	Now                func() time.Time
 }
 
 type Account struct {
@@ -68,26 +69,30 @@ type storedTokens struct {
 
 type accountRow struct {
 	Account
-	Ciphertext []byte
-	ExpiresAt  time.Time
-	Scopes     []string
-	Status     string
+	Ciphertext        []byte
+	ExpiresAt         time.Time
+	ValidatedAt       time.Time
+	Scopes            []string
+	Status            string
+	ValidationPending bool
 }
 
 type Service struct {
-	db         *sqlite.DB
-	provider   Provider
-	clientID   string
-	redirect   string
-	origin     string
-	key        []byte
-	scopes     []string
-	sessionTTL time.Duration
-	stateTTL   time.Duration
-	secure     bool
-	now        func() time.Time
-	locksMu    sync.Mutex
-	locks      map[string]*sync.Mutex
+	db                 *sqlite.DB
+	provider           Provider
+	clientID           string
+	redirect           string
+	origin             string
+	key                []byte
+	scopes             []string
+	sessionTTL         time.Duration
+	stateTTL           time.Duration
+	validationInterval time.Duration
+	startedAt          time.Time
+	secure             bool
+	now                func() time.Time
+	locksMu            sync.Mutex
+	locks              map[string]*sync.Mutex
 }
 
 func New(ctx context.Context, cfg Config) (*Service, error) {
@@ -111,8 +116,14 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	if cfg.StateTTL == 0 {
 		cfg.StateTTL = 10 * time.Minute
 	}
+	if cfg.ValidationInterval == 0 {
+		cfg.ValidationInterval = time.Hour
+	}
 	if cfg.SessionTTL < time.Minute || cfg.SessionTTL > 365*24*time.Hour || cfg.StateTTL < time.Minute || cfg.StateTTL > time.Hour {
 		return nil, errors.New("auth: invalid session or state lifetime")
+	}
+	if cfg.ValidationInterval <= 0 || cfg.ValidationInterval > time.Hour {
+		return nil, errors.New("auth: validation interval must be positive and at most one hour")
 	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
@@ -130,9 +141,14 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	if err != nil {
 		return nil, errors.New("auth: public origin must be an HTTPS origin")
 	}
-	return &Service{db: cfg.DB, provider: cfg.Provider, clientID: cfg.ClientID, redirect: cfg.RedirectURL,
+	svc := &Service{db: cfg.DB, provider: cfg.Provider, clientID: cfg.ClientID, redirect: cfg.RedirectURL,
 		origin: normalizedOrigin, key: append([]byte(nil), cfg.EncryptionKey...), scopes: append([]string(nil), cfg.Scopes...),
-		sessionTTL: cfg.SessionTTL, stateTTL: cfg.StateTTL, secure: cfg.SecureCookie, now: cfg.Now, locks: map[string]*sync.Mutex{}}, nil
+		sessionTTL: cfg.SessionTTL, stateTTL: cfg.StateTTL, validationInterval: cfg.ValidationInterval,
+		startedAt: cfg.Now().UTC(), secure: cfg.SecureCookie, now: cfg.Now, locks: map[string]*sync.Mutex{}}
+	if err := svc.ValidateAll(ctx); err != nil {
+		return nil, err
+	}
+	return svc, nil
 }
 
 func (s *Service) Handler() http.Handler {
@@ -197,7 +213,7 @@ func (s *Service) callback(w http.ResponseWriter, r *http.Request) {
 	if grant.Expires < expiresIn {
 		expiresIn = grant.Expires
 	}
-	sealed, err := s.seal(storedTokens{Access: tokens.AccessToken, Refresh: tokens.RefreshToken})
+	sealed, err := s.seal(grant.UserID, storedTokens{Access: tokens.AccessToken, Refresh: tokens.RefreshToken})
 	if err != nil {
 		authFailure(w, http.StatusInternalServerError)
 		return
@@ -259,14 +275,18 @@ func (s *Service) authenticate(r *http.Request) (Account, []byte, error) {
 	var expires int64
 	var revoked sql.NullInt64
 	err = s.db.Reader().QueryRowContext(r.Context(), `SELECT a.id,a.provider_subject,a.login,a.channel_id,a.status,b.expires_at,b.revoked_at FROM browser_sessions b JOIN accounts a ON a.id=b.account_id WHERE b.token_hash=?`, hash).Scan(&a.ID, &a.TwitchID, &a.Login, &a.ChannelID, &a.Connection, &expires, &revoked)
-	if err != nil || revoked.Valid || expires <= s.now().UTC().UnixMilli() {
+	if err != nil || revoked.Valid || a.Connection != "connected" || expires <= s.now().UTC().UnixMilli() {
 		return Account{}, nil, ErrUnauthorized
 	}
 	return a, hash, nil
 }
 
 func (s *Service) AccessToken(ctx context.Context, accountID string) (string, error) {
-	lock := s.accountLock(accountID)
+	subject, err := s.accountSubject(ctx, accountID)
+	if err != nil {
+		return "", err
+	}
+	lock := s.accountLock(subject)
 	lock.Lock()
 	defer lock.Unlock()
 	row, tokens, err := s.loadAccountTokens(ctx, accountID)
@@ -276,10 +296,20 @@ func (s *Service) AccessToken(ctx context.Context, accountID string) (string, er
 	if row.Status != "connected" {
 		return "", ErrReconnect
 	}
-	if row.ExpiresAt.After(s.now().UTC()) {
-		return tokens.Access, nil
+	if row.TwitchID != subject {
+		return "", ErrReconnect
 	}
-	return s.refreshLocked(ctx, accountID, row, tokens)
+	now := s.now().UTC()
+	if row.ValidationPending {
+		return s.validateCurrentLocked(ctx, accountID, row, tokens)
+	}
+	if !row.ExpiresAt.After(now) {
+		return s.refreshLocked(ctx, accountID, row, tokens)
+	}
+	if row.ValidatedAt.Before(s.startedAt) || now.Sub(row.ValidatedAt) >= s.validationInterval {
+		return s.validateCurrentLocked(ctx, accountID, row, tokens)
+	}
+	return tokens.Access, nil
 }
 
 // RefreshAfterUnauthorized refreshes a provider token after Helix rejects it.
@@ -289,7 +319,11 @@ func (s *Service) RefreshAfterUnauthorized(ctx context.Context, accountID, rejec
 	if accountID == "" || rejectedAccessToken == "" {
 		return "", ErrUnauthorized
 	}
-	lock := s.accountLock(accountID)
+	subject, err := s.accountSubject(ctx, accountID)
+	if err != nil {
+		return "", err
+	}
+	lock := s.accountLock(subject)
 	lock.Lock()
 	defer lock.Unlock()
 	row, tokens, err := s.loadAccountTokens(ctx, accountID)
@@ -298,6 +332,12 @@ func (s *Service) RefreshAfterUnauthorized(ctx context.Context, accountID, rejec
 	}
 	if row.Status != "connected" {
 		return "", ErrReconnect
+	}
+	if row.TwitchID != subject {
+		return "", ErrReconnect
+	}
+	if row.ValidationPending {
+		return s.validateCurrentLocked(ctx, accountID, row, tokens)
 	}
 	if tokens.Access != rejectedAccessToken {
 		return tokens.Access, nil
@@ -308,33 +348,47 @@ func (s *Service) RefreshAfterUnauthorized(ctx context.Context, accountID, rejec
 func (s *Service) refreshLocked(ctx context.Context, accountID string, row accountRow, tokens storedTokens) (string, error) {
 	rotated, err := s.provider.Refresh(ctx, tokens.Refresh)
 	if errors.Is(err, ErrAuthorizationLost) {
-		_ = s.markReconnect(ctx, accountID)
+		_ = s.markReconnectLocked(ctx, accountID)
 		return "", ErrReconnect
 	}
 	if err != nil || rotated.AccessToken == "" || rotated.RefreshToken == "" || rotated.ExpiresIn <= 0 {
 		return "", errors.New("auth: provider refresh failed")
 	}
-	grant, err := s.provider.Validate(ctx, rotated.AccessToken)
+	operationCtx, cancel := s.detachedOperationContext(ctx)
+	defer cancel()
+	sealed, err := s.seal(row.TwitchID, storedTokens{Access: rotated.AccessToken, Refresh: rotated.RefreshToken})
+	if err != nil {
+		return "", err
+	}
+	// Twitch rotates refresh tokens. Persist the pair as validation-pending
+	// before validation so a temporary validation outage or caller cancellation
+	// cannot lose the one-time refresh token.
+	expiresAt := s.now().UTC().Add(rotated.ExpiresIn)
+	res, err := s.db.Writer().ExecContext(operationCtx, `UPDATE accounts SET token_ciphertext=?,token_expires_at=?,token_validation_pending=1,updated_at=? WHERE id=? AND provider_subject=? AND status='connected'`, sealed, expiresAt.UnixMilli(), s.now().UTC().UnixMilli(), accountID, row.TwitchID)
+	if err != nil {
+		return "", errors.New("auth: rotated credentials could not be saved")
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		return "", ErrReconnect
+	}
+	grant, err := s.provider.Validate(operationCtx, rotated.AccessToken)
 	if err != nil {
 		if errors.Is(err, ErrAuthorizationLost) {
-			_ = s.markReconnect(ctx, accountID)
+			_ = s.markReconnectLocked(operationCtx, accountID)
 			return "", ErrReconnect
 		}
 		return "", errors.New("auth: refreshed authorization could not be validated")
 	}
 	if grant.ClientID != s.clientID || grant.UserID != row.TwitchID || !validLogin(grant.Login) || grant.Expires <= 0 || !hasScopes(grant.Scopes, s.scopes) {
-		_ = s.markReconnect(ctx, accountID)
+		_ = s.markReconnectLocked(operationCtx, accountID)
 		return "", ErrReconnect
 	}
 	expiresIn := rotated.ExpiresIn
 	if grant.Expires < expiresIn {
 		expiresIn = grant.Expires
 	}
-	sealed, err := s.seal(storedTokens{Access: rotated.AccessToken, Refresh: rotated.RefreshToken})
-	if err != nil {
-		return "", err
-	}
-	res, err := s.db.Writer().ExecContext(ctx, `UPDATE accounts SET token_ciphertext=?,token_expires_at=?,scopes=?,status='connected',updated_at=? WHERE id=? AND provider_subject=?`, sealed, s.now().UTC().Add(expiresIn).UnixMilli(), encodeScopes(grant.Scopes), s.now().UTC().UnixMilli(), accountID, row.TwitchID)
+	validatedAt := s.now().UTC()
+	res, err = s.db.Writer().ExecContext(operationCtx, `UPDATE accounts SET token_expires_at=?,token_validated_at=?,token_validation_pending=0,scopes=?,status='connected',updated_at=? WHERE id=? AND provider_subject=? AND status='connected' AND token_validation_pending=1`, validatedAt.Add(expiresIn).UnixMilli(), validatedAt.UnixMilli(), encodeScopes(grant.Scopes), validatedAt.UnixMilli(), accountID, row.TwitchID)
 	if err != nil {
 		return "", errors.New("auth: rotated credentials could not be saved")
 	}
@@ -346,7 +400,116 @@ func (s *Service) refreshLocked(ctx context.Context, accountID string, row accou
 
 // RevokeProviderAuthorization makes subsequent browser requests reconnect.
 func (s *Service) RevokeProviderAuthorization(ctx context.Context, accountID string) error {
-	return s.markReconnect(ctx, accountID)
+	subject, err := s.accountSubject(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	lock := s.accountLock(subject)
+	lock.Lock()
+	defer lock.Unlock()
+	return s.markReconnectLocked(ctx, accountID)
+}
+
+// ValidateAll validates every connected account before startup and during
+// maintenance. Invalid grants transition to reconnect_required and revoke
+// browser sessions; transient provider failures are returned for retry.
+func (s *Service) ValidateAll(ctx context.Context) error {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM accounts WHERE status='connected' ORDER BY id`)
+	if err != nil {
+		return errors.New("auth: connected accounts could not be listed for validation")
+	}
+	var accountIDs []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			_ = rows.Close()
+			return errors.New("auth: connected accounts could not be read for validation")
+		}
+		accountIDs = append(accountIDs, id)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return errors.New("auth: connected accounts could not be read for validation")
+	}
+	_ = rows.Close()
+	failed := false
+	for _, accountID := range accountIDs {
+		if err := s.validateAccount(ctx, accountID); err != nil && !errors.Is(err, ErrReconnect) {
+			failed = true
+		}
+	}
+	if failed {
+		return errors.New("auth: one or more Twitch grants could not be validated")
+	}
+	return nil
+}
+
+// Maintain performs the startup sweep in New and repeats it no less often
+// than the configured validation interval. It exits promptly when ctx ends.
+func (s *Service) Maintain(ctx context.Context, onError func(error)) {
+	ticker := time.NewTicker(s.validationInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := s.ValidateAll(ctx); err != nil && onError != nil {
+				onError(err)
+			}
+		}
+	}
+}
+
+func (s *Service) validateAccount(ctx context.Context, accountID string) error {
+	subject, err := s.accountSubject(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	lock := s.accountLock(subject)
+	lock.Lock()
+	defer lock.Unlock()
+	row, tokens, err := s.loadAccountTokens(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	if row.Status != "connected" {
+		return nil
+	}
+	if row.ValidationPending {
+		_, err = s.validateCurrentLocked(ctx, accountID, row, tokens)
+		return err
+	}
+	if !row.ExpiresAt.After(s.now().UTC()) {
+		_, err = s.refreshLocked(ctx, accountID, row, tokens)
+		return err
+	}
+	_, err = s.validateCurrentLocked(ctx, accountID, row, tokens)
+	return err
+}
+
+func (s *Service) validateCurrentLocked(ctx context.Context, accountID string, row accountRow, tokens storedTokens) (string, error) {
+	grant, err := s.provider.Validate(ctx, tokens.Access)
+	if err != nil {
+		if errors.Is(err, ErrAuthorizationLost) {
+			_ = s.markReconnectLocked(ctx, accountID)
+			return "", ErrReconnect
+		}
+		return "", errors.New("auth: provider token validation failed")
+	}
+	if grant.ClientID != s.clientID || grant.UserID != row.TwitchID || !validLogin(grant.Login) || grant.Expires <= 0 || !hasScopes(grant.Scopes, s.scopes) {
+		_ = s.markReconnectLocked(ctx, accountID)
+		return "", ErrReconnect
+	}
+	now := s.now().UTC()
+	result, err := s.db.Writer().ExecContext(ctx, `UPDATE accounts SET token_validated_at=?,token_validation_pending=0,updated_at=? WHERE id=? AND provider_subject=? AND status='connected' AND token_ciphertext=?`, now.UnixMilli(), now.UnixMilli(), accountID, row.TwitchID, row.Ciphertext)
+	if err != nil {
+		return "", errors.New("auth: validation state could not be saved")
+	}
+	if n, _ := result.RowsAffected(); n != 1 {
+		return "", ErrReconnect
+	}
+	return tokens.Access, nil
 }
 
 func (s *Service) saveState(ctx context.Context, state, browser string) error {
@@ -385,6 +548,9 @@ func (s *Service) consumeState(ctx context.Context, state, browser string) bool 
 }
 
 func (s *Service) upsertAccount(ctx context.Context, grant Grant, ciphertext []byte, expires time.Duration) (Account, error) {
+	lock := s.accountLock(grant.UserID)
+	lock.Lock()
+	defer lock.Unlock()
 	now := s.now().UTC()
 	channelCandidate, err := id.New()
 	if err != nil {
@@ -407,7 +573,7 @@ func (s *Service) upsertAccount(ctx context.Context, grant Grant, ciphertext []b
 	if err = tx.QueryRowContext(ctx, `SELECT id FROM channels WHERE platform_id=?`, grant.UserID).Scan(&channelID); err != nil {
 		return Account{}, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO accounts(id,provider,provider_subject,login,channel_id,token_ciphertext,token_expires_at,scopes,status,updated_at) VALUES(?,'twitch',?,?,?,?,?,?,'connected',?) ON CONFLICT(provider,provider_subject) DO UPDATE SET login=excluded.login,token_ciphertext=excluded.token_ciphertext,token_expires_at=excluded.token_expires_at,scopes=excluded.scopes,status='connected',updated_at=excluded.updated_at`, accountCandidate, grant.UserID, grant.Login, channelID, ciphertext, now.Add(expires).UnixMilli(), encodeScopes(grant.Scopes), now.UnixMilli())
+	_, err = tx.ExecContext(ctx, `INSERT INTO accounts(id,provider,provider_subject,login,channel_id,token_ciphertext,token_expires_at,token_validated_at,token_validation_pending,scopes,status,updated_at) VALUES(?,'twitch',?,?,?,?,?,?,0,?,'connected',?) ON CONFLICT(provider,provider_subject) DO UPDATE SET login=excluded.login,token_ciphertext=excluded.token_ciphertext,token_expires_at=excluded.token_expires_at,token_validated_at=excluded.token_validated_at,token_validation_pending=0,scopes=excluded.scopes,status='connected',updated_at=excluded.updated_at`, accountCandidate, grant.UserID, grant.Login, channelID, ciphertext, now.Add(expires).UnixMilli(), now.UnixMilli(), encodeScopes(grant.Scopes), now.UnixMilli())
 	if err != nil {
 		return Account{}, err
 	}
@@ -437,6 +603,10 @@ func (s *Service) issueSession(ctx context.Context, accountID, previous string) 
 		return "", "", err
 	}
 	defer tx.Rollback()
+	var status string
+	if err = tx.QueryRowContext(ctx, `SELECT status FROM accounts WHERE id=?`, accountID).Scan(&status); err != nil || status != "connected" {
+		return "", "", ErrReconnect
+	}
 	if previous != "" {
 		if _, err = tx.ExecContext(ctx, `UPDATE browser_sessions SET revoked_at=? WHERE token_hash=? AND revoked_at IS NULL`, now.UnixMilli(), digest(previous)); err != nil {
 			return "", "", err
@@ -451,24 +621,60 @@ func (s *Service) issueSession(ctx context.Context, accountID, previous string) 
 
 func (s *Service) loadAccountTokens(ctx context.Context, accountID string) (accountRow, storedTokens, error) {
 	var row accountRow
-	var expiry int64
+	var expiry, validated int64
+	var pending int
 	var scopes string
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT id,provider_subject,login,channel_id,token_ciphertext,token_expires_at,scopes,status FROM accounts WHERE id=?`, accountID).Scan(&row.ID, &row.TwitchID, &row.Login, &row.ChannelID, &row.Ciphertext, &expiry, &scopes, &row.Status)
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT id,provider_subject,login,channel_id,token_ciphertext,token_expires_at,token_validated_at,token_validation_pending,scopes,status FROM accounts WHERE id=?`, accountID).Scan(&row.ID, &row.TwitchID, &row.Login, &row.ChannelID, &row.Ciphertext, &expiry, &validated, &pending, &scopes, &row.Status)
 	if err != nil {
 		return accountRow{}, storedTokens{}, ErrUnauthorized
 	}
 	row.ExpiresAt = time.UnixMilli(expiry).UTC()
+	if validated > 0 {
+		row.ValidatedAt = time.UnixMilli(validated).UTC()
+	}
+	row.ValidationPending = pending != 0
 	row.Scopes = decodeScopes(scopes)
 	var tokens storedTokens
-	if err = s.open(row.Ciphertext, &tokens); err != nil {
+	if err = s.open(row.Ciphertext, row.TwitchID, &tokens); err != nil {
 		return accountRow{}, storedTokens{}, errors.New("auth: credentials unavailable")
 	}
 	return row, tokens, nil
 }
 
-func (s *Service) markReconnect(ctx context.Context, accountID string) error {
-	_, err := s.db.Writer().ExecContext(ctx, `UPDATE accounts SET status='reconnect_required',updated_at=? WHERE id=?`, s.now().UTC().UnixMilli(), accountID)
-	return err
+func (s *Service) markReconnectLocked(ctx context.Context, accountID string) error {
+	operationCtx, cancel := s.detachedOperationContext(ctx)
+	defer cancel()
+	tx, err := s.db.BeginWrite(operationCtx)
+	if err != nil {
+		return errors.New("auth: reconnect state could not be saved")
+	}
+	defer tx.Rollback()
+	now := s.now().UTC().UnixMilli()
+	if _, err = tx.ExecContext(operationCtx, `UPDATE accounts SET status='reconnect_required',token_validation_pending=0,updated_at=? WHERE id=?`, now, accountID); err != nil {
+		return errors.New("auth: reconnect state could not be saved")
+	}
+	if _, err = tx.ExecContext(operationCtx, `UPDATE browser_sessions SET revoked_at=? WHERE account_id=? AND revoked_at IS NULL`, now, accountID); err != nil {
+		return errors.New("auth: browser sessions could not be revoked")
+	}
+	if err = tx.Commit(); err != nil {
+		return errors.New("auth: reconnect state could not be saved")
+	}
+	return nil
+}
+
+func (s *Service) accountSubject(ctx context.Context, accountID string) (string, error) {
+	if accountID == "" {
+		return "", ErrUnauthorized
+	}
+	var subject string
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT provider_subject FROM accounts WHERE id=?`, accountID).Scan(&subject); err != nil {
+		return "", ErrUnauthorized
+	}
+	return subject, nil
+}
+
+func (s *Service) detachedOperationContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 }
 
 func (s *Service) accountLock(key string) *sync.Mutex {
@@ -526,7 +732,10 @@ func (s *Service) expiredCookie(name string, httpOnly bool) *http.Cookie {
 	return &http.Cookie{Name: name, Value: "", Path: "/", MaxAge: -1, Expires: time.Unix(1, 0), Secure: s.secure, HttpOnly: httpOnly, SameSite: http.SameSiteLaxMode}
 }
 
-func (s *Service) seal(tokens storedTokens) ([]byte, error) {
+func (s *Service) seal(subject string, tokens storedTokens) ([]byte, error) {
+	if subject == "" {
+		return nil, ErrForbidden
+	}
 	block, err := aes.NewCipher(s.key)
 	if err != nil {
 		return nil, err
@@ -543,10 +752,13 @@ func (s *Service) seal(tokens storedTokens) ([]byte, error) {
 	if _, err = rand.Read(nonce); err != nil {
 		return nil, err
 	}
-	return append(nonce, aead.Seal(nil, nonce, plain, []byte("receipts/twitch-token/v1"))...), nil
+	return append(nonce, aead.Seal(nil, nonce, plain, tokenAAD(subject))...), nil
 }
 
-func (s *Service) open(sealed []byte, dst *storedTokens) error {
+func (s *Service) open(sealed []byte, subject string, dst *storedTokens) error {
+	if subject == "" {
+		return ErrForbidden
+	}
 	block, err := aes.NewCipher(s.key)
 	if err != nil {
 		return err
@@ -555,14 +767,14 @@ func (s *Service) open(sealed []byte, dst *storedTokens) error {
 	if err != nil || len(sealed) < aead.NonceSize() {
 		return errors.New("auth: invalid ciphertext")
 	}
-	plain, err := aead.Open(nil, sealed[:aead.NonceSize()], sealed[aead.NonceSize():], []byte("receipts/twitch-token/v1"))
+	plain, err := aead.Open(nil, sealed[:aead.NonceSize()], sealed[aead.NonceSize():], tokenAAD(subject))
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(plain, dst)
 }
 
-func (s *Service) encryptForTest(tokens storedTokens) ([]byte, error) { return s.seal(tokens) }
+func tokenAAD(subject string) []byte { return []byte("receipts/twitch-token/v1/" + subject) }
 
 func randomToken() (string, error) {
 	b := make([]byte, 32)

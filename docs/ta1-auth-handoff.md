@@ -20,24 +20,32 @@ current browser session. Mutating API handlers should call
 
 ## Storage and checks
 
-The account migration adds `accounts`, `browser_sessions`, and `oauth_states`
-to the ledger migration stream. A Twitch subject maps to one account and one
+The account migrations add `accounts`, `browser_sessions`, and `oauth_states`
+to the ledger migration stream, plus durable token-validation and
+validation-pending fields. A Twitch subject maps to one account and one
 existing channel row, so another login for that subject resumes the same local
 IDs. Access and refresh tokens are AES-GCM encrypted in SQLite. The cookie
 session token, CSRF token, OAuth state and browser binding are stored only as
 SHA-256 digests. Session expiry and revocation are checked against SQLite on
-every request. Login rotates the browser session; logout revokes it. The
-browser session and Twitch authorization have separate states: a revoked or
-invalid refresh grant changes the account connection state to
-`reconnect_required` while leaving the browser able to start sign-in again.
+every request. Login rotates the browser session; logout revokes it. A revoked
+or invalid provider grant changes the account connection state to
+`reconnect_required` and revokes its browser sessions in the same transaction.
+The owner can start a fresh Twitch sign-in to establish a new session.
 
-The refresh mutex serializes refreshes per account inside the single Receipts
-process. `AccessToken` refreshes after token expiry, and provider adapters can
-call `RefreshAfterUnauthorized` after a Helix 401; a request carrying a token
-that another goroutine already replaced receives the current token without
-reusing the rotated refresh token. The new Keel `sqlite.DB.BeginWrite` API is
-used for the state, account, and session transactions. The operator encryption key must remain stable
-across restarts and key rotation currently requires reconnecting owners.
+The subject-keyed mutex serializes login upserts, validation, refresh and
+revocation per Twitch account inside the single Receipts process. Successful
+refresh rotations are stored encrypted as validation-pending before calling
+the validator, so a temporary validator outage or canceled request cannot
+lose the one-time rotated refresh token. A later validation resumes that pair
+without refreshing it again. `AccessToken` refreshes after expiry and checks
+the grant after a restart and at most hourly; a cancellable hourly sweep also
+validates idle connected accounts. Provider adapters can call
+`RefreshAfterUnauthorized` after a Helix 401; an already-replaced rejected
+token receives the current token without reusing the rotated refresh token.
+Ciphertext authentication binds to the verified Twitch subject. Keel's
+`sqlite.DB.BeginWrite` API is used for state, account, session and reconnect
+transactions. The operator encryption key must remain stable across restarts;
+key rotation requires reconnecting owners.
 
 Keel identity was reviewed before implementation. Its existing signed cookie
 contains the session ID and has no server-side expiry check, and its OIDC
@@ -48,5 +56,6 @@ Keel SQLite, migration, and ID APIs.
 
 Offline provider fakes cover same-account login, invalid state, client and
 grant rejection, session rotation/expiry, CSRF, encrypted restart recovery,
-refresh serialization, and revoked/changed identity handling. Live Twitch
+refresh/login/revocation races, canceled refresh persistence, startup/hourly
+validation, pending-token recovery and cross-account ciphertext swaps. Live Twitch
 consent and hosted HTTPS behavior remain separate acceptance checks.

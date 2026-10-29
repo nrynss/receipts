@@ -75,6 +75,18 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 		if err != nil {
 			return err
 		}
+		maintenanceCtx, cancelMaintenance := context.WithCancel(ctx)
+		maintenanceDone := make(chan struct{})
+		go func() {
+			defer close(maintenanceDone)
+			authService.Maintain(maintenanceCtx, func(error) {
+				log.Print("auth: scheduled Twitch validation failed")
+			})
+		}()
+		defer func() {
+			cancelMaintenance()
+			<-maintenanceDone
+		}()
 		mux := http.NewServeMux()
 		mux.Handle("/auth/", authService.Handler())
 		mux.Handle("/", http.FileServer(http.FS(static)))
