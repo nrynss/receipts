@@ -2,6 +2,8 @@ package settings
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"math"
 	"strings"
 	"testing"
@@ -52,14 +54,24 @@ func TestLoadLiveWithConfiguredSettings(t *testing.T) {
 		"RECEIPTS_MODE": "live", "RECEIPTS_CHANNEL_ID": "channel-id",
 		"RECEIPTS_CHANNEL_NAME": "owner", "RECEIPTS_TRANSCRIPTION_MODEL": "model-stt",
 		"RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "model-judge",
-		"TWITCH_CLIENT_ID": "client-id", "TWITCH_ACCESS_TOKEN": "token-value",
-		"OPENAI_API_KEY": "api-key-value",
+		"TWITCH_CLIENT_ID": "client-secret-sentinel", "TWITCH_ACCESS_TOKEN": "token-secret-sentinel",
+		"OPENAI_API_KEY": "openai-secret-sentinel",
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if s.Mode != ModeLive || s.JudgeModel != "model-judge" {
 		t.Fatalf("live settings = %#v", s)
+	}
+	formatted := fmt.Sprintf("%+v %#v", s, s)
+	encoded, err := json.Marshal(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sentinel := range []string{"client-secret-sentinel", "token-secret-sentinel", "openai-secret-sentinel"} {
+		if strings.Contains(formatted, sentinel) || strings.Contains(string(encoded), sentinel) {
+			t.Fatalf("settings formatting leaked secret sentinel %q", sentinel)
+		}
 	}
 }
 
@@ -71,6 +83,8 @@ func TestValidateRejectsInvalidOriginAndLimits(t *testing.T) {
 		{"origin credentials", func(s *Settings) { s.PublicOrigin = "https://user:pass@example.test" }},
 		{"origin path", func(s *Settings) { s.PublicOrigin = "https://example.test/path" }},
 		{"origin empty hostname", func(s *Settings) { s.PublicOrigin = "http://:8080" }},
+		{"origin port zero", func(s *Settings) { s.PublicOrigin = "https://example.test:0" }},
+		{"origin port too large", func(s *Settings) { s.PublicOrigin = "https://example.test:99999" }},
 		{"zero retention", func(s *Settings) { s.TranscriptRetention = 0 }},
 		{"negative cooldown", func(s *Settings) { s.StampCooldown = -time.Second }},
 		{"long appeal", func(s *Settings) { s.AppealDuration = 25 * time.Hour }},
@@ -86,6 +100,19 @@ func TestValidateRejectsInvalidOriginAndLimits(t *testing.T) {
 			tc.edit(&s)
 			if err := s.Validate(); err == nil {
 				t.Fatal("Validate succeeded")
+			}
+		})
+	}
+}
+
+func TestLoadRejectsInfiniteSpendLimits(t *testing.T) {
+	for _, spend := range []string{"+Inf", "-Inf"} {
+		t.Run(spend, func(t *testing.T) {
+			_, err := Load(context.Background(), env(map[string]string{
+				"RECEIPTS_MODE": "fixture", "RECEIPTS_JUDGE_SPEND_USD": spend,
+			}))
+			if err == nil || !strings.Contains(err.Error(), "RECEIPTS_JUDGE_SPEND_USD") {
+				t.Fatalf("Load error = %v, want invalid spend cap", err)
 			}
 		})
 	}

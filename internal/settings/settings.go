@@ -232,6 +232,12 @@ func (s Settings) Validate() error {
 		u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
 		return errorsf("RECEIPTS_PUBLIC_ORIGIN must be an http(s) origin without credentials, path, query, or fragment")
 	}
+	if port := u.Port(); port != "" {
+		n, err := strconv.Atoi(port)
+		if err != nil || n < 1 || n > 65535 {
+			return errorsf("RECEIPTS_PUBLIC_ORIGIN port must be between 1 and 65535")
+		}
+	}
 	if s.ChannelID != "" && strings.TrimSpace(s.ChannelID) != s.ChannelID {
 		return errorsf("RECEIPTS_CHANNEL_ID must not contain surrounding whitespace")
 	}
