@@ -18,7 +18,7 @@ import (
 type fixtureReader struct{}
 
 func (fixtureReader) OverlaySnapshot(*http.Request) (events.OverlaySnapshot, error) {
-	return events.OverlaySnapshot{Epoch: "test-epoch", Channel: "demo", Live: true, Sequence: 7, Receipts: []events.PublicReceipt{{ID: "r1", Claim: "Will try the route", ClipURL: "https://clips.example/r1", ClipStatus: "ready", Verdict: "undecided", CreatedAt: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}}}, nil
+	return events.OverlaySnapshot{Epoch: "test-epoch", Channel: "demo", Live: true, Sequence: 7, CurrentAppeal: &events.PublicAppeal{ReceiptID: "r1", ClosesAt: time.Date(2000, 1, 1, 0, 1, 0, 0, time.UTC), UpholdVotes: 2, OverturnVotes: 1}, Receipts: []events.PublicReceipt{{ID: "r1", Claim: "Will try the route", ClippedBy: "river", ClipURL: "https://clips.example/r1", ClipStatus: "ready", Verdict: "undecided", CreatedAt: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}}}, nil
 }
 func (fixtureReader) ReviewQueue(*http.Request) ([]events.ReviewItem, error) {
 	return []events.ReviewItem{{ID: "review1", Claim: "Will try the route", Reason: "speaker uncertain", CreatedAt: time.Date(2000, 1, 1, 0, 0, 1, 0, time.UTC)}}, nil
@@ -30,9 +30,10 @@ func (fixtureReader) Health(*http.Request) (events.Health, error) {
 
 func TestGoPayloadsMatchGoldenContracts(t *testing.T) {
 	stamp := time.Date(2000, 1, 1, 0, 0, 1, 0, time.UTC)
-	receipt := events.PublicReceipt{ID: "r1", Claim: "Will try the route", ClipURL: "https://clips.example/r1", ClipStatus: "ready", Verdict: "undecided", CreatedAt: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}
+	receipt := events.PublicReceipt{ID: "r1", Claim: "Will try the route", ClippedBy: "river", ClipURL: "https://clips.example/r1", ClipStatus: "ready", Verdict: "undecided", CreatedAt: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}
 	tests := map[string]any{
 		"overlay.snapshot.json":         fixtureReader{}.snapshot(),
+		"overlay.appeal.json":           events.OverlayEvent{Epoch: "test-epoch", Sequence: 9, OccurredAt: stamp.Add(time.Second), Appeal: &events.PublicAppeal{ReceiptID: "r1", ClosesAt: time.Date(2000, 1, 1, 0, 1, 0, 0, time.UTC), UpholdVotes: 2, OverturnVotes: 1}},
 		"overlay.stamp.json":            events.OverlayEvent{Epoch: "test-epoch", Sequence: 8, OccurredAt: stamp, Receipt: &receipt},
 		"review.queue.json":             []events.ReviewItem{{ID: "review1", Claim: "Will try the route", Reason: "speaker uncertain", CreatedAt: stamp}},
 		"health.json":                   events.Health{Status: "ok", Mode: "fixture", LastEventAt: &stamp},

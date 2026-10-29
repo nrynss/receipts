@@ -102,3 +102,24 @@ func TestSnapshotWaitsForCommitAndCarriesItsSequence(t *testing.T) {
 		t.Fatalf("snapshot version = (%s,%d)", value.Epoch, value.Sequence)
 	}
 }
+
+func TestAppealPublicationAndSnapshotOwnTheirData(t *testing.T) {
+	p := NewPublisher("appeal-epoch")
+	sub := p.Broker.Subscribe(context.Background(), TopicOverlay)
+	defer sub.Cancel()
+	appeal := PublicAppeal{ReceiptID: "receipt-a", ClosesAt: time.Unix(60, 0), UpholdVotes: 2, OverturnVotes: 1}
+	p.Commit(Status, func() OverlayEvent { return OverlayEvent{Appeal: &appeal} })
+	appeal.UpholdVotes = 100
+	event := (<-sub.Events).Data.(OverlayEvent)
+	if event.Appeal.UpholdVotes != 2 {
+		t.Fatal("appeal event aliases caller state")
+	}
+	snapshot, err := p.Snapshot(func() (OverlaySnapshot, error) { return OverlaySnapshot{CurrentAppeal: &appeal}, nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	appeal.ReceiptID = "changed"
+	if snapshot.CurrentAppeal.ReceiptID != "receipt-a" {
+		t.Fatal("appeal snapshot aliases read model")
+	}
+}
