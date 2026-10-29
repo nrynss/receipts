@@ -12,7 +12,10 @@ describe('T1.3 contract decoders', () => {
     const dir = fileURLToPath(new URL('../../../../testdata/contracts/', import.meta.url));
     const payloads = await Promise.all(files.map(async f => JSON.parse(await readFile(resolve(dir, f), 'utf8')) as unknown));
     expect(decodeSnapshot(payloads[0])).toMatchObject({ epoch: 'test-epoch', sequence: 7 });
-    expect(decodeOverlayEvent(payloads[1])).toMatchObject({ sequence: 8 });
+    expect(decodeOverlayEvent(payloads[1])).toMatchObject({ sequence: 8, receipt: { clipped_by: 'river' } });
+    const appeal = JSON.parse(await readFile(resolve(dir, 'overlay.appeal.json'), 'utf8')) as unknown;
+    expect(decodeOverlayEvent(appeal).appeal?.uphold_votes).toBe(2);
+    expect(() => decodeOverlayEvent({ ...stamp, appeal: { receipt_id: 'r1', closes_at: '2000-01-01T00:01:00Z', uphold_votes: -1, overturn_votes: 0 } })).toThrow();
     expect(decodeReviewQueue(payloads[2])).toHaveLength(1);
     expect(decodeHealth(payloads[3]).status).toBe('ok');
     expect(decodeTranscriptSegment(payloads[4]).start_ns).toBe(1_000_000_000);
