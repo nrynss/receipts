@@ -16,7 +16,8 @@ Build and run the current server using the [development instructions](docs/devel
 | P0 — Feasibility | 4/4 | Twitch, audio and OBS probes |
 | P1 — Foundation | 4/4 | Settings, ledger, contracts and deterministic replay driver |
 | TA — Accounts and onboarding | 1/4 | Twitch login, channel isolation, OBS pairing and judge demo |
-| P2–P5 — Product experience | Planned | Receipt loop, overlay, Twitch and intelligence |
+| P2 — Offline receipt loop | 1/4 | Receipt capture implemented; detection, appeal and lore pending |
+| P3–P5 — Live experience | Planned | Overlay, Twitch and intelligence |
 | P6 — Release | Planned | Deployment, live proof and judge readiness |
 
 [TA implementation phase and acceptance criteria](dev-diary/PHASE-A-accounts.md), with [account scope](docs/accounts-scope.md). TA.1 identity/sessions is implemented; TA.2 enables shared channel runtimes, TA.3 joins the overlay work, and TA.4 verifies the deployed judge experience before submission preparation.

@@ -2,7 +2,13 @@
 // and its adapters. It contains no provider-specific behavior.
 package receipt
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+var ErrCommandDuplicate = errors.New("duplicate command")
+var ErrCommandThrottled = errors.New("receipt command throttled")
 
 type Validity string
 
@@ -123,4 +129,18 @@ type ReceiptInput struct {
 	ExpiresAt                              *time.Time
 	Sensitive                              bool
 	Evidence                               []EvidenceInput
+}
+
+type CaptureInput struct {
+	CommandID, ChannelID, SessionID, UserID, Login string
+	Claim                                          string
+	ReceivedAt                                     time.Time
+	Window                                         time.Duration
+	Evidence                                       []EvidenceInput
+}
+
+type Credit struct{ UserID, Login string }
+type ClipJob struct {
+	ID, ChannelID, ReceiptID, Status, ClipID, ClipURL, LastError string
+	RequestedAt                                                  time.Time
 }
