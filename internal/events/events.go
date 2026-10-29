@@ -25,15 +25,26 @@ type PublicReceipt struct {
 	ClipStatus string    `json:"clip_status"`
 	Verdict    string    `json:"verdict"`
 	CreatedAt  time.Time `json:"created_at"`
+	ClippedBy  string    `json:"clipped_by,omitempty"`
+}
+
+// PublicAppeal exposes counts and a deadline, never voter identities. P2.3
+// owns the application lifecycle; these optional fields do not start voting.
+type PublicAppeal struct {
+	ReceiptID     string    `json:"receipt_id"`
+	ClosesAt      time.Time `json:"closes_at"`
+	UpholdVotes   int       `json:"uphold_votes"`
+	OverturnVotes int       `json:"overturn_votes"`
 }
 
 type OverlaySnapshot struct {
-	Epoch        string          `json:"epoch"`
-	Channel      string          `json:"channel"`
-	Live         bool            `json:"live"`
-	Receipts     []PublicReceipt `json:"receipts"`
-	CurrentStamp *PublicReceipt  `json:"current_stamp,omitempty"`
-	Sequence     uint64          `json:"sequence"`
+	Epoch         string          `json:"epoch"`
+	Channel       string          `json:"channel"`
+	Live          bool            `json:"live"`
+	Receipts      []PublicReceipt `json:"receipts"`
+	CurrentStamp  *PublicReceipt  `json:"current_stamp,omitempty"`
+	Sequence      uint64          `json:"sequence"`
+	CurrentAppeal *PublicAppeal   `json:"current_appeal,omitempty"`
 }
 
 type OverlayEvent struct {
@@ -42,6 +53,7 @@ type OverlayEvent struct {
 	OccurredAt time.Time      `json:"occurred_at"`
 	Receipt    *PublicReceipt `json:"receipt,omitempty"`
 	Live       *bool          `json:"live,omitempty"`
+	Appeal     *PublicAppeal  `json:"appeal,omitempty"`
 }
 
 type ReviewItem struct {
@@ -124,6 +136,10 @@ func (p *Publisher) Snapshot(read func() (OverlaySnapshot, error)) (OverlaySnaps
 }
 
 func cloneEvent(value OverlayEvent) OverlayEvent {
+	if value.Appeal != nil {
+		copy := *value.Appeal
+		value.Appeal = &copy
+	}
 	if value.Receipt != nil {
 		copy := *value.Receipt
 		value.Receipt = &copy
@@ -135,6 +151,10 @@ func cloneEvent(value OverlayEvent) OverlayEvent {
 	return value
 }
 func cloneSnapshot(value OverlaySnapshot) OverlaySnapshot {
+	if value.CurrentAppeal != nil {
+		copy := *value.CurrentAppeal
+		value.CurrentAppeal = &copy
+	}
 	value.Receipts = append([]PublicReceipt(nil), value.Receipts...)
 	if value.CurrentStamp != nil {
 		copy := *value.CurrentStamp
