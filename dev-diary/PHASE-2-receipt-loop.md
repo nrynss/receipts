@@ -2,7 +2,7 @@
 
 **Goal:** Complete the promise-to-stamp-to-verdict experience using recorded inputs before wiring live services.
 
-**Status:** not-started
+**Status:** in-progress
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -12,7 +12,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 requires: T1.4
 fixture-ok: yes
 owns: internal/commands/, internal/receipt/, testdata/replay/
-status: not-started
+status: in-progress
 ```
 
 Handle !receipt with channel-scoped deduplication, per-user/channel throttling and a bounded lookback. Extract only from attributed transcript segments; chat is a trigger, never claim evidence. Suppress sensitive claims before saving a public receipt or replying with its text. Record who captured it and original evidence. Create clip work separately so pending or failed clips do not lose the text receipt. Explain no eligible claim and unavailable transcript without fabricating evidence.

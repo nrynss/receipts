@@ -25,7 +25,7 @@ Implement Twitch authorization-code login, verified identity and one owned chann
 requires: TA.1, T1.3
 fixture-ok: yes
 owns: internal/auth/, internal/api/, internal/events/, internal/runtime/, internal/store/, internal/settings/
-status: not-started
+status: in-progress
 ```
 
 Resolve validated owner or device channel context at every API boundary. Give each active channel its own publisher, epoch, session authority, cancellation, buffers, cooldowns and usage. Enforce per-channel and global capacity/spend limits; reject or queue activation visibly. Coordinate shared paths with live adapter and product-loop tasks.

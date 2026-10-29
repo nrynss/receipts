@@ -10,8 +10,8 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 |---|---|---|---|
 | P0 | [Ground and feasibility](PHASE-0-ground.md) | 4 / 4 | Complete; owner confirmed OBS video, audio and autoplay |
 | P1 | [Contracts, storage and lifecycle](PHASE-1-contracts.md) | 4 / 4 | Complete; replay driver landed; full product scenario acceptance belongs to T2.4 |
-| TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 1 / 4 | Identity/sessions reviewed; TA.2 channel authorization and isolation next |
-| P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 0 / 4 | Not started |
+| TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 1 / 4 | Identity/sessions complete; Luna implementing TA.2 isolation |
+| P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 0 / 4 | Luna implementing T2.1 receipt capture |
 | P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 0 / 3 | Not started |
 | P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 0 / 4 | Not started |
 | P5 | [Live transcription and contradiction judging](PHASE-5-intelligence.md) | 0 / 4 | Not started |
@@ -80,4 +80,4 @@ The combined tree at `ed2c7d6` passed the full offline gate and uncached auth/re
 
 ## Ready next
 
-T2.1 receipt capture, TA.2 channel authorization/runtime isolation and T3.1 overlay states have completed prerequisites. No implementation agent is active. Later tasks retain their explicit dependencies. T6.1 deploys after TA.3; TA.4 verifies that deployment and gates T6.3 judge readiness.
+Fresh Luna agents are implementing T2.1 receipt capture and TA.2 channel authorization/runtime isolation in separate worktrees. T3.1 overlay states is ready and unassigned. Later tasks retain their explicit dependencies. T6.1 deploys after TA.3; TA.4 verifies that deployment and gates T6.3 judge readiness.
