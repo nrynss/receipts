@@ -9,7 +9,7 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 | Phase | Document | Complete | Status |
 |---|---|---|---|
 | P0 | [Ground and feasibility](PHASE-0-ground.md) | 4 / 4 | Complete; owner confirmed OBS video, audio and autoplay |
-| P1 | [Contracts, storage and lifecycle](PHASE-1-contracts.md) | 3 / 4 | Settings, ledger and API/event contracts complete; Luna implementing T1.4 replay |
+| P1 | [Contracts, storage and lifecycle](PHASE-1-contracts.md) | 3 / 4 | Settings, ledger and API/event contracts complete; Replay foundation reviewed; full T1.4 scenario awaits P2 |
 | TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 0 / 4 | Not started; TA.1 identity can begin alongside T1.4 |
 | P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 0 / 4 | Not started |
 | P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 0 / 3 | Not started |

@@ -37,12 +37,14 @@ type Config struct {
 	Path      string
 	Retention Retention
 	Now       func() time.Time
+	IDSource  func() (string, error)
 }
 
 type Store struct {
 	db        *sqlite.DB
 	retention Retention
 	now       func() time.Time
+	idSource  func() (string, error)
 	ownsDB    bool
 }
 
@@ -60,6 +62,10 @@ func Open(ctx context.Context, cfg Config) (*Store, error) {
 	if now == nil {
 		now = time.Now
 	}
+	idSource := cfg.IDSource
+	if idSource == nil {
+		idSource = id.New
+	}
 	db, err := sqlite.Open(ctx, sqlite.Config{Path: cfg.Path, Now: now})
 	if err != nil {
 		return nil, err
@@ -72,12 +78,18 @@ func Open(ctx context.Context, cfg Config) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
-	return &Store{db: db, retention: cfg.Retention, now: now, ownsDB: true}, nil
+	return &Store{db: db, retention: cfg.Retention, now: now, idSource: idSource, ownsDB: true}, nil
 }
 
 // New migrates a caller-owned Keel SQLite handle. Closing this Store does not
 // close db; this lets the ledger share the application's one database file.
 func New(ctx context.Context, db *sqlite.DB, retention Retention, now func() time.Time) (*Store, error) {
+	return NewWithIDSource(ctx, db, retention, now, nil)
+}
+
+// NewWithIDSource migrates a caller-owned DB and allows deterministic callers
+// such as fixture replay to supply stable IDs. A nil source keeps Keel IDs.
+func NewWithIDSource(ctx context.Context, db *sqlite.DB, retention Retention, now func() time.Time, idSource func() (string, error)) (*Store, error) {
 	if db == nil {
 		return nil, fmt.Errorf("%w: sqlite handle is required", ErrInvalid)
 	}
@@ -90,6 +102,9 @@ func New(ctx context.Context, db *sqlite.DB, retention Retention, now func() tim
 	if now == nil {
 		now = time.Now
 	}
+	if idSource == nil {
+		idSource = id.New
+	}
 	migrations, err := fs.Sub(migrationFiles, "migrations")
 	if err != nil {
 		return nil, err
@@ -97,7 +112,7 @@ func New(ctx context.Context, db *sqlite.DB, retention Retention, now func() tim
 	if err = sqlite.Migrate(ctx, db, migrationNamespace, migrations); err != nil {
 		return nil, err
 	}
-	return &Store{db: db, retention: retention, now: now}, nil
+	return &Store{db: db, retention: retention, now: now, idSource: idSource}, nil
 }
 
 func (s *Store) Close() error {
@@ -107,8 +122,8 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-func newID() (string, error)   { return id.New() }
-func millis(t time.Time) int64 { return t.UTC().UnixMilli() }
+func (s *Store) newID() (string, error) { return s.idSource() }
+func millis(t time.Time) int64          { return t.UTC().UnixMilli() }
 func date(ms sql.NullInt64) *time.Time {
 	if !ms.Valid {
 		return nil
@@ -128,7 +143,7 @@ func (s *Store) CreateChannel(ctx context.Context, platformID, login string) (re
 		return receipt.Channel{}, ErrInvalid
 	}
 	now := s.now().UTC()
-	candidate, err := newID()
+	candidate, err := s.newID()
 	if err != nil {
 		return receipt.Channel{}, err
 	}
@@ -152,7 +167,7 @@ func (s *Store) StartSession(ctx context.Context, channelID string) (receipt.Ses
 		return receipt.Session{}, ErrInvalid
 	}
 	now := s.now().UTC()
-	key, err := newID()
+	key, err := s.newID()
 	if err != nil {
 		return receipt.Session{}, err
 	}
@@ -202,7 +217,7 @@ func (s *Store) AddSegment(ctx context.Context, seg receipt.Segment) error {
 	}
 	if seg.ID == "" {
 		var err error
-		seg.ID, err = newID()
+		seg.ID, err = s.newID()
 		if err != nil {
 			return err
 		}
@@ -300,7 +315,7 @@ func (s *Store) CreateReceipt(ctx context.Context, in receipt.ReceiptInput) (rec
 	if in.ExpiresAt != nil && !in.ExpiresAt.After(in.CreatedAt) {
 		return receipt.Receipt{}, ErrInvalid
 	}
-	key, err := newID()
+	key, err := s.newID()
 	if err != nil {
 		return receipt.Receipt{}, err
 	}
@@ -331,7 +346,7 @@ func (s *Store) CreateReceipt(ctx context.Context, in receipt.ReceiptInput) (rec
 		if e.Attribution != "broadcaster" {
 			return receipt.Receipt{}, ErrNotEligible
 		}
-		eid, eerr := newID()
+		eid, eerr := s.newID()
 		if eerr != nil {
 			return receipt.Receipt{}, eerr
 		}
@@ -505,7 +520,7 @@ func (s *Store) RecordDetection(ctx context.Context, in receipt.DetectionInput) 
 	if in.Outcome != receipt.NeedsReview && in.Outcome != receipt.Stamp && in.Outcome != receipt.Dismissed {
 		return receipt.Detection{}, ErrInvalid
 	}
-	key, err := newID()
+	key, err := s.newID()
 	if err != nil {
 		return receipt.Detection{}, err
 	}
@@ -664,7 +679,7 @@ func (s *Store) OpenAppeal(ctx context.Context, channelID, receiptID string, dur
 		return receipt.Appeal{}, ErrInvalid
 	}
 	now := s.now().UTC()
-	key, err := newID()
+	key, err := s.newID()
 	if err != nil {
 		return receipt.Appeal{}, err
 	}
@@ -721,7 +736,7 @@ func (s *Store) CastVote(ctx context.Context, channelID, appealID, voterID strin
 	if valid == 0 {
 		return receipt.Vote{}, ErrNotEligible
 	}
-	key, err := newID()
+	key, err := s.newID()
 	if err != nil {
 		return receipt.Vote{}, err
 	}
@@ -813,7 +828,7 @@ func (s *Store) FinalizeAppeal(ctx context.Context, channelID, appealID, decisio
 	} else if overturn > uphold {
 		outcome = receipt.Overturned
 	}
-	key, err := newID()
+	key, err := s.newID()
 	if err != nil {
 		return receipt.VerdictRecord{}, err
 	}
@@ -864,7 +879,7 @@ func (s *Store) insertVerdict(ctx context.Context, channelID, receiptID, appealI
 	if valid == 0 {
 		return receipt.VerdictRecord{}, ErrNotEligible
 	}
-	key, err := newID()
+	key, err := s.newID()
 	if err != nil {
 		return receipt.VerdictRecord{}, err
 	}

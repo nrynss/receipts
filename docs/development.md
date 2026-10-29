@@ -41,3 +41,7 @@ Open `http://localhost:8080`. The scaffold serves an empty overlay and initializ
 SvelteKit and adapter-static produce static assets that Go can embed; Vite and its Svelte plugin compile the overlay. Bits UI supplies the accessible primitives required by the stack. TypeScript and svelte-check validate source types; ESLint, its Svelte/TypeScript integrations and globals validate source files; Vitest runs overlay tests. These are build and verification tools, not additional runtime services. The npm lockfile pins transitive versions.
 
 Compatible patched Vite and Vitest versions replace the original scaffold pins after the installation audit reported high/moderate development-tool advisories. Remaining low-severity reports involve the pinned SvelteKit 2 dependency tree. The deployed Go binary serves static assets and does not run a Node server, enhanced form actions or the Vite development server. Reassess those reports before adding server-side SvelteKit behavior; do not force-upgrade or downgrade the mandated Chaaya dependency to silence an audit count.
+
+## Deterministic replay foundation
+
+Run `receipts replay --fixture testdata/replay/foundation.json --db /tmp/receipts-fresh-replay.db` after building. The database path must not exist. This explicit command does not load credentials or construct provider adapters. It currently persists recorded transcript input through the real ledger; output states that product application services are not connected. The full receipt/stamp/appeal/lore sequence remains P2 work.
