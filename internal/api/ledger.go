@@ -42,7 +42,7 @@ func (l LedgerReader) OverlaySnapshotFor(r *http.Request, a auth.ChannelContext)
 	}
 	value := events.OverlaySnapshot{Channel: a.ChannelID, Live: session.State == "live", CurrentStamp: stamp, Receipts: make([]events.PublicReceipt, 0, len(receipts))}
 	for _, v := range receipts {
-		value.Receipts = append(value.Receipts, events.PublicReceipt{ID: v.ID, Claim: v.Claim, ClipURL: v.ClipURL, ClipStatus: string(v.ClipStatus), Verdict: string(v.Verdict), CreatedAt: v.CreatedAt})
+		value.Receipts = append(value.Receipts, events.PublicReceipt{ID: v.ID, Claim: v.Claim, ClippedBy: v.ClippedBy, ClipURL: v.ClipURL, ClipStatus: string(v.ClipStatus), Verdict: string(v.Verdict), CreatedAt: v.CreatedAt})
 	}
 	return value, r.Context().Err()
 }
