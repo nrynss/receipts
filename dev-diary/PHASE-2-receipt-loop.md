@@ -25,7 +25,7 @@ Handle !receipt with channel-scoped deduplication, per-user/channel throttling a
 requires: T2.1
 fixture-ok: yes
 owns: internal/detect/, testdata/models/, testdata/replay/
-status: not-started
+status: in-progress
 ```
 
 Use a judge port backed initially by recorded responses. Separate contradicts, does-not-contradict and unsure from the application decision to stamp. Apply attribution, sensitive-topic, void, cooldown and duplicate checks before emission. Uncertain eligible detections enter an authenticated quiet review queue. Recheck current state before a delayed result is published.

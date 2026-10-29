@@ -2,7 +2,7 @@
 
 **Goal:** Make the core moment readable and controllable on a real broadcast canvas.
 
-**Status:** not-started
+**Status:** in-progress (0/3)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -12,7 +12,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 requires: T1.3
 fixture-ok: yes
 owns: web/src/lib/overlay/, web/src/routes/, testdata/contracts/
-status: not-started
+status: in-progress
 ```
 
 Build transparent idle, stamp, evidence, appeal and verdict states using Svelte 5 and Chaaya. Show the exact claim, credited viewer and receipt age. Use original visual assets and an intentional stamp animation. Provide reduced-motion behavior and readable contrast. Clip playback has a visible transcript fallback for unavailable, blocked or pending embeds. Revalidate real Twitch playback in P4; fixture playback is not evidence of embed compatibility.

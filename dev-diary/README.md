@@ -11,8 +11,8 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 | P0 | [Ground and feasibility](PHASE-0-ground.md) | 4 / 4 | Complete; owner confirmed OBS video, audio and autoplay |
 | P1 | [Contracts, storage and lifecycle](PHASE-1-contracts.md) | 4 / 4 | Complete; replay driver landed; full product scenario acceptance belongs to T2.4 |
 | TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 2 / 4 | Identity and runtime isolation complete; onboarding awaits T3.1 |
-| P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 1 / 4 | Receipt capture reviewed; T2.2 detection is next |
-| P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 0 / 3 | Not started |
+| P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 1 / 4 | Receipt capture complete; Terra implementing T2.2 detection |
+| P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 0 / 3 | Terra implementing T3.1 overlay states |
 | P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 0 / 4 | Not started |
 | P5 | [Live transcription and contradiction judging](PHASE-5-intelligence.md) | 0 / 4 | Not started |
 | P6 | [Live proof, operations and submission](PHASE-6-ship.md) | 0 / 4 | Not started |
@@ -82,4 +82,4 @@ The integrated capture/isolation tree passed the full offline gate and uncached 
 
 ## Ready next
 
-T2.1 receipt capture is reviewed and landed; T2.2 detection, T3.1 overlay states and T4.1 authorized channel adapters are ready and unassigned. TA.2 channel authorization/runtime isolation is reviewed. No implementation agent is active; TA.3 needs T3.1. Later tasks retain their explicit dependencies. T6.1 deploys after TA.3; TA.4 verifies that deployment and gates T6.3 judge readiness.
+T2.1 receipt capture is reviewed and landed; Terra agents are implementing T2.2 detection and T3.1 overlay states in isolated worktrees. T4.1 authorized channel adapters is ready and unassigned. TA.2 channel authorization/runtime isolation is reviewed. The principal thread tracks both agents through review and landing; TA.3 needs T3.1. Later tasks retain their explicit dependencies. T6.1 deploys after TA.3; TA.4 verifies that deployment and gates T6.3 judge readiness.
