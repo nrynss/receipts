@@ -35,6 +35,9 @@ export function snapshotDisplay(receipt?: PublicReceipt): Display {
   return receipt ? { state: receipt.verdict === 'undecided' ? 'evidence' : 'verdict', receipt, animate: false } : { state: 'idle' };
 }
 
+// T3.3 may pass an authoritative rebase here; snapshot state never animates.
+// A fresh stamp event can instead render { state: "stamp", receipt, animate: true };
+// the caller owns event sequencing and supplies later evidence/appeal/verdict states.
 export function displayFromSnapshot(snapshot: OverlaySnapshot): Display {
   const receipt = snapshot.current_stamp;
   if (!receipt) return { state: 'idle' };
