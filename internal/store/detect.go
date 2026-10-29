@@ -10,6 +10,23 @@ import (
 	"receipts/internal/receipt"
 )
 
+// ValidateDetectionSource prevents fabricated or foreign transcript data from
+// reaching the judge. ApplyDetection revalidates under the final write lock.
+func (s *Store) ValidateDetectionSource(ctx context.Context, a DetectionAuthority, source receipt.Segment) error {
+	if a.AccountID == "" || a.ChannelID == "" || a.LiveSessionID == "" || a.Generation == 0 || source.ID == "" || source.SessionID != a.LiveSessionID || source.Attribution != "broadcaster" || source.Text == "" || source.Start < 0 || source.End < source.Start {
+		return ErrNotEligible
+	}
+	var count int
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM transcript_segments t JOIN live_sessions l ON l.id=t.session_id JOIN accounts a ON a.channel_id=l.channel_id WHERE a.id=? AND a.status='connected' AND l.channel_id=? AND l.id=? AND l.state='live' AND l.ended_at IS NULL AND t.id=? AND t.start_ms=? AND t.end_ms=? AND t.text=? AND t.attribution='broadcaster' AND t.speaker_id=? AND l.started_at+t.end_ms<=?`, a.AccountID, a.ChannelID, a.LiveSessionID, source.ID, source.Start.Milliseconds(), source.End.Milliseconds(), source.Text, source.SpeakerID, millis(s.now())).Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return ErrNotEligible
+	}
+	return nil
+}
+
 // ApplyDetection rechecks every durable authority and source row under Keel's
 // serialized writer. The caller serializes runtime authority and publication.
 type DetectionAuthority struct {
@@ -30,9 +47,9 @@ func (s *Store) ApplyDetection(ctx context.Context, a DetectionAuthority, candid
 	}
 	defer tx.Rollback()
 	now := s.now().UTC()
-	var claim, clipURL, clipStatus, verdict string
+	var claim, clipURL, clipStatus, verdict, clippedBy string
 	var created, sessionStart int64
-	err = tx.QueryRowContext(ctx, `SELECT r.claim,r.clip_url,r.clip_status,r.verdict,r.created_at,l.started_at FROM receipts r JOIN accounts a ON a.channel_id=r.channel_id JOIN live_sessions l ON l.channel_id=r.channel_id WHERE a.id=? AND a.status='connected' AND r.channel_id=? AND r.id=? AND r.version=? AND r.claim=? AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) AND l.id=? AND l.state='live' AND l.ended_at IS NULL`, a.AccountID, a.ChannelID, candidate.ID, candidate.Version, candidate.Claim, millis(now), a.LiveSessionID).Scan(&claim, &clipURL, &clipStatus, &verdict, &created, &sessionStart)
+	err = tx.QueryRowContext(ctx, `SELECT r.claim,r.clip_url,r.clip_status,r.verdict,r.clipped_by,r.created_at,l.started_at FROM receipts r JOIN accounts a ON a.channel_id=r.channel_id JOIN live_sessions l ON l.channel_id=r.channel_id WHERE a.id=? AND a.status='connected' AND r.channel_id=? AND r.id=? AND r.version=? AND r.claim=? AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) AND l.id=? AND l.state='live' AND l.ended_at IS NULL`, a.AccountID, a.ChannelID, candidate.ID, candidate.Version, candidate.Claim, millis(now), a.LiveSessionID).Scan(&claim, &clipURL, &clipStatus, &verdict, &clippedBy, &created, &sessionStart)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotEligible
 	}
@@ -90,14 +107,14 @@ func (s *Store) ApplyDetection(ctx context.Context, a DetectionAuthority, candid
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
-	return &events.PublicReceipt{ID: candidate.ID, Claim: claim, ClipURL: clipURL, ClipStatus: clipStatus, Verdict: verdict, CreatedAt: time.UnixMilli(created).UTC()}, nil
+	return &events.PublicReceipt{ID: candidate.ID, Claim: claim, ClippedBy: clippedBy, ClipURL: clipURL, ClipStatus: clipStatus, Verdict: verdict, CreatedAt: time.UnixMilli(created).UTC()}, nil
 }
 
 // CurrentStamp is state, not a new animation. Invalidated receipts disappear.
 func (s *Store) CurrentStamp(ctx context.Context, channelID, sessionID string) (*events.PublicReceipt, error) {
 	var p events.PublicReceipt
 	var created int64
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT r.id,r.claim,r.clip_url,r.clip_status,r.verdict,r.created_at FROM detections d JOIN receipts r ON r.id=d.receipt_id WHERE d.channel_id=? AND d.session_id=? AND d.outcome='stamp' AND r.channel_id=d.channel_id AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) ORDER BY d.created_at DESC,d.id DESC LIMIT 1`, channelID, sessionID, millis(s.now())).Scan(&p.ID, &p.Claim, &p.ClipURL, &p.ClipStatus, &p.Verdict, &created)
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT r.id,r.claim,r.clip_url,r.clip_status,r.verdict,r.clipped_by,r.created_at FROM detections d JOIN receipts r ON r.id=d.receipt_id WHERE d.channel_id=? AND d.session_id=? AND d.outcome='stamp' AND r.channel_id=d.channel_id AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) ORDER BY d.created_at DESC,d.id DESC LIMIT 1`, channelID, sessionID, millis(s.now())).Scan(&p.ID, &p.Claim, &p.ClipURL, &p.ClipStatus, &p.Verdict, &p.ClippedBy, &created)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
