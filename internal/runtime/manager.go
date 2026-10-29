@@ -100,7 +100,18 @@ func (m *Manager) StartVerified(parent context.Context, authority auth.ChannelCo
 	if err := verifier.VerifyLiveSession(parent, authority.AccountID, authority.ChannelID, authority.LiveSessionID); err != nil {
 		return nil, errors.Join(ErrSessionNotLive, err)
 	}
-	return m.Start(parent, authority)
+	channel, err := m.Start(parent, authority)
+	if err != nil {
+		return nil, err
+	}
+	// Close the gap between the preflight check and map insertion. Revocation
+	// before insertion has no runtime for its hook to cancel; the second read
+	// catches it. Revocation after insertion sees the registered runtime.
+	if err := verifier.VerifyLiveSession(parent, authority.AccountID, authority.ChannelID, authority.LiveSessionID); err != nil {
+		_ = m.Stop(authority)
+		return nil, errors.Join(ErrSessionNotLive, err)
+	}
+	return channel, nil
 }
 
 // Go ties delayed work to the live session and prevents the slot from being
@@ -198,6 +209,9 @@ func ChannelFromContext(ctx context.Context) (*Channel, bool) {
 // Spend serializes authority validation against Stop, then meters the paid
 // execution through the durable Keel account bound to the validated channel.
 func (m *Manager) Spend(ctx context.Context, authority auth.ChannelContext, kind, ref string, estimate cost.Price, work cost.Work) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	m.mu.RLock()
 	channel := m.active[authority.ChannelID]
 	if channel == nil || channel.Context.Err() != nil ||
@@ -228,7 +242,16 @@ func (m *Manager) Spend(ctx context.Context, authority auth.ChannelContext, kind
 	if channel.Context.Err() != nil {
 		return ErrStale
 	}
-	_, err := budgets.Call(auth.WithChannelContext(workCtx, channel.Authority), authority.ChannelID, authority.LiveSessionID, kind, ref, estimate, work)
+	guardedWork := func(callCtx context.Context) (cost.Usage, error) {
+		if err := callCtx.Err(); err != nil {
+			return cost.Usage{}, err
+		}
+		if err := channel.Context.Err(); err != nil {
+			return cost.Usage{}, err
+		}
+		return work(callCtx)
+	}
+	_, err := budgets.Call(auth.WithChannelContext(workCtx, channel.Authority), authority.ChannelID, authority.LiveSessionID, kind, ref, estimate, guardedWork)
 	return err
 }
 

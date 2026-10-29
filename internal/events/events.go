@@ -75,6 +75,9 @@ func NewPublisher(epoch string) *Publisher {
 // overlay-visible write must run through Commit so Snapshot cannot observe a
 // changed read model with an older sequence (or vice versa).
 func (p *Publisher) Commit(name string, update func() OverlayEvent) {
+	if p == nil || p.Broker == nil || update == nil {
+		return
+	}
 	_ = p.CommitError(name, func() (OverlayEvent, error) { return update(), nil })
 }
 

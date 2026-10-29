@@ -21,6 +21,14 @@ func TestCommitErrorPublishesNothingOnFailedMutation(t *testing.T) {
 	}
 }
 
+func TestCommitWithNilUpdateRemainsNoOp(t *testing.T) {
+	p := NewPublisher("epoch")
+	p.Commit(Status, nil)
+	if p.Sequence() != 0 {
+		t.Fatalf("nil update advanced sequence to %d", p.Sequence())
+	}
+}
+
 func TestConcurrentCommitSequenceIsOrderedAndPayloadsAreOwned(t *testing.T) {
 	const count = 32
 	p := NewPublisher("epoch")

@@ -105,6 +105,23 @@ func (v sessionVerifierError) VerifyLiveSession(context.Context, string, string,
 	return v.err
 }
 
+type sessionVerifierSequence struct {
+	calls   int
+	second  error
+	manager *Manager
+}
+
+func (v *sessionVerifierSequence) VerifyLiveSession(context.Context, string, string, string) error {
+	v.calls++
+	if v.calls == 2 && v.manager.Count() != 1 {
+		return errors.New("runtime was not registered before second verification")
+	}
+	if v.calls == 2 {
+		return v.second
+	}
+	return nil
+}
+
 func TestStartVerifiedRequiresPersistedLiveSession(t *testing.T) {
 	manager := New(Config{MaxChannels: 1})
 	a := auth.ChannelContext{AccountID: "owner-a", ChannelID: "channel-a", LiveSessionID: "live-a", Generation: 1}
@@ -116,6 +133,20 @@ func TestStartVerifiedRequiresPersistedLiveSession(t *testing.T) {
 	}
 	if _, err := manager.StartVerified(context.Background(), a, sessionVerifierError{}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestStartVerifiedRechecksSessionAfterRegistration(t *testing.T) {
+	manager := New(Config{MaxChannels: 1})
+	a := auth.ChannelContext{AccountID: "owner-a", ChannelID: "channel-a", LiveSessionID: "live-a", Generation: 1}
+	revoked := errors.New("session revoked between checks")
+	verifier := &sessionVerifierSequence{second: revoked, manager: manager}
+	channel, err := manager.StartVerified(context.Background(), a, verifier)
+	if channel != nil || !errors.Is(err, ErrSessionNotLive) || !errors.Is(err, revoked) {
+		t.Fatalf("StartVerified channel=%v err=%v", channel, err)
+	}
+	if manager.Count() != 0 {
+		t.Fatalf("revoked runtime survived activation: %d", manager.Count())
 	}
 }
 
@@ -159,7 +190,16 @@ func TestSpendRequiresCurrentChannelGenerationAndStopCancelsPaidWork(t *testing.
 	if _, err = manager.Start(context.Background(), b); err != nil {
 		t.Fatal(err)
 	}
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
 	called := false
+	if err := manager.Spend(cancelled, a, "judge", "cancelled-before-start", 1, func(context.Context) (cost.Usage, error) {
+		called = true
+		return cost.Usage{Price: 1, Measured: true}, nil
+	}); !errors.Is(err, context.Canceled) || called {
+		t.Fatalf("cancelled caller work called=%v err=%v", called, err)
+	}
+	called = false
 	if err := manager.Spend(context.Background(), auth.ChannelContext{AccountID: "owner-a", ChannelID: "channel-b", LiveSessionID: "live-b", Generation: 1}, "judge", "guessed", 10, func(context.Context) (cost.Usage, error) {
 		called = true
 		return cost.Usage{Price: 1, Measured: true}, nil
