@@ -22,7 +22,7 @@ Build transparent idle, stamp, evidence, appeal and verdict states using Svelte 
 ### T3.2: Streamer control surface
 
 ```yaml
-requires: T2.3, T3.1
+requires: T2.3, T3.1, TA.2
 fixture-ok: yes
 owns: web/src/lib/control/, web/src/routes/, internal/api/
 status: not-started

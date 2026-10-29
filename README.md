@@ -9,11 +9,25 @@ Chat types `!receipt` when a streamer promises something on stream. Receipts cli
 Implementation phases, task dependencies and acceptance criteria are in the [development diary](dev-diary/README.md).
 Build and run the current scaffold using the [development instructions](docs/development.md).
 
+## Implementation tracks
+
+| Track | Progress | Scope |
+|---|---|---|
+| P0 — Feasibility | 4/4 | Twitch, audio and OBS probes |
+| P1 — Foundation | 3/4 | Settings, ledger, contracts; replay next |
+| TA — Accounts and onboarding | 0/4 | Twitch login, channel isolation, OBS pairing and judge demo |
+| P2–P5 — Product experience | Planned | Receipt loop, overlay, Twitch and intelligence |
+| P6 — Release | Planned | Deployment, live proof and judge readiness |
+
+[TA implementation phase and acceptance criteria](dev-diary/PHASE-A-accounts.md), with [account scope](docs/accounts-scope.md). TA.1 can start alongside T1.4; TA.2 enables shared channel runtimes, TA.3 joins the overlay work, and TA.4 verifies the deployed judge experience before submission preparation.
+
 ## Usage (planned)
 
 ```
-receipts serve   # the bot, the listener and the overlay, for one channel
+receipts serve   # server, channel runtimes and web app
 ```
+
+Hosted onboarding will offer Twitch sign-in and OBS pairing for the owner’s channel, plus a recorded demo without login. This account track is planned, not implemented.
 
 Add the overlay to OBS as a browser source. Chat commands: `!receipt`, `!lore`, `!uphold`, `!overturn`; the streamer and mods also have `!receipts off` and `!void`.
 

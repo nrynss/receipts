@@ -9,7 +9,8 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 | Phase | Document | Complete | Status |
 |---|---|---|---|
 | P0 | [Ground and feasibility](PHASE-0-ground.md) | 4 / 4 | Complete; owner confirmed OBS video, audio and autoplay |
-| P1 | [Contracts, storage and lifecycle](PHASE-1-contracts.md) | 3 / 4 | Settings, ledger and API/event contracts complete; deterministic replay next |
+| P1 | [Contracts, storage and lifecycle](PHASE-1-contracts.md) | 3 / 4 | Settings, ledger and API/event contracts complete; Luna implementing T1.4 replay |
+| TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 0 / 4 | Not started; TA.1 identity can begin alongside T1.4 |
 | P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 0 / 4 | Not started |
 | P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 0 / 3 | Not started |
 | P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 0 / 4 | Not started |
@@ -24,14 +25,19 @@ P0 ground ──> P1 contracts ──> P2 offline receipt loop
                     └──> P3 overlay <──┘
 P0 Twitch probe + P1 + P2 ──> P4 live Twitch
 P0 audio probe + P4 session authority ──> P5 live intelligence
-P3 + P4 + P5 evaluation ──> P6 deploy, real rehearsal, submission
+P1 settings/store ──> TA.1 identity ──> TA.2 channel isolation
+TA.2 + P3 overlay ──> TA.3 onboarding and OBS pairing
+TA.2 ──> shared P4/P5 live runtimes
+P3 + P4 + P5 + TA.3 ──> T6.1 deployment
+T6.1 + replay/product loop + TA.3 ──> TA.4 hosted acceptance
+T6.2 real rehearsal + TA.4 ──> T6.3 judge readiness
 ```
 
 The map shows broad ordering. Each task's `requires` list is authoritative; phases need not close as whole blocks. P3.1 can start after T1.3 while the receipt loop is being built. Probes happen early so an API or capture limitation is found before dependent implementation. This is an ordering plan, not authorization to spawn agents; keep most product work in the principal Codex thread.
 
 ## Task protocol
 
-Each task has a stable `T<phase>.<task>` ID, binding dependencies, fixture readiness, owned paths, status, implementation brief and observable done criteria. `fixture-ok: yes` means its implementation and offline checks can proceed with fixtures; any separately stated live acceptance remains required. Proposed paths describe ownership boundaries, not code that already exists.
+Each task has a stable `T<phase>.<task>` ID (or `TA.<task>` for the accounts track), binding dependencies, fixture readiness, owned paths, status, implementation brief and observable done criteria. `fixture-ok: yes` means its implementation and offline checks can proceed with fixtures; any separately stated live acceptance remains required. Proposed paths describe ownership boundaries, not code that already exists.
 
 Use `not-started`, `in-progress`, `blocked` or `done`. Name a blocker and the next concrete resolution. Update status only with evidence. Claim the task before editing, coordinate shared paths, and record any contract change plus its consumers in the handoff. No task is complete because its code merely compiles.
 
@@ -39,9 +45,9 @@ For a completed task record the revision, relevant checks, evidence location and
 
 ## Scope boundaries
 
-- One authorized Twitch channel, one Go process, one SQLite file and one OBS overlay.
+- Hosted scope: multiple Twitch owners, one owned channel per account, one Go process and one SQLite file, with isolated channel runtimes and overlays. See [accounts and judge onboarding scope](../docs/accounts-scope.md); TA.1–TA.4 are not implemented.
 - Viewers use existing Twitch chat commands; the streamer uses a private control page/OBS dock.
-- Explicit spoken promises and spoken contradictions first. Visual gameplay recognition, public multi-channel onboarding and billing are deferred.
+- Explicit spoken promises and spoken contradictions first. Visual gameplay recognition and billing are deferred. Self-service Twitch onboarding is now required by the hosted scope.
 - Capture preserves transcript evidence even if a clip is pending, late or unavailable. A transcript fallback is clearly labelled.
 - Streamer attribution is required. Broadcast transcription alone does not establish who spoke; uncertain guests, quotations and media must abstain or enter review.
 - A wrong stamp is worse than a missed one. Sensitive and voided claims stay out of the public overlay and lore.
@@ -68,3 +74,5 @@ Live follow-up: chat receive/reply, clip readiness and short broadcast capture p
 Active lifecycle follow-up: T0.3 is complete after controlled source interruption, fresh reconnect with audio, real stream-end cleanup and authoritative offline confirmation. Evidence preserves source EOF versus later status-confirmation timing. The owner subsequently confirmed actual OBS playback and autoplay, closing T0.2 and P0.
 
 P0 closed: all four tasks complete. OBS video, audio, autoplay and click-to-play were confirmed by the owner at localhost. P1 contracts/storage is the next phase.
+
+Hosted scope amendment: TA.1 identity can begin now; TA.2 isolation precedes shared live runtime integration. T3.2 consumes owner sessions. T6.1 deploys after TA.3; TA.4 verifies that deployment and gates T6.3 judge readiness. Existing P1 completion counts are unchanged.

@@ -51,7 +51,7 @@ Define typed inputs for transcript segments, chat commands, clip results and liv
 requires: T1.3, T0.4
 fixture-ok: yes
 owns: internal/replay/, testdata/replay/, cmd/receipts/
-status: not-started
+status: in-progress
 ```
 
 Build an explicitly selected fixture mode with a controllable clock and recorded adapter responses. Drive the real application services rather than a second demo implementation. Fix input order and stable IDs; no credential fallback can cause fixture mode to call Twitch or OpenAI.

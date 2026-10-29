@@ -9,7 +9,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 ### T6.1: Deploy and recover
 
 ```yaml
-requires: T3.3, T4.3, T5.4
+requires: T3.3, T4.3, T5.4, TA.3
 fixture-ok: yes
 owns: deploy/, docs/operations.md, cmd/receipts/
 status: not-started
@@ -35,7 +35,7 @@ Run the original script on our channel: spoken promise, viewer !receipt, real cl
 ### T6.3: Judge-facing documentation and Codex evidence
 
 ```yaml
-requires: T6.2
+requires: T6.2, TA.4
 fixture-ok: yes
 owns: README.md, docs/evidence/, docs/submission.md
 status: not-started
