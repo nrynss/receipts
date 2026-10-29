@@ -75,6 +75,48 @@ func TestLoadLiveWithConfiguredSettings(t *testing.T) {
 	}
 }
 
+func TestLoadHostedAuthUsesOperatorKeysWithoutSharedChannelToken(t *testing.T) {
+	const encryptionKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+	s, err := Load(context.Background(), env(map[string]string{
+		"RECEIPTS_MODE": "live", "RECEIPTS_AUTH_ENABLED": "true",
+		"RECEIPTS_PUBLIC_ORIGIN":       "https://receipts.example",
+		"RECEIPTS_TRANSCRIPTION_MODEL": "model-stt", "RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "model-judge",
+		"TWITCH_CLIENT_ID": "app-id", "TWITCH_CLIENT_SECRET": "client-secret-value",
+		"RECEIPTS_TOKEN_ENCRYPTION_KEY": encryptionKey, "OPENAI_API_KEY": "openai-key",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.AuthEnabled || s.ChannelID != "" {
+		t.Fatalf("hosted settings = %#v", s)
+	}
+	if _, err := s.TwitchAccessToken.Reveal(); err == nil {
+		t.Fatal("hosted auth unexpectedly loaded a shared Twitch access token")
+	}
+	formatted := fmt.Sprintf("%+v %#v", s, s)
+	for _, value := range []string{"client-secret-value", encryptionKey, "openai-key"} {
+		if strings.Contains(formatted, value) {
+			t.Fatalf("hosted settings leaked %q", value)
+		}
+	}
+}
+
+func TestHostedAuthRequiresEncryptionKeyAndHTTPS(t *testing.T) {
+	base := map[string]string{
+		"RECEIPTS_MODE": "live", "RECEIPTS_AUTH_ENABLED": "true",
+		"RECEIPTS_PUBLIC_ORIGIN":       "http://receipts.example",
+		"RECEIPTS_TRANSCRIPTION_MODEL": "model-stt", "RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "model-judge",
+		"TWITCH_CLIENT_ID": "app-id", "TWITCH_CLIENT_SECRET": "client-secret-value", "OPENAI_API_KEY": "openai-key",
+	}
+	if _, err := Load(context.Background(), env(base)); err == nil || !strings.Contains(err.Error(), "RECEIPTS_TOKEN_ENCRYPTION_KEY") {
+		t.Fatalf("missing key error = %v", err)
+	}
+	base["RECEIPTS_TOKEN_ENCRYPTION_KEY"] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+	if _, err := Load(context.Background(), env(base)); err == nil || !strings.Contains(err.Error(), "HTTPS") {
+		t.Fatalf("HTTP origin error = %v", err)
+	}
+}
+
 func TestValidateRejectsInvalidOriginAndLimits(t *testing.T) {
 	tests := []struct {
 		name string

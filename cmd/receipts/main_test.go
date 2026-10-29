@@ -84,6 +84,40 @@ func TestFixtureStartupNeedsNoCredentials(t *testing.T) {
 	}
 }
 
+func TestHostedAuthStartupNeedsNoSharedChannelToken(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "hosted.db")
+	lookup := func(name string) (string, bool) {
+		values := map[string]string{
+			"RECEIPTS_MODE": "live", "RECEIPTS_AUTH_ENABLED": "true",
+			"RECEIPTS_PUBLIC_ORIGIN": "https://receipts.example", "RECEIPTS_DATABASE_PATH": dbPath,
+			"RECEIPTS_TRANSCRIPTION_MODEL": "model-stt", "RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "model-judge",
+			"TWITCH_CLIENT_ID": "app-id", "TWITCH_CLIENT_SECRET": "app-secret",
+			"RECEIPTS_TOKEN_ENCRYPTION_KEY": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", "OPENAI_API_KEY": "openai-key",
+		}
+		v, ok := values[name]
+		return v, ok
+	}
+	want := errors.New("server stopped")
+	err := run(context.Background(), lookup, func(addr string, handler http.Handler) error {
+		if addr != ":8080" {
+			t.Errorf("address = %q", addr)
+		}
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/auth/twitch", nil))
+		if response.Code != http.StatusFound || !strings.HasPrefix(response.Header().Get("Location"), "https://id.twitch.tv/oauth2/authorize?") {
+			t.Fatalf("auth start = %d location=%q", response.Code, response.Header().Get("Location"))
+		}
+		cookies := response.Result().Cookies()
+		if len(cookies) != 1 || !cookies[0].Secure || !cookies[0].HttpOnly {
+			t.Fatalf("OAuth browser-binding cookie = %#v", cookies)
+		}
+		return want
+	})
+	if !errors.Is(err, want) {
+		t.Fatalf("run error = %v, want server sentinel", err)
+	}
+}
+
 func TestLiveStartupNamesMissingCredentialsWithoutValues(t *testing.T) {
 	const secretSentinel = "must-never-appear-in-errors"
 	lookup := func(name string) (string, bool) {
