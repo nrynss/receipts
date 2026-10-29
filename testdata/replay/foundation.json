@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "inputs": [
+    {
+      "at": "2026-01-01T00:00:01Z",
+      "kind": "transcript",
+      "transcript": {
+        "id": "segment-1",
+        "session_id": "00000000000000000000000000000002",
+        "speaker_id": "broadcaster-1",
+        "attribution": "broadcaster",
+        "start_ns": 0,
+        "end_ns": 2000000000,
+        "text": "I will never pick that character again."
+      }
+    }
+  ]
+}

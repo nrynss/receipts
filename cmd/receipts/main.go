@@ -18,11 +18,16 @@ import (
 var overlay embed.FS
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "replay" {
+		if err := replayCommand(context.Background(), os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	if err := run(context.Background(), os.LookupEnv, http.ListenAndServe); err != nil {
 		log.Fatal(err)
 	}
 }
-
 func run(ctx context.Context, lookup func(string) (string, bool), serve func(string, http.Handler) error) error {
 	cfg, err := settings.Load(ctx, lookup)
 	if err != nil {
