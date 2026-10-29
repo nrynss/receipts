@@ -38,7 +38,7 @@ Use Keel SQLite with versioned migrations. Define channel, live session, timesta
 requires: T1.1, T1.2
 fixture-ok: yes
 owns: internal/api/, internal/events/, internal/ports/, web/src/lib/api/, testdata/contracts/
-status: not-started
+status: done
 ```
 
 Define typed inputs for transcript segments, chat commands, clip results and live-session changes; adapters do not own product decisions. Specify the read-only overlay snapshot/event stream, authenticated streamer controls, review queue and health endpoints. Define ordered event IDs, reconnect snapshots and bounded replay. Mirror Go payloads in TypeScript with golden examples. Overlay credentials grant read access only; control credentials never enter the browser-source URL.
@@ -77,10 +77,12 @@ T1.1 landed as `2b88551` plus review fixes `424b865`. T1.2 candidate `3b26ac0` p
 
 ### Notes for the next task
 
-T1.3 is now unblocked. Reuse `internal/settings`, `internal/receipt` and `store.New(ctx, db, retention, now)`; the application owns the shared DB lifetime. Detection source session IDs refer to the later live broadcast, independently of the original receipt session. Store evidence snapshots survive transcript pruning. `PublicReceipts` is the filtered surface for matching/lore; raw `GetReceipt` is for authorized internal/admin use. P1 remains in progress until T1.3 contracts and T1.4 deterministic replay are complete.
+T1.3 is reviewed and landed through `6e1e75b`; T1.4 deterministic replay is next. Reuse `internal/settings`, `internal/receipt` and `store.New(ctx, db, retention, now)`; the application owns the shared DB lifetime. Detection source session IDs refer to the later live broadcast, independently of the original receipt session. Store evidence snapshots survive transcript pruning. `PublicReceipts` is the filtered surface for matching/lore; raw `GetReceipt` is for authorized internal/admin use. P1 is 3/4 complete and remains in progress until T1.4 deterministic replay is complete.
 
 ### Review decisions
 
 The settings review fixed prefixed environment lookup, finite spend validation, malformed origin ports and formatting/JSON redaction. Live model IDs are explicit configuration, not assumed defaults. The ledger review fixed exact source/channel ownership, later-session contradictions, review eligibility after void/expiry, durable idempotency keys, tie/no-vote closure and bounded transcript retention. Existing decision-key retries return the original record without rewriting a newer verdict. Transcript rows are globally capped and age-pruned on writes; aged reads are filtered. Evidence is retained separately as exact snapshots.
 
-The current startup serves the scaffold and initializes storage; it does not start Twitch listening or OpenAI calls. Runtime event/auth contracts remain T1.3 work. Deterministic replay will need stable ID handling in T1.4; storage currently uses Keel-generated IDs and an injectable clock.
+The current startup serves the scaffold and initializes storage; it does not start Twitch listening or OpenAI calls. T1.3 provides the authenticated router, typed adapter ports, bounded event publication and TypeScript reconnect client. Application service implementations and mounting the router remain integration work; unconnected control actions return 501. Deterministic replay will need stable ID handling in T1.4; storage currently uses Keel-generated IDs and an injectable clock.
+
+T1.3 passed the principal thread’s full offline gate and uncached API/event race tests at `6e1e75b`. Go and TypeScript golden payloads cover adapter inputs, overlay state, review, health and control requests. Review fixes serialize snapshot/publication order, reset transport cursors after restart, discard old-epoch buffered frames and ignore late snapshot responses from superseded connections. Read and control credentials are separate and fail closed when equal. No live calls or new dependencies were required.
