@@ -9,6 +9,10 @@ export type TranscriptSegment = { id: string; session_id: string; speaker_id: st
 export type ChatCommand = { id: string; channel_id: string; session_id: string; user_id: string; login: string; role: 'viewer' | 'moderator' | 'broadcaster'; command: string; arguments: string; received_at: string };
 export type ClipResult = { request_id: string; clip_id: string; url: string; created_at: string; status: 'pending' | 'ready' | 'unavailable' | 'failed' };
 export type LiveSessionChange = { session_id: string; channel_id: string; state: 'live' | 'offline' | 'ended' | 'unknown'; observed_at: string; confirmed: boolean };
+export type PauseControlInput = { paused: boolean };
+export type VoidControlInput = { receipt_id: string; note?: string };
+export type ReviewControlInput = { review_id: string; decision: 'approve' | 'reject' };
+export type ReceiptDecisionInput = { receipt_id: string; receipt_decision: 'admit' | 'appeal' | 'context_changed'; note?: string };
 
 const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v: unknown): v is string => typeof v === 'string';
@@ -49,6 +53,10 @@ export function decodeLiveSessionChange(v: unknown): LiveSessionChange {
   if (!record(v) || !['session_id','channel_id'].every(k => str(v[k])) || !valid(v.state,['live','offline','ended','unknown']) || !time(v.observed_at) || typeof v.confirmed !== 'boolean') throw new Error('invalid live session change');
   return v as LiveSessionChange;
 }
+export function decodePauseControl(v: unknown): PauseControlInput { if (!record(v) || typeof v.paused !== 'boolean') throw new Error('invalid pause control'); return v as PauseControlInput; }
+export function decodeVoidControl(v: unknown): VoidControlInput { if (!record(v) || !str(v.receipt_id) || (v.note !== undefined && !str(v.note))) throw new Error('invalid void control'); return v as VoidControlInput; }
+export function decodeReviewControl(v: unknown): ReviewControlInput { if (!record(v) || !str(v.review_id) || !valid(v.decision,['approve','reject'])) throw new Error('invalid review control'); return v as ReviewControlInput; }
+export function decodeReceiptDecision(v: unknown): ReceiptDecisionInput { if (!record(v) || !str(v.receipt_id) || !valid(v.receipt_decision,['admit','appeal','context_changed']) || (v.note !== undefined && !str(v.note))) throw new Error('invalid receipt decision'); return v as ReceiptDecisionInput; }
 
 // OBS URLs carry no credential; reads use an Authorization header.
 export function overlayURL(origin: string): string { return new URL('/api/overlay', origin).toString(); }
@@ -57,33 +65,46 @@ export async function fetchOverlaySnapshot(origin: string, credential: string): 
   if (!response.ok) throw new Error(`overlay snapshot unavailable (${response.status})`);
   return decodeSnapshot(await response.json());
 }
-export function connectOverlay(origin: string, credential: string, fetchSnapshot: () => Promise<OverlaySnapshot>, apply: (event: OverlayEvent) => void, replace: (snapshot: OverlaySnapshot) => void): EventStream {
-  const rebaser = createOverlayRebaser(fetchSnapshot, apply, replace);
+export function connectOverlay(origin: string, credential: string, fetchSnapshot: () => Promise<OverlaySnapshot>, apply: (event: OverlayEvent) => void, replace: (snapshot: OverlaySnapshot) => void, onError: (error: unknown) => void = () => {}): EventStream {
+  const callbacks = createOverlayCallbacks(fetchSnapshot, apply, replace, onError);
   return createEventStream(new URL('/api/events', origin).toString(), {
     headers: { Authorization: `Bearer ${credential}` },
     events: ['reset','snapshot','stamp','status'],
-    catchUp: rebaser.rebase,
-    onFrame: event => {
-      if (event.name === 'reset') void rebaser.rebase().catch(() => {});
-      else rebaser.receive(decodeOverlayEvent(JSON.parse(event.data)));
-    }
+    // Chaaya invokes catchUp after every connection opens, including reconnects.
+    // The reset frame only resets Chaaya's transport cursor; catchUp is the
+    // single authoritative application rebase for that connection.
+    catchUp: callbacks.catchUp,
+    onFrame: callbacks.onFrame
   });
+}
+
+// Chaaya calls catchUp once after each stream opens; reset frames only reset
+// its numeric transport cursor and never trigger a second application fetch.
+export function createOverlayCallbacks(fetchSnapshot: () => Promise<OverlaySnapshot>, apply: (event: OverlayEvent) => void, replace: (snapshot: OverlaySnapshot) => void, onError: (error: unknown) => void = () => {}) {
+  const rebaser = createOverlayRebaser(fetchSnapshot, apply, replace, onError);
+  return {
+    catchUp: async () => { try { await rebaser.rebase(); } catch (error) { onError(error); } },
+    onFrame: (event: { name: string; data: string }) => { if (event.name !== 'reset') rebaser.receive(decodeOverlayEvent(JSON.parse(event.data))); }
+  };
 }
 
 // Subscribe first, then fetch authoritative state. Replayed events are held
 // until that fetch finishes and only contiguous newer events are applied.
-export function createOverlayRebaser(fetchSnapshot: () => Promise<OverlaySnapshot>, apply: (event: OverlayEvent) => void, replace: (snapshot: OverlaySnapshot) => void) {
+export function createOverlayRebaser(fetchSnapshot: () => Promise<OverlaySnapshot>, apply: (event: OverlayEvent) => void, replace: (snapshot: OverlaySnapshot) => void, onError: (error: unknown) => void = () => {}) {
   let snapshot: OverlaySnapshot | undefined;
   const pending: OverlayEvent[] = [];
   let flight: Promise<void> | undefined;
   const enqueue = (event: OverlayEvent) => { if (pending.length === 128) pending.shift(); pending.push(event); };
   const receive = (event: OverlayEvent) => {
-    if (!snapshot) { enqueue(event); return; }
-    if (event.epoch !== snapshot.epoch || event.sequence > snapshot.sequence + 1) { snapshot = undefined; enqueue(event); void rebase().catch(() => {}); return; }
+    if (!snapshot) { enqueue(event); void rebase().catch(onError); return; }
+    if (event.epoch !== snapshot.epoch || event.sequence > snapshot.sequence + 1) { snapshot = undefined; enqueue(event); void rebase().catch(onError); return; }
     if (event.sequence > snapshot.sequence) { snapshot = { ...snapshot, sequence: event.sequence }; apply(event); }
   };
   const rebase = (): Promise<void> => {
     if (flight) return flight;
+    // Synchronously stop applying events against the old version while the
+    // authoritative read is pending. Events are bounded in pending meanwhile.
+    snapshot = undefined;
     flight = (async () => {
       try {
         for (let attempt = 0; attempt < 3; attempt++) {

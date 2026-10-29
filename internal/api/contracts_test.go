@@ -32,14 +32,18 @@ func TestGoPayloadsMatchGoldenContracts(t *testing.T) {
 	stamp := time.Date(2000, 1, 1, 0, 0, 1, 0, time.UTC)
 	receipt := events.PublicReceipt{ID: "r1", Claim: "Will try the route", ClipURL: "https://clips.example/r1", ClipStatus: "ready", Verdict: "undecided", CreatedAt: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}
 	tests := map[string]any{
-		"overlay.snapshot.json":    fixtureReader{}.snapshot(),
-		"overlay.stamp.json":       events.OverlayEvent{Epoch: "test-epoch", Sequence: 8, OccurredAt: stamp, Receipt: &receipt},
-		"review.queue.json":        []events.ReviewItem{{ID: "review1", Claim: "Will try the route", Reason: "speaker uncertain", CreatedAt: stamp}},
-		"health.json":              events.Health{Status: "ok", Mode: "fixture", LastEventAt: &stamp},
-		"transcript.segment.json":  ports.TranscriptSegment{ID: "segment1", SessionID: "session1", SpeakerID: "streamer", Attribution: ports.AttributionBroadcaster, Start: time.Second, End: 2 * time.Second, Text: "Will try the route"},
-		"chat.command.json":        ports.ChatCommand{ID: "message1", ChannelID: "channel1", SessionID: "session1", UserID: "viewer1", Login: "viewer", Role: ports.ChatViewer, Command: "!receipt", Arguments: "that promise", ReceivedAt: stamp},
-		"clip.result.json":         ports.ClipResult{RequestID: "request1", ClipID: "clip1", URL: "https://clips.example/clip1", CreatedAt: stamp, Status: ports.ClipReady},
-		"live-session.change.json": ports.LiveSessionChange{SessionID: "session1", ChannelID: "channel1", State: "live", ObservedAt: stamp, Confirmed: true},
+		"overlay.snapshot.json":         fixtureReader{}.snapshot(),
+		"overlay.stamp.json":            events.OverlayEvent{Epoch: "test-epoch", Sequence: 8, OccurredAt: stamp, Receipt: &receipt},
+		"review.queue.json":             []events.ReviewItem{{ID: "review1", Claim: "Will try the route", Reason: "speaker uncertain", CreatedAt: stamp}},
+		"health.json":                   events.Health{Status: "ok", Mode: "fixture", LastEventAt: &stamp},
+		"transcript.segment.json":       ports.TranscriptSegment{ID: "segment1", SessionID: "session1", SpeakerID: "streamer", Attribution: ports.AttributionBroadcaster, Start: time.Second, End: 2 * time.Second, Text: "Will try the route"},
+		"chat.command.json":             ports.ChatCommand{ID: "message1", ChannelID: "channel1", SessionID: "session1", UserID: "viewer1", Login: "viewer", Role: ports.ChatViewer, Command: "!receipt", Arguments: "that promise", ReceivedAt: stamp},
+		"clip.result.json":              ports.ClipResult{RequestID: "request1", ClipID: "clip1", URL: "https://clips.example/clip1", CreatedAt: stamp, Status: ports.ClipReady},
+		"live-session.change.json":      ports.LiveSessionChange{SessionID: "session1", ChannelID: "channel1", State: "live", ObservedAt: stamp, Confirmed: true},
+		"control.pause.json":            ControlInput{Paused: boolPointer(true)},
+		"control.void.json":             ControlInput{ReceiptID: "r1", Note: "wrong claim"},
+		"control.review.json":           ControlInput{ReviewID: "q1", ReviewDecision: ReviewApprove},
+		"control.receipt-decision.json": ControlInput{ReceiptID: "r1", ReceiptDecision: DecisionContextChanged, Note: "context"},
 	}
 	for name, value := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -65,6 +69,7 @@ func TestGoPayloadsMatchGoldenContracts(t *testing.T) {
 		})
 	}
 }
+func boolPointer(value bool) *bool { return &value }
 func (r fixtureReader) snapshot() events.OverlaySnapshot {
 	x, _ := r.OverlaySnapshot(httptest.NewRequest("GET", "/", nil))
 	return x
