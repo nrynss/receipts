@@ -12,7 +12,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 requires: T0.1
 fixture-ok: yes
 owns: internal/settings/, cmd/receipts/, .env.example
-status: in-progress
+status: done
 ```
 
 Use Keel config for process settings and environment-sourced secrets. Separate fixture and live startup explicitly. Settings include public origin, channel identity, transcript retention, stamp cooldown, appeal duration, live-status freshness, model IDs and spend ceilings. Keep credentials out of logs and URLs. Inspect supported Keel APIs rather than inventing configuration syntax.
@@ -25,7 +25,7 @@ Use Keel config for process settings and environment-sourced secrets. Separate f
 requires: T0.4
 fixture-ok: yes
 owns: internal/store/, internal/receipt/, testdata/store/
-status: in-progress
+status: done
 ```
 
 Use Keel SQLite with versioned migrations. Define channel, live session, timestamped transcript segment, receipt, evidence, detection, review, appeal, vote and verdict records. Keep receipt validity separate from clip readiness and verdict. Evidence retains exact source text, segment IDs, session-relative offsets and attribution. Define expiry/retention and void filtering; embeddings and lore must respect voids. Use bounded transcript storage. Transitions and vote uniqueness must be transactional.
@@ -69,12 +69,18 @@ Build an explicitly selected fixture mode with a controllable clock and recorded
 
 ### What exists now
 
-T1.1 settings/startup and T1.2 ledger/transitions are assigned to separate Luna agents in isolated worktrees. No implementation or verification is claimed yet. The principal thread reviews and integrates each result; agents do not share task-owned files.
+T1.1 settings/startup is reviewed and landed through `424b865` after independent full-gate and race verification. It uses Keel config, explicit fixture/live modes, validated settings and redacted secret references. T1.2 ledger/transitions is reviewed from `3b26ac0` and integrated with startup on the same caller-owned Keel SQLite handle. The principal thread owns shared documentation and startup integration.
 
 ### Evidence and decisions
 
-Record task IDs, relevant revision, checks and artifact paths when work lands. Never record secrets.
+T1.1 landed as `2b88551` plus review fixes `424b865`. T1.2 candidate `3b26ac0` passed independent full-gate and ledger race checks before integration. The combined tree also initializes/migrates the ledger during configured startup and checks this in the fixture startup test. No live calls or credentials are needed for verification.
 
 ### Notes for the next task
 
-Record unresolved blockers, contract changes and the next unblocked task.
+T1.3 is now unblocked. Reuse `internal/settings`, `internal/receipt` and `store.New(ctx, db, retention, now)`; the application owns the shared DB lifetime. Detection source session IDs refer to the later live broadcast, independently of the original receipt session. Store evidence snapshots survive transcript pruning. `PublicReceipts` is the filtered surface for matching/lore; raw `GetReceipt` is for authorized internal/admin use. P1 remains in progress until T1.3 contracts and T1.4 deterministic replay are complete.
+
+### Review decisions
+
+The settings review fixed prefixed environment lookup, finite spend validation, malformed origin ports and formatting/JSON redaction. Live model IDs are explicit configuration, not assumed defaults. The ledger review fixed exact source/channel ownership, later-session contradictions, review eligibility after void/expiry, durable idempotency keys, tie/no-vote closure and bounded transcript retention. Existing decision-key retries return the original record without rewriting a newer verdict. Transcript rows are globally capped and age-pruned on writes; aged reads are filtered. Evidence is retained separately as exact snapshots.
+
+The current startup serves the scaffold and initializes storage; it does not start Twitch listening or OpenAI calls. Runtime event/auth contracts remain T1.3 work. Deterministic replay will need stable ID handling in T1.4; storage currently uses Keel-generated IDs and an injectable clock.

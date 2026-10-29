@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/nrynss/keel/sqlite"
 )
 
 func TestEmbeddedOverlayIncludesItsGeneratedAssets(t *testing.T) {
@@ -53,6 +55,20 @@ func TestFixtureStartupNeedsNoCredentials(t *testing.T) {
 	}
 	want := errors.New("server stopped")
 	err := run(context.Background(), lookup, func(addr string, handler http.Handler) error {
+		// Check the configured database, not a second default path. Startup must
+		// initialize the same durable ledger whose methods the app will use.
+		ledger, err := sqlite.Open(context.Background(), sqlite.Config{Path: dbPath})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer ledger.Close()
+		var rows int
+		if err := ledger.Reader().QueryRowContext(context.Background(), "SELECT count(*) FROM receipts").Scan(&rows); err != nil {
+			t.Fatalf("startup did not initialize the receipt ledger: %v", err)
+		}
+		if rows != 0 {
+			t.Errorf("new fixture ledger has %d receipts", rows)
+		}
 		if addr != ":8080" {
 			t.Errorf("address = %q", addr)
 		}

@@ -31,10 +31,10 @@ go build -o bin/receipts ./cmd/receipts
 Run the scaffold:
 
 ```sh
-./bin/receipts serve
+RECEIPTS_MODE=fixture ./bin/receipts serve
 ```
 
-Open `http://localhost:8080`. The scaffold serves an empty overlay and opens the SQLite store at `data/receipts.db`; `RECEIPTS_DB` overrides the database path. No Twitch or OpenAI connection is implemented by this scaffold. See the phase diary for actual task status.
+Open `http://localhost:8080`. The scaffold serves an empty overlay and initializes the durable receipt ledger in the SQLite store at `data/receipts.db`; `RECEIPTS_DATABASE_PATH` overrides the database path. Startup requires an explicit `RECEIPTS_MODE=fixture` or `RECEIPTS_MODE=live`. Fixture startup has no credential references. Live startup requires channel identity, the Twitch/OpenAI credentials and all three model IDs named in `.env.example`; missing settings are reported by name without values. The current server still serves the scaffold rather than running the live product pipeline. No Twitch or OpenAI connection is implemented by this scaffold. See the phase diary for actual task status.
 
 ## Dependency choices
 

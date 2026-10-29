@@ -11,6 +11,7 @@ import (
 
 	"github.com/nrynss/keel/sqlite"
 	"receipts/internal/settings"
+	"receipts/internal/store"
 )
 
 //go:embed all:static
@@ -32,6 +33,10 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 		return err
 	}
 	defer db.Close()
+
+	if _, err := store.New(ctx, db, store.Retention{ExpireAfter: cfg.TranscriptRetention}, nil); err != nil {
+		return fmt.Errorf("initialize receipt ledger: %w", err)
+	}
 
 	static, err := fs.Sub(overlay, "static")
 	if err != nil {
