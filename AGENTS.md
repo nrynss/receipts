@@ -11,7 +11,7 @@ Rules for any agent working in this repository, Codex first. The product is in [
 
 - **Go** for the server, one binary, `receipts`. Go 1.27.
 - **Keel** (`github.com/nrynss/keel`, v0.7.3) for `sqlite`, `stream`, `ffmpeg`, `gate`, `cost`, `id` and `config`. Use a Keel package before writing the same thing again.
-- **Svelte 5 + Chaaya** (`@nrynss/chaaya`, 0.4.2) for the overlay, under `web/`. Accessible primitives from Bits UI.
+- **Svelte 5 + Chaaya** (`@nrynss/chaaya`, 0.5.0) for the overlay, under `web/`. Accessible primitives from Bits UI.
 - **SQLite** through Keel. No other database.
 - The standard library first. A new dependency needs a stated reason in its commit message.
 
