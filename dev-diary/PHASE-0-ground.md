@@ -15,7 +15,7 @@ owns: go.mod, go.sum, cmd/receipts/, web/, tools/check.sh, .gitignore, .env.exam
 status: done
 ```
 
-Initialize Go 1.27 with Keel v0.7.3 and Svelte 5 with Chaaya 0.5.0. Inspect the published libraries before choosing wrappers. Serve a minimal overlay from the binary. Ignore secret files and generated artifacts. Establish the required Go and overlay checks; fixture mode needs no credentials. New dependencies need a concrete reason.
+Initialize Go 1.27 with the pinned Keel release (currently v0.9.0) and Svelte 5 with Chaaya 0.5.0. Inspect the published libraries before choosing wrappers. Serve a minimal overlay from the binary. Ignore secret files and generated artifacts. Establish the required Go and overlay checks; fixture mode needs no credentials. New dependencies need a concrete reason.
 
 **Done when:** A fresh checkout can install pinned dependencies, then build and run the gate without keys, a network connection during checks, or a live stream.
 
@@ -69,7 +69,7 @@ Write an original spoken demo with a promise, unrelated speech, a later contradi
 
 ### What exists now
 
-T0.1 is done: Go 1.27 with Keel v0.7.3, a Svelte 5/Chaaya 0.5.0 scaffold with locked dependencies, and an offline gate. The Svelte build is embedded into the Go binary rather than duplicated by hand. Installation succeeded with authorized network access. Lint, type checking, overlay tests/build, Go formatting/vet/tests and binary build pass. Packaged-server smoke verified the index, eight embedded assets and SQLite creation. Setup and dependency reasons are in `docs/development.md`.
+T0.1 established Go 1.27 with Keel v0.7.3 (subsequently upgraded to v0.9.0 in `142c2a3`), a Svelte 5/Chaaya 0.5.0 scaffold with locked dependencies, and an offline gate. The Svelte build is embedded into the Go binary rather than duplicated by hand. Installation succeeded with authorized network access. Lint, type checking, overlay tests/build, Go formatting/vet/tests and binary build pass. Packaged-server smoke verified the index, eight embedded assets and SQLite creation. Setup and dependency reasons are in `docs/development.md`.
 
 T0.2 has a runnable live-tagged probe and passing offline Helix/EventSub tests. The selected channel is nrynss. The probe validates that broadcaster and app, receives an explicit command, sends one reply and creates/polls one clip within bounded calls and a 90-second deadline. Twitch registration, authorization, live command receive/reply, clip readiness and local iframe playback are verified. The owner confirmed actual OBS video, audio, autoplay and click-to-play at localhost; deployed-origin playback will be rechecked in P4/P6; see `docs/integrations/twitch.md`.
 
@@ -79,7 +79,7 @@ T0.4 is done: `docs/evaluation.md`, `testdata/eval/pairs.jsonl`, and `testdata/t
 
 ### Evidence and decisions
 
-T0.1: working tree changes; `GOCACHE=/tmp/receipts-go-cache ./tools/check.sh` passes. A bounded local-server smoke starts `bin/receipts serve`, fetches the generated index and eight assets, verifies a temporary SQLite store and stops the process. No live Twitch or audio result is implied. Compatible patched Vite/Vitest clear the installation audit high/moderate reports; remaining low-severity dependency limitations are documented in `docs/development.md`.
+T0.1: baseline `c7682b0`; `GOCACHE=/tmp/receipts-go-cache ./tools/check.sh` passes. A bounded local-server smoke starts `bin/receipts serve`, fetches the generated index and eight assets, verifies a temporary SQLite store and stops the process. No live Twitch or audio result is implied. Compatible patched Vite/Vitest clear the installation audit high/moderate reports; remaining low-severity dependency limitations are documented in `docs/development.md`.
 
 T0.2: `go test ./internal/twitch` passes without network or local sockets. The tagged probe compiles and skips unless explicitly enabled. Live chat/clip/local playback results are recorded in `docs/evidence/p0-twitch.json`; Owner-reported OBS acceptance at localhost now passes; production-origin verification remains P4/P6 work.
 
@@ -89,7 +89,7 @@ T0.4: corpus and contract at `docs/evaluation.md`, `testdata/eval/pairs.jsonl`, 
 
 ### Notes for the next task
 
-T0.1 no longer has an installation blocker. T0.2 now has a registered app and validated private broadcaster token. Live chat, clip readiness and owner-reported OBS playback at localhost now pass. T0.3 now passes short capture, controlled interruption/reconnect and actual stream end, with deterministic status-loss cancellation tests. No product contract has been changed. P0 is complete and P1 is ready to start against the evaluation eligibility contract.
+T0.1 no longer has an installation blocker. T0.2 now has a registered app and validated private broadcaster token. Live chat, clip readiness and owner-reported OBS playback at localhost now pass. T0.3 now passes short capture, controlled interruption/reconnect and actual stream end, with deterministic status-loss cancellation tests. No product contract has been changed. P0 is complete; P1 foundation has since landed. T2.1, TA.2 and T3.1 are the next ready tasks.
 
 ### Live probe handoff
 
@@ -108,4 +108,4 @@ The owner confirmed OBS video, audio, autoplay and click-to-play at localhost. T
 
 ### P0 close
 
-All four tasks are complete. The owner confirmed video and audio in an actual OBS Browser Source using `http://localhost:18082`, and explicitly confirmed autoplay worked; clicking Play was also exercised. These are owner-reported observations, recorded in `docs/evidence/p0-twitch.json`, separate from the agent-observed in-app iframe playback. The latest full offline gate and audio race suite passed. No media from the third-party-artwork test clip is included in submission assets. P1 is unblocked. Recheck clip parent/autoplay behavior at the deployed origin in P4/P6.
+All four tasks are complete. The owner confirmed video and audio in an actual OBS Browser Source using `http://localhost:18082`, and explicitly confirmed autoplay worked; clicking Play was also exercised. These are owner-reported observations, recorded in `docs/evidence/p0-twitch.json`, separate from the agent-observed in-app iframe playback. The latest full offline gate and audio race suite passed. No media from the third-party-artwork test clip is included in submission assets. P1 foundation has since landed. Recheck clip parent/autoplay behavior at the deployed origin in P4/P6.

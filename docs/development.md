@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-Use Go 1.27.1 or later in the 1.27 series, Node.js 24 or later, npm, and ffmpeg/ffprobe. The offline audio checks use ffprobe on generated original WAV fixtures; they do not call a live stream. Streamlink is additionally required for the separately enabled live audio probe. The Go backend uses Keel v0.7.3; the overlay uses Svelte 5 and Chaaya 0.5.0. Install dependencies once with network access:
+Use Go 1.27.1 or later in the 1.27 series, Node.js 24 or later, npm, and ffmpeg/ffprobe. The offline audio checks use ffprobe on generated original WAV fixtures; they do not call a live stream. Streamlink is additionally required for the separately enabled live audio probe. The Go backend uses Keel v0.9.0; the overlay uses Svelte 5 and Chaaya 0.5.0. Install dependencies once with network access:
 
 ```sh
 go mod download
@@ -28,13 +28,13 @@ For a build without checks:
 go build -o bin/receipts ./cmd/receipts
 ```
 
-Run the scaffold:
+Run the fixture server:
 
 ```sh
 RECEIPTS_MODE=fixture ./bin/receipts serve
 ```
 
-Open `http://localhost:8080`. The scaffold serves an empty overlay and initializes the durable receipt ledger in the SQLite store at `data/receipts.db`; `RECEIPTS_DATABASE_PATH` overrides the database path. Startup requires an explicit `RECEIPTS_MODE=fixture` or `RECEIPTS_MODE=live`. Fixture startup has no credential references. Live startup requires channel identity, the Twitch/OpenAI credentials and all three model IDs named in `.env.example`; missing settings are reported by name without values. The current server still serves the scaffold rather than running the live product pipeline. No Twitch or OpenAI connection is implemented by this scaffold. See the phase diary for actual task status.
+Open `http://localhost:8080`. The fixture server serves the overlay scaffold and initializes the durable receipt ledger in the SQLite store at `data/receipts.db`; `RECEIPTS_DATABASE_PATH` overrides the database path. Startup requires an explicit `RECEIPTS_MODE=fixture` or `RECEIPTS_MODE=live`. Fixture startup has no credential references. Legacy live configuration requires channel identity, a Twitch access token, client ID, OpenAI key and explicit model IDs. With `RECEIPTS_AUTH_ENABLED=true`, owner identity and Twitch tokens come from server-side OAuth instead; operator client ID/secret, token encryption key and HTTPS origin are required alongside the existing OpenAI/model configuration. See [hosted auth setup](ta1-auth-handoff.md). Missing settings are reported by name without values. Auth startup validates stored provider grants and schedules hourly validation; fixture startup makes no provider calls. The product listening/receipt pipeline and hosted setup UI are not connected yet. See the phase diary for task status.
 
 ## Dependency choices
 
@@ -44,4 +44,4 @@ Compatible patched Vite and Vitest versions replace the original scaffold pins a
 
 ## Deterministic replay foundation
 
-Run `receipts replay --fixture testdata/replay/foundation.json --db /tmp/receipts-fresh-replay.db` after building. The database path must not exist. This explicit command does not load credentials or construct provider adapters. It currently persists recorded transcript input through the real ledger; output states that product application services are not connected. The full receipt/stamp/appeal/lore sequence remains P2 work.
+Run `./bin/receipts replay --fixture testdata/replay/foundation.json --db /tmp/receipts-fresh-replay.db` after building. The database path must not exist. This explicit command does not load credentials or construct provider adapters. It currently persists recorded transcript input through the real ledger; output states that product application services are not connected. The full receipt/stamp/appeal/lore sequence remains P2 work.

@@ -1,6 +1,6 @@
 # Hosted accounts and judge onboarding scope
 
-Status: scoped, not implemented. This extends the original single-channel runtime; it does not claim hosted readiness.
+Status: TA.1 identity/sessions implemented in `ed2c7d6`; TA.2–TA.4 remain planned. Shared channel runtimes, hosted onboarding, OBS pairing and the anonymous demo are not implemented. Hosted readiness is not claimed.
 
 ## Outcome
 
@@ -14,7 +14,7 @@ The core product remains promise → receipt → contradiction → stamp → app
 - Multiple accounts may coexist on one hosted installation. Use one Go binary and persistent SQLite; each active channel has its own supervised runtime, event publisher, sequence/epoch, live-session authority, transcript buffer, cooldowns and spend accounting.
 - A signed-in private dashboard shows connection health, live/listening state, stamp pause, usage and OBS setup, alongside the existing planned receipt controls.
 - Setup while offline works. Listening requires explicit enablement and an authoritative live session. Stop listening cancels capture and work; pausing stamps is a separate action.
-- A public recorded demo needs no login, credentials, live broadcast or provider calls. Playback exercises the real application services through T1.4. Each visitor's interactive demo is isolated, bounded and disposable; it cannot modify live channels. Shared immutable fixture media is allowed.
+- A public recorded demo needs no login, credentials, live broadcast or provider calls. Playback uses the T1.4 driver and the real P2 application services, with full scenario acceptance in T2.4. Each visitor's interactive demo is isolated, bounded and disposable; it cannot modify live channels. Shared immutable fixture media is allowed.
 - Hosted model usage is operator-funded with enforced per-channel and installation-wide caps. Capacity exhaustion is visible and queues or refuses activation without silently starting work. Operators configure finite concurrency and spend limits before release; unlimited public capture is out of scope.
 
 ## Streamer journey
@@ -48,7 +48,7 @@ Implementation task status and evidence live in [the TA phase document](../dev-d
 | TA.3 Onboarding and OBS pairing | TA.2, T3.1 | Private setup/dashboard, pairing, device revocation, reconnect states | New owner completes setup without developer help; actual OBS retains pairing across restart; expired/reused codes and revoked devices fail |
 | TA.4 Judge demo and hosted acceptance | TA.2, TA.3, T1.4, T2.4, T3.3, T6.1 | Anonymous isolated recorded demo, deployed HTTPS checks, lifecycle/deletion acceptance | Two anonymous demos cannot affect each other or live channels; provider calls stay at zero; fresh Twitch account and two-owner isolation rehearsal pass |
 
-These IDs supplement the existing phases without renumbering completed work. TA.1 can begin now. TA.2 must settle before live adapters are integrated into a shared hosted runtime. T3.2 uses owner sessions rather than a shared control secret. T6.1 deploys the candidate after TA.3; TA.4 verifies the deployed experience and gates T6.3 judge readiness. Existing offline product-loop work can proceed in parallel against explicit channel context.
+These IDs supplement the existing phases without renumbering completed work. TA.1 is landed; TA.2 is ready to begin. TA.2 must settle before live adapters are integrated into a shared hosted runtime. T3.2 uses owner sessions rather than a shared control secret. T6.1 deploys the candidate after TA.3; TA.4 verifies the deployed experience and gates T6.3 judge readiness. Existing offline product-loop work can proceed in parallel against explicit channel context.
 
 ## Deferred
 

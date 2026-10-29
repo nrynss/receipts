@@ -6,18 +6,18 @@
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
-### T4.1: Authorization and channel setup
+### T4.1: Connect authorized channel adapters
 
 ```yaml
-requires: T0.2, T1.3
+requires: T0.2, T1.3, TA.2
 fixture-ok: yes
-owns: internal/twitch/auth/, internal/api/, web/src/lib/setup/, docs/setup.md
+owns: internal/twitch/connection/, internal/api/, testdata/twitch/, docs/setup.md
 status: not-started
 ```
 
-Implement the verified Twitch authorization flow for one channel and the chosen bot identity. Validate callback state, bind the authorized broadcaster, refresh/revoke credentials safely and expose connection health. Provide a private overlay URL and a separate control login. Configuration and environment setup for our channel are sufficient initially; public multi-channel onboarding is deferred. Follow repository secret rules for any runtime token persistence.
+Consume TA.1 OAuth credentials through TA.2 validated channel context and runtime supervision. Do not implement a second login/token store. Bind each EventSub/Helix adapter to the verified broadcaster, use the shared refresh/validation lifecycle and report connection health and authorization loss. The owner uses their own broadcaster identity in the initial release; a shared bot is deferred. TA.3 owns setup and OBS pairing.
 
-**Done when:** Recorded callbacks cover success, denial, state mismatch and expired credentials. A bounded live-tagged check proves the authorized account can perform the required operations without exposing tokens.
+**Done when:** Recorded adapters prove channel binding, token expiry/refresh, authorization loss and runtime cancellation; an adapter cannot use another owner’s grant. A bounded live-tagged check proves the authorized account can perform the required operations without exposing tokens.
 
 ### T4.2: EventSub and bot transport
 
@@ -69,7 +69,7 @@ Combine verified live-status signals with bounded freshness and startup checks. 
 
 ### What exists now
 
-Planning only. No implementation is claimed.
+P4 adapter integration has not started. P0 proved bounded Twitch capability; TA.1 OAuth/session lifecycle is implemented in `ed2c7d6`. These do not establish a running multi-channel EventSub/clip product pipeline.
 
 ### Evidence and decisions
 
@@ -77,4 +77,4 @@ Record task IDs, relevant revision, checks and artifact paths when work lands. N
 
 ### Notes for the next task
 
-Record unresolved blockers, contract changes and the next unblocked task.
+T4.1 waits for TA.2. Reuse `internal/auth` token access and unauthorized-refresh hooks. Never bypass channel authorization using caller-supplied IDs.

@@ -4,28 +4,33 @@
 
 Chat types `!receipt` when a streamer promises something on stream. Receipts clips the moment and keeps the claim. When the streamer later goes back on it, a **RECEIPT** stamp lands on the overlay with the old clip, and chat votes on the appeal. `!lore` gives new viewers the channel's running promises and the ones that broke.
 
-> **Status:** entry for the Codex × TwitchCon Hackathon, in development. The server/overlay scaffold, offline gate and evaluation fixtures exist. The live receipt and appeal experience below is still planned; see [`product.md`](product.md).
+> **Status:** entry for the Codex × TwitchCon Hackathon, in development. P0 feasibility and P1 foundation are complete. Twitch account/session support (TA.1), deterministic replay infrastructure, the ledger and API/event contracts are implemented. The product receipt loop, hosted onboarding and shared live channel runtimes remain planned; see [`product.md`](product.md).
 
 Implementation phases, task dependencies and acceptance criteria are in the [development diary](dev-diary/README.md).
-Build and run the current scaffold using the [development instructions](docs/development.md).
+Build and run the current server using the [development instructions](docs/development.md).
 
 ## Implementation tracks
 
 | Track | Progress | Scope |
 |---|---|---|
 | P0 — Feasibility | 4/4 | Twitch, audio and OBS probes |
-| P1 — Foundation | 3/4 | Settings, ledger, contracts; replay next |
+| P1 — Foundation | 4/4 | Settings, ledger, contracts and deterministic replay driver |
 | TA — Accounts and onboarding | 1/4 | Twitch login, channel isolation, OBS pairing and judge demo |
 | P2–P5 — Product experience | Planned | Receipt loop, overlay, Twitch and intelligence |
 | P6 — Release | Planned | Deployment, live proof and judge readiness |
 
 [TA implementation phase and acceptance criteria](dev-diary/PHASE-A-accounts.md), with [account scope](docs/accounts-scope.md). TA.1 identity/sessions is implemented; TA.2 enables shared channel runtimes, TA.3 joins the overlay work, and TA.4 verifies the deployed judge experience before submission preparation.
 
-## Usage (planned)
+## Current commands
 
 ```
-receipts serve   # server, channel runtimes and web app
+RECEIPTS_MODE=fixture ./bin/receipts serve
+./bin/receipts replay --fixture testdata/replay/foundation.json --db /tmp/receipts-fresh.db
 ```
+
+The replay database path must be new. Replay currently persists transcript fixtures through the real ledger; full product replay is T2.4 acceptance. Hosted auth setup is documented in [the TA.1 handoff](docs/ta1-auth-handoff.md).
+
+## Planned streamer experience
 
 Hosted onboarding will offer Twitch sign-in and OBS pairing for the owner’s channel, plus a recorded demo without login. The identity/session foundation is implemented; hosted onboarding, channel isolation and OBS pairing remain planned.
 

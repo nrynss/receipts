@@ -1,5 +1,7 @@
 # T1.3 contract handoff
 
+This router/client foundation is implemented; the product Reader/Controls and mounting `/api/` are still pending. TA.1 mounts only `/auth/`. The credential pair described below is the current standalone API contract; TA.2 must adapt it to owner sessions and scoped overlay devices before hosted multi-channel use.
+
 ## HTTP surface
 
 - `GET /api/overlay` returns the authoritative, privacy-filtered `OverlaySnapshot`.
@@ -22,4 +24,4 @@ Chaaya `catchUp` fetches `/api/overlay` on each initial open and reconnect. The 
 
 ## Integration
 
-Startup should create one `events.Publisher` for the process and pass it into `api.Config.Events`. Every overlay-visible state mutation and event must use `Publisher.Commit`; `Publisher.Snapshot` holds the same mutex around the authoritative read and assigns the matching epoch/version. The read model implements `api.Reader` over the T1.2 ledger and process health; a later application service implements `api.Controls` before control POSTs can succeed. Provider adapters translate incoming data to `ports.TranscriptSegment`, `ChatCommand`, `ClipResult` and `LiveSessionChange`, then pass them to application sinks. Chat role must come from trusted EventSub metadata. Clip pending, ready, unavailable and failed outcomes remain distinct. Transcript attribution is `broadcaster` or `uncertain`. Go and TypeScript control inputs are pinned under `testdata/contracts/control.*.json`. Adapters do not decide whether a transcript line is a receipt, whether a stamp is valid, or whether the stream is live enough to listen.
+For the single-channel composition create one `events.Publisher`; TA.2 must create and route a separate publisher for each authorized channel and pass it into `api.Config.Events`. Every overlay-visible state mutation and event must use `Publisher.Commit`; `Publisher.Snapshot` holds the same mutex around the authoritative read and assigns the matching epoch/version. The read model implements `api.Reader` over the T1.2 ledger and process health; a later application service implements `api.Controls` before control POSTs can succeed. Provider adapters translate incoming data to `ports.TranscriptSegment`, `ChatCommand`, `ClipResult` and `LiveSessionChange`, then pass them to application sinks. Chat role must come from trusted EventSub metadata. Clip pending, ready, unavailable and failed outcomes remain distinct. Transcript attribution is `broadcaster` or `uncertain`. Go and TypeScript control inputs are pinned under `testdata/contracts/control.*.json`. Adapters do not decide whether a transcript line is a receipt, whether a stamp is valid, or whether the stream is live enough to listen.

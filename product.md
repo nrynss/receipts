@@ -2,7 +2,9 @@
 
 *The stream remembers what you said.*
 
-Entry for the Codex × TwitchCon Hackathon (Devpost). Submit by 2 Nov, 14:00 PT (3 Nov, 03:30 IST). Rules in `~/work/hackathons/codex-twitchcon.md`.
+Entry for the Codex × TwitchCon Hackathon (Devpost). Official submission requirements are rechecked during P6 readiness.
+
+This document describes the target product. P0/P1 foundation and TA.1 identity/sessions are implemented; the full receipt loop and hosted onboarding are still being built. Current evidence and task status are in [the phase index](dev-diary/README.md).
 
 ## The product
 
@@ -26,10 +28,14 @@ Receipts does. It:
 
 It works on any stream with someone talking: games, IRL, just chatting, tabletop. It is not a dev-stream tool.
 
+## Accounts and onboarding
+
+A streamer signs in with Twitch and owns their own broadcaster channel. Hosted scope includes isolated channel runtimes and budgets, a private dashboard and revocable read-only OBS pairing. Viewers keep using Twitch chat without a Receipts account. Judges can try a clearly labelled, isolated recorded demo without signing in or going live. TA.1 OAuth/session support is implemented; channel runtime authorization, onboarding/pairing and judge demo acceptance remain TA.2–TA.4. See [account scope](docs/accounts-scope.md). Billing, account teams and moderator dashboard delegation are deferred; verified Twitch moderator chat commands remain in the product scope.
+
 ## The rules that keep it fun
 
 - **The streamer is in charge.** Stamps can be paused (`!receipts off`), a receipt can be voided by the streamer or a mod, and a cooldown keeps stamps from landing back to back.
-- **A wrong stamp is worse than a missed one.** The check only fires when it's confident; anything less goes to a quiet mod queue, not the overlay.
+- **A wrong stamp is worse than a missed one.** The check only fires when it's confident; eligible uncertain cases go to a private streamer review queue. Moderator dashboard delegation is deferred.
 - **Only the streamer's own words.** Receipts transcribes the broadcast, but only claims made in it can be receipted. It never records chat text as a claim.
 - **Listening belongs to a live session.** Broadcast audio is the default source. The mic dock fallback requires the streamer to explicitly enable it for each live session and shows a clear listening indicator and stop control. It captures only while that session is confirmed live; going offline, losing live-status confirmation, or disconnecting the dock stops capture and discards unsent audio. Reopening the dock never resumes capture automatically. A mic can hear speech that OBS mutes, so the dock must make that limitation clear before listening starts.
 - **No receipts on sensitive topics.** Health, family, money troubles and anything a mod voids stay off the overlay and out of `!lore`.
@@ -40,7 +46,7 @@ One Go binary, `receipts`, and a Svelte 5 overlay it serves. One SQLite file. Ru
 
 | Piece | Built on |
 |---|---|
-| Twitch events | EventSub over WebSocket: `channel.chat.message`. No public callback needed |
+| Twitch events | EventSub over WebSocket: `channel.chat.message`. No public webhook needed; hosted OAuth requires its HTTPS callback |
 | Bot replies | Helix `POST /chat/messages` |
 | Clips | Helix `POST /clips` (`clips:edit`, live only), then `GET /clips` until the clip is ready |
 | Live audio | `streamlink` pulls the public stream, ffmpeg turns it into audio chunks (Keel `ffmpeg`, so ffmpeg dies with its job). Fallback: an OBS mic dock (Chaaya audio), explicitly enabled per confirmed live session and stopped when that session ends or live-status confirmation is lost |
@@ -51,7 +57,7 @@ One Go binary, `receipts`, and a Svelte 5 overlay it serves. One SQLite file. Ru
 | Clip playback | The Twitch clip embed, with `parent=` set to the overlay's own domain |
 | Appeals | Counted from chat (`!uphold` / `!overturn`), not Twitch Polls: the Polls API is Affiliate and Partner only |
 | Guard rails | Keel `gate` and `cost`: spend caps on the model calls |
-| Hosting | Hetzner + Caddy at a `nryn.dev` subdomain. The overlay needs a public URL; the Twitch side doesn't |
+| Hosting | Hetzner + Caddy at a `nryn.dev` subdomain. The overlay needs a public URL; OAuth uses the registered HTTPS callback; EventSub uses outbound WebSockets |
 
 Model names are settled when the build starts, from OpenAI's current list. All three jobs (speech-to-text, embeddings, the judge) run on OpenAI.
 
@@ -85,6 +91,6 @@ The README opens with a "For judges: start here" table: the video, a recorded st
 ## Open questions
 
 - **Does streamlink hold a live stream for hours?** Probe it before anything depends on it; the mic dock is the fallback, subject to the live-session listening rules above.
-- **Clip timing.** A clip covers about the last 30 seconds. A slow `!receipt` can miss the promise on video; the transcript window keeps the text either way. Decide whether a receipt can point at a clip *and* a transcript offset.
-- **What counts as a claim.** Promises, predictions, "never" and "always" statements, bets. Settle the list with the labelled set.
-- **A streamer to demo with**, or our own channel.
+- **Clip timing.** A clip covers about the last 30 seconds. A slow `!receipt` can miss the promise on video. The ledger retains exact transcript evidence and offsets separately from clip readiness; P4 must correlate real clip timing without implying the video contains missed words.
+- **What counts as a claim.** The initial eligibility contract covers explicit spoken promises with broadcaster attribution. Predictions and bets need labelled support before widening; P2/P5 must apply the recorded policy.
+- **Demo channel:** nrynss, with original owned content; hosted judge self-service is accepted separately in TA.4.

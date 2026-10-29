@@ -9,7 +9,7 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 | Phase | Document | Complete | Status |
 |---|---|---|---|
 | P0 | [Ground and feasibility](PHASE-0-ground.md) | 4 / 4 | Complete; owner confirmed OBS video, audio and autoplay |
-| P1 | [Contracts, storage and lifecycle](PHASE-1-contracts.md) | 3 / 4 | Settings, ledger and API/event contracts complete; Replay foundation reviewed; full T1.4 scenario awaits P2 |
+| P1 | [Contracts, storage and lifecycle](PHASE-1-contracts.md) | 4 / 4 | Complete; replay driver landed; full product scenario acceptance belongs to T2.4 |
 | TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 1 / 4 | Identity/sessions reviewed; TA.2 channel authorization and isolation next |
 | P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 0 / 4 | Not started |
 | P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 0 / 3 | Not started |
@@ -33,7 +33,7 @@ T6.1 + replay/product loop + TA.3 ──> TA.4 hosted acceptance
 T6.2 real rehearsal + TA.4 ──> T6.3 judge readiness
 ```
 
-The map shows broad ordering. Each task's `requires` list is authoritative; phases need not close as whole blocks. P3.1 can start after T1.3 while the receipt loop is being built. Probes happen early so an API or capture limitation is found before dependent implementation. This is an ordering plan, not authorization to spawn agents; keep most product work in the principal Codex thread.
+The map shows broad ordering. Each task's `requires` list is authoritative; phases need not close as whole blocks. T3.1 can start after T1.3 while the receipt loop is being built. Probes happen early so an API or capture limitation is found before dependent implementation. This is an ordering plan, not authorization to spawn agents; keep most product work in the principal Codex thread.
 
 ## Task protocol
 
@@ -45,7 +45,7 @@ For a completed task record the revision, relevant checks, evidence location and
 
 ## Scope boundaries
 
-- Hosted scope: multiple Twitch owners, one owned channel per account, one Go process and one SQLite file, with isolated channel runtimes and overlays. See [accounts and judge onboarding scope](../docs/accounts-scope.md); TA.1–TA.4 are not implemented.
+- Hosted scope: multiple Twitch owners, one owned channel per account, one Go process and one SQLite file, with isolated channel runtimes and overlays. See [accounts and judge onboarding scope](../docs/accounts-scope.md); TA.1 identity/sessions is implemented; TA.2–TA.4 remain planned.
 - Viewers use existing Twitch chat commands; the streamer uses a private control page/OBS dock.
 - Explicit spoken promises and spoken contradictions first. Visual gameplay recognition and billing are deferred. Self-service Twitch onboarding is now required by the hosted scope.
 - Capture preserves transcript evidence even if a clip is pending, late or unavailable. A transcript fallback is clearly labelled.
@@ -65,14 +65,19 @@ Capture Codex build footage as work happens, with credentials hidden. Keep the p
 
 T0.1 → T0.4 → T1.2 → T1.3 → T1.4 → T2.1 → T2.2 → T2.3 → T2.4 establishes the offline product. T3.1–T3.3 make it visible in OBS. T0.2/T0.3 prove the live assumptions; P4 and P5 replace recorded adapters. T6.2 proves the real Twitch experience; T6.3 packages that evidence for judges.
 
-## Handoff log
+## Current handoff
 
-P0 implementation began in the principal Codex build. T0.4 has an original offline evaluation contract and 44-pair corpus. T0.1 is complete: pinned dependencies install, the full offline gate passes, and the Go binary serves the generated Svelte overlay. Development instructions are in `docs/development.md`. T0.2 and T0.3 have executable bounded live probes and passing offline tests. Twitch registration and authorization are verified. Live chat receive/reply, clip readiness, local iframe playback and short broadcast capture have passed. The active audio lifecycle test now passes as well; owner-reported OBS playback at localhost now passes; production-origin checks remain P4/P6 work.
+| Landed work | Revision | Evidence / limitation |
+|---|---|---|
+| P0 feasibility | `c7682b0` | [P0 evidence](PHASE-0-ground.md); owner-reported local OBS acceptance; deployed origin still unverified |
+| T1.1 settings and T1.2 ledger | `19795cf` | Explicit modes, durable transitions and startup migration; offline gate and race checks |
+| T1.3 contracts | `96b4c43` | Go/TS goldens, API authorization and SSE recovery; product services/router mounting still pending |
+| Keel upgrade | `142c2a3` | v0.9.0; [compatibility review](../docs/keel-upgrade.md) |
+| T1.4 replay foundation | `ced2280` | Strict offline dispatch, injected clock/IDs and real ledger determinism; full product demo is T2.4 |
+| TA.1 identity and sessions | `ed2c7d6` | OAuth, encrypted tokens, session/CSRF and validation lifecycle; [auth handoff](../docs/ta1-auth-handoff.md); real hosted consent remains TA.4 |
 
-Live follow-up: chat receive/reply, clip readiness and short broadcast capture pass on nrynss. Local clip playback reaches the end. See P0 handoff for measured evidence and the remaining OBS playback check.
+The combined tree at `ed2c7d6` passed the full offline gate and uncached auth/replay/store/settings/API/events/startup race checks. No deployed multi-streamer or full receipt-loop acceptance is claimed.
 
-Active lifecycle follow-up: T0.3 is complete after controlled source interruption, fresh reconnect with audio, real stream-end cleanup and authoritative offline confirmation. Evidence preserves source EOF versus later status-confirmation timing. The owner subsequently confirmed actual OBS playback and autoplay, closing T0.2 and P0.
+## Ready next
 
-P0 closed: all four tasks complete. OBS video, audio, autoplay and click-to-play were confirmed by the owner at localhost. P1 contracts/storage is the next phase.
-
-Hosted scope amendment: TA.1 identity can begin now; TA.2 isolation precedes shared live runtime integration. T3.2 consumes owner sessions. T6.1 deploys after TA.3; TA.4 verifies that deployment and gates T6.3 judge readiness. Existing P1 completion counts are unchanged.
+T2.1 receipt capture, TA.2 channel authorization/runtime isolation and T3.1 overlay states have completed prerequisites. No implementation agent is active. Later tasks retain their explicit dependencies. T6.1 deploys after TA.3; TA.4 verifies that deployment and gates T6.3 judge readiness.

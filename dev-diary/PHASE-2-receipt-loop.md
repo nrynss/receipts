@@ -56,7 +56,7 @@ status: not-started
 
 Render !lore from stored claims and verdicts with a bounded response and a defined score calculation. Filter sensitive and voided content on every read. Exercise the original full scenario through capture, contradiction, appeal and lore, including a failed clip and restart.
 
-**Done when:** One offline acceptance test verifies the full persisted event sequence and lore. Every displayed score reconciles with the ledger and suppressed claims never leak.
+**Done when:** Replay the original demo twice into separate fresh stores through the real capture/detection/appeal/lore services; event and verdict sequences must match with no external calls. One offline acceptance test verifies the full persisted event sequence and lore. Every displayed score reconciles with the ledger and suppressed claims never leak.
 
 ## Exit criteria
 
@@ -69,7 +69,7 @@ Render !lore from stored claims and verdicts with a bounded response and a defin
 
 ### What exists now
 
-Planning only. No implementation is claimed.
+P2 product services are not implemented. The T1.4 driver and real-ledger replay boundary landed in `ced2280`, and TA.1 in `ed2c7d6`; these are prerequisites, not evidence of a working receipt loop.
 
 ### Evidence and decisions
 
@@ -77,4 +77,4 @@ Record task IDs, relevant revision, checks and artifact paths when work lands. N
 
 ### Notes for the next task
 
-Record unresolved blockers, contract changes and the next unblocked task.
+T2.1 is ready. Reuse `internal/replay` clock/ID and typed sink boundaries. Preserve explicit channel context for TA.2. T2.4 owns the original full demo event/verdict acceptance; do not recreate decisions inside replay.

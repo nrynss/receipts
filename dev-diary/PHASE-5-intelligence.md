@@ -9,7 +9,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 ### T5.1: Audio lifecycle and transcription
 
 ```yaml
-requires: T0.3, T4.4, T1.1
+requires: T0.3, T4.4, T1.1, TA.2
 fixture-ok: yes
 owns: internal/audio/, internal/transcribe/, testdata/audio/, testdata/models/
 status: not-started
@@ -35,13 +35,13 @@ Choose supported OpenAI extraction/judge and embedding models from current offic
 ### T5.3: Judge, budgets and failures
 
 ```yaml
-requires: T5.2, T2.2
+requires: T5.2, T2.2, TA.2
 fixture-ok: yes
 owns: internal/judge/, internal/budget/, testdata/models/
 status: not-started
 ```
 
-Judge retrieved claim/later-line pairs with structured contradicts, does-not-contradict or unsure plus evidence references. Require validated evidence and calibrated policy before stamping; a model confidence number alone is insufficient. Use Keel gate/cost for bounded concurrency, per-session and daily spend, with an explicit preflight live budget. Reserve before calls and reconcile actual usage. Bound retries/timeouts and distinguish unavailable service from unsure. Failed or late results never fabricate a stamp.
+Judge retrieved claim/later-line pairs with structured contradicts, does-not-contradict or unsure plus evidence references. Require validated evidence and calibrated policy before stamping; a model confidence number alone is insufficient. Use Keel v0.9.0 gate/cost and durable context-aware metering for bounded concurrency, per-channel/session and installation-wide spend, with an explicit preflight live budget. Reserve before calls and reconcile actual usage. Bound retries/timeouts and distinguish unavailable service from unsure. Failed or late results never fabricate a stamp.
 
 **Done when:** Fixtures cover refusal, invalid JSON, rate limits, timeout, exhausted budget and concurrent cap contention. One live case runs first; usage is checked before any larger run.
 
@@ -69,7 +69,7 @@ Run the labelled corpus through the same retrieval/judge policy used by the app.
 
 ### What exists now
 
-Planning only. No implementation is claimed.
+P5 model/transcription integration has not started. P0 audio feasibility and the v0.9.0 Keel compatibility review exist; neither proves model accuracy or long-running hosted transcription.
 
 ### Evidence and decisions
 

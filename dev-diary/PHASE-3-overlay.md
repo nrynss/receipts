@@ -56,7 +56,7 @@ Connect Keel stream to Chaaya createEventStream with snapshots and stable IDs. S
 
 ### What exists now
 
-Planning only. No implementation is claimed.
+P3 product UI has not started. T1.3 supplies tested TypeScript decoding/reconnect helpers; TA.1 supplies browser sessions. Overlay states, owner controls and OBS pairing are still pending.
 
 ### Evidence and decisions
 
@@ -64,4 +64,4 @@ Record task IDs, relevant revision, checks and artifact paths when work lands. N
 
 ### Notes for the next task
 
-Record unresolved blockers, contract changes and the next unblocked task.
+T3.1 is ready from T1.3. T3.2 requires T2.3 and TA.2. TA.3 builds pairing/setup alongside this phase; keep read-only OBS devices separate from owner sessions.

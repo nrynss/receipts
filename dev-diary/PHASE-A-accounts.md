@@ -60,18 +60,18 @@ Offer a clearly labelled recorded demo without login. Run the real application s
 
 ## Phase integration
 
-TA.1 can start alongside T1.4. P2 continues against explicit channel context. TA.2 gates shared P4/P5 runtime integration and T3.2 owner controls. TA.3 joins T3.1 and precedes T6.1 deployment. TA.4 verifies that deployment and gates T6.3 judge readiness. Fixture readiness permits offline implementation; real Twitch/OBS acceptance still requires separate budgeted live evidence. No dependency runs from T6.1 back to TA.4.
+TA.1 is landed in `ed2c7d6`; T1.4 replay foundation is landed in `ced2280`. P2 continues against explicit channel context. TA.2 gates shared P4/P5 runtime integration and T3.2 owner controls. TA.3 joins T3.1 and precedes T6.1 deployment. TA.4 verifies that deployment and gates T6.3 judge readiness. Fixture readiness permits offline implementation; real Twitch/OBS acceptance still requires separate budgeted live evidence. No dependency runs from T6.1 back to TA.4.
 
 ## Exit criteria
 
 - [ ] Each task has evidence against its done criteria.
-- [ ] Offline gate passes without keys, network or live broadcasts.
+- [x] Offline gate passes without keys, network or live broadcasts at `ed2c7d6`.
 - [ ] Two-owner and anonymous-demo isolation are verified.
 - [ ] Twitch/OBS checks are separately recorded on the deployed origin.
 - [ ] Revocation, disconnect, deletion and operational limits are documented.
 
 ## Handoff log
 
-TA.1 is reviewed from `50ced59` and integrated with startup. Principal-thread full offline gate and uncached auth/settings/store/startup race tests passed. TA.2 is the next account task; channel-scoped runtime/API authorization and onboarding UI are not implemented. Public HTTPS origin, active-channel capacity and operator spend limits must be configured before hosted activation. Billing, moderator delegation and multiple owned channels per account remain deferred.
+TA.1 is reviewed from `50ced59` and integrated with startup in `ed2c7d6`. Principal-thread full offline gate and uncached auth/settings/store/startup race tests passed. TA.2 is the next account task; channel-scoped runtime/API authorization and onboarding UI are not implemented. Public HTTPS origin, active-channel capacity and operator spend limits must be configured before hosted activation. Billing, moderator delegation and multiple owned channels per account remain deferred.
 
 Review fixed login/refresh/revocation ordering, durable rotated-token persistence despite caller cancellation or temporary validation outage, subject-bound encryption, and session issuance after revocation. Startup and cancellable hourly maintenance validate connected grants; invalid authorization revokes browser sessions. Provider tests are offline; real Twitch consent at the hosted HTTPS origin remains TA.4 acceptance. See [auth handoff](../docs/ta1-auth-handoff.md).

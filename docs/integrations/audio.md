@@ -16,7 +16,7 @@ A real short live capture now verifies startup, two measured chunks and bounded 
 
 - [Streamlink command line output](https://streamlink.github.io/cli.html)
 - [Streamlink Twitch behavior](https://streamlink.github.io/cli/plugins/twitch.html)
-- [Keel ffmpeg package v0.7.3](https://pkg.go.dev/github.com/nrynss/keel/ffmpeg)
+- [Keel ffmpeg package v0.9.0](https://pkg.go.dev/github.com/nrynss/keel/ffmpeg)
 - [Twitch Get Streams](https://dev.twitch.tv/docs/api/reference/#get-streams)
 
 ## Live capture result
