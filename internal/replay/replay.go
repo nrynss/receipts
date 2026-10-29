@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -119,6 +120,90 @@ func (f Fixture) Validate() error {
 		if count != 1 {
 			return fmt.Errorf("%w: input %d must contain exactly one typed payload", ErrInvalidFixture, i)
 		}
+		if err := validateInput(in); err != nil {
+			return fmt.Errorf("%w: input %d: %v", ErrInvalidFixture, i, err)
+		}
+	}
+	return nil
+}
+
+func required(value, name string) error {
+	if strings.TrimSpace(value) == "" {
+		return fmt.Errorf("%s is required", name)
+	}
+	return nil
+}
+
+func validateInput(in Input) error {
+	switch in.Kind {
+	case "transcript":
+		v := in.Transcript
+		if err := required(v.ID, "transcript.id"); err != nil {
+			return err
+		}
+		if err := required(v.SessionID, "transcript.session_id"); err != nil {
+			return err
+		}
+		if err := required(v.Text, "transcript.text"); err != nil {
+			return err
+		}
+		if v.Start < 0 || v.End < v.Start {
+			return errors.New("transcript offsets are invalid")
+		}
+		if v.Attribution != ports.AttributionBroadcaster && v.Attribution != ports.AttributionUncertain {
+			return errors.New("transcript attribution is invalid")
+		}
+	case "chat":
+		v := in.Chat
+		for _, field := range []struct{ value, name string }{{v.ID, "chat.id"}, {v.ChannelID, "chat.channel_id"}, {v.SessionID, "chat.session_id"}, {v.UserID, "chat.user_id"}, {v.Login, "chat.login"}, {v.Command, "chat.command"}} {
+			if err := required(field.value, field.name); err != nil {
+				return err
+			}
+		}
+		if v.ReceivedAt.IsZero() {
+			return errors.New("chat.received_at is required")
+		}
+		if v.Role != ports.ChatViewer && v.Role != ports.ChatModerator && v.Role != ports.ChatBroadcaster {
+			return errors.New("chat role is invalid")
+		}
+	case "clip":
+		v := in.Clip
+		if err := required(v.RequestID, "clip.request_id"); err != nil {
+			return err
+		}
+		if v.CreatedAt.IsZero() {
+			return errors.New("clip.created_at is required")
+		}
+		switch v.Status {
+		case ports.ClipPending, ports.ClipUnavailable, ports.ClipFailed:
+		case ports.ClipReady:
+			if err := required(v.ClipID, "clip.clip_id"); err != nil {
+				return err
+			}
+			if err := required(v.URL, "clip.url"); err != nil {
+				return err
+			}
+		default:
+			return errors.New("clip status is invalid")
+		}
+	case "session":
+		v := in.Session
+		if err := required(v.SessionID, "session.session_id"); err != nil {
+			return err
+		}
+		if err := required(v.ChannelID, "session.channel_id"); err != nil {
+			return err
+		}
+		if v.ObservedAt.IsZero() {
+			return errors.New("session.observed_at is required")
+		}
+		switch v.State {
+		case ports.SessionLive, ports.SessionOffline, ports.SessionEnded, ports.SessionUnknown:
+		default:
+			return errors.New("session state is invalid")
+		}
+	default:
+		return fmt.Errorf("unknown kind %q", in.Kind)
 	}
 	return nil
 }
@@ -132,36 +217,47 @@ func (f Fixture) Run(ctx context.Context, sinks Sinks, clock *Clock) error {
 	if clock == nil {
 		return fmt.Errorf("%w: clock is required", ErrInvalidFixture)
 	}
+	if len(f.Inputs) > 0 && f.Inputs[0].At.Before(clock.Now()) {
+		return fmt.Errorf("%w: clock begins after first input", ErrInvalidFixture)
+	}
+	// Resolve every required sink before any callback can mutate application state.
+	for _, in := range f.Inputs {
+		switch in.Kind {
+		case "transcript":
+			if sinks.Transcript == nil {
+				return missingSink("transcript")
+			}
+		case "chat":
+			if sinks.Chat == nil {
+				return missingSink("chat")
+			}
+		case "clip":
+			if sinks.Clip == nil {
+				return missingSink("clip")
+			}
+		case "session":
+			if sinks.Session == nil {
+				return missingSink("session")
+			}
+		}
+	}
 	for i, in := range f.Inputs {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("replay input %d canceled: %w", i, err)
+		}
 		if err := clock.Advance(in.At); err != nil {
 			return err
 		}
 		var err error
 		switch in.Kind {
 		case "transcript":
-			if sinks.Transcript == nil {
-				err = missingSink("transcript")
-			} else {
-				err = sinks.Transcript.AcceptTranscript(ctx, *in.Transcript)
-			}
+			err = sinks.Transcript.AcceptTranscript(ctx, *in.Transcript)
 		case "chat":
-			if sinks.Chat == nil {
-				err = missingSink("chat")
-			} else {
-				err = sinks.Chat.AcceptChatCommand(ctx, *in.Chat)
-			}
+			err = sinks.Chat.AcceptChatCommand(ctx, *in.Chat)
 		case "clip":
-			if sinks.Clip == nil {
-				err = missingSink("clip")
-			} else {
-				err = sinks.Clip.AcceptClipResult(ctx, *in.Clip)
-			}
+			err = sinks.Clip.AcceptClipResult(ctx, *in.Clip)
 		case "session":
-			if sinks.Session == nil {
-				err = missingSink("session")
-			} else {
-				err = sinks.Session.AcceptLiveSessionChange(ctx, *in.Session)
-			}
+			err = sinks.Session.AcceptLiveSessionChange(ctx, *in.Session)
 		default:
 			err = fmt.Errorf("%w: unknown kind %q", ErrInvalidFixture, in.Kind)
 		}
