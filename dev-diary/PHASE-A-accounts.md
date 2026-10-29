@@ -2,7 +2,7 @@
 
 **Goal:** Let judges try Receipts immediately and streamers connect their own channel safely.
 
-**Status:** in-progress (1/4)
+**Status:** in-progress (2/4)
 
 Read [the phase index](README.md), [account scope](../docs/accounts-scope.md), [product](../product.md) and [agent protocol](../AGENTS.md). The scope defines product boundaries; this document owns TA task status, dependencies and implementation evidence.
 
@@ -25,7 +25,7 @@ Implement Twitch authorization-code login, verified identity and one owned chann
 requires: TA.1, T1.3
 fixture-ok: yes
 owns: internal/auth/, internal/api/, internal/events/, internal/runtime/, internal/store/, internal/settings/
-status: in-progress
+status: done
 ```
 
 Resolve validated owner or device channel context at every API boundary. Give each active channel its own publisher, epoch, session authority, cancellation, buffers, cooldowns and usage. Enforce per-channel and global capacity/spend limits; reject or queue activation visibly. Coordinate shared paths with live adapter and product-loop tasks.
@@ -72,6 +72,10 @@ TA.1 is landed in `ed2c7d6`; T1.4 replay foundation is landed in `ced2280`. P2 c
 
 ## Handoff log
 
-TA.1 is reviewed from `50ced59` and integrated with startup in `ed2c7d6`. Principal-thread full offline gate and uncached auth/settings/store/startup race tests passed. TA.2 is the next account task; channel-scoped runtime/API authorization and onboarding UI are not implemented. Public HTTPS origin, active-channel capacity and operator spend limits must be configured before hosted activation. Billing, moderator delegation and multiple owned channels per account remain deferred.
+TA.1 is reviewed from `50ced59` and integrated with startup in `ed2c7d6`. Principal-thread full offline gate and uncached auth/settings/store/startup race tests passed. TA.2 runtime/API authorization is reviewed from `7c463e1`; TA.3 onboarding waits for T3.1 overlay states. Onboarding UI and live adapter activation remain unimplemented. Public HTTPS origin, active-channel capacity and operator spend limits must be configured before hosted activation. Billing, moderator delegation and multiple owned channels per account remain deferred.
 
 Review fixed login/refresh/revocation ordering, durable rotated-token persistence despite caller cancellation or temporary validation outage, subject-bound encryption, and session issuance after revocation. Startup and cancellable hourly maintenance validate connected grants; invalid authorization revokes browser sessions. Provider tests are offline; real Twitch consent at the hosted HTTPS origin remains TA.4 acceptance. See [auth handoff](../docs/ta1-auth-handoff.md).
+
+### TA.2 acceptance
+
+Reviewed candidate `7c463e1` composes owner/device middleware, channel-local publishers and runtime generations, scoped ledger reads and durable Keel budgets on the same SQLite file. The principal thread contributed budget/read-model/composition tests and independently verified the full gate plus uncached auth/API/runtime/settings/store/commands/startup race checks. Tests cover guessed authority, two-owner data and SSE isolation, device read-only restrictions, CSRF, revocation/session expiry, capacity held until workers stop, pre-cancelled work, activation/revocation races and persistent spend caps. Default void/review/receipt-decision actions return 501 until P2 lifecycle services can commit state and events together. P4 must call the verified activation seam; no real live runtime is enabled just by login. See [runtime handoff](../docs/ta2-runtime-handoff.md).

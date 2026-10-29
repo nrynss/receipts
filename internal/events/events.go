@@ -78,9 +78,23 @@ func (p *Publisher) Commit(name string, update func() OverlayEvent) {
 	if p == nil || p.Broker == nil || update == nil {
 		return
 	}
+	_ = p.CommitError(name, func() (OverlayEvent, error) { return update(), nil })
+}
+
+// CommitError serializes an error-capable state change with its public event.
+// A failed mutation publishes nothing and leaves the sequence untouched.
+func (p *Publisher) CommitError(name string, update func() (OverlayEvent, error)) error {
+	if p == nil || p.Broker == nil || update == nil {
+		return errors.New("event publisher unavailable")
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.publishLocked(name, update())
+	payload, err := update()
+	if err != nil {
+		return err
+	}
+	p.publishLocked(name, payload)
+	return nil
 }
 
 func (p *Publisher) publishLocked(name string, payload OverlayEvent) {

@@ -1,6 +1,6 @@
 # Hosted accounts and judge onboarding scope
 
-Status: TA.1 identity/sessions implemented in `ed2c7d6`; TA.2–TA.4 remain planned. Shared channel runtimes, hosted onboarding, OBS pairing and the anonymous demo are not implemented. Hosted readiness is not claimed.
+Status: TA.1 identity/sessions and TA.2 channel/runtime isolation are implemented. TA.3 onboarding/OBS pairing and TA.4 anonymous demo/hosted acceptance remain planned. The live adapter does not yet activate real channel runtimes. Hosted readiness is not claimed.
 
 ## Outcome
 
@@ -48,7 +48,7 @@ Implementation task status and evidence live in [the TA phase document](../dev-d
 | TA.3 Onboarding and OBS pairing | TA.2, T3.1 | Private setup/dashboard, pairing, device revocation, reconnect states | New owner completes setup without developer help; actual OBS retains pairing across restart; expired/reused codes and revoked devices fail |
 | TA.4 Judge demo and hosted acceptance | TA.2, TA.3, T1.4, T2.4, T3.3, T6.1 | Anonymous isolated recorded demo, deployed HTTPS checks, lifecycle/deletion acceptance | Two anonymous demos cannot affect each other or live channels; provider calls stay at zero; fresh Twitch account and two-owner isolation rehearsal pass |
 
-These IDs supplement the existing phases without renumbering completed work. TA.1 is landed; TA.2 is ready to begin. TA.2 must settle before live adapters are integrated into a shared hosted runtime. T3.2 uses owner sessions rather than a shared control secret. T6.1 deploys the candidate after TA.3; TA.4 verifies the deployed experience and gates T6.3 judge readiness. Existing offline product-loop work can proceed in parallel against explicit channel context.
+These IDs supplement the existing phases without renumbering completed work. TA.1 and TA.2 are landed; TA.3 waits for T3.1. TA.2 must settle before live adapters are integrated into a shared hosted runtime. T3.2 uses owner sessions rather than a shared control secret. T6.1 deploys the candidate after TA.3; TA.4 verifies the deployed experience and gates T6.3 judge readiness. Existing offline product-loop work can proceed in parallel against explicit channel context.
 
 ## Deferred
 

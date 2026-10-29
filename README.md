@@ -15,12 +15,12 @@ Build and run the current server using the [development instructions](docs/devel
 |---|---|---|
 | P0 — Feasibility | 4/4 | Twitch, audio and OBS probes |
 | P1 — Foundation | 4/4 | Settings, ledger, contracts and deterministic replay driver |
-| TA — Accounts and onboarding | 1/4 | Twitch login, channel isolation, OBS pairing and judge demo |
+| TA — Accounts and onboarding | 2/4 | Identity and isolation implemented; OBS pairing and judge demo pending |
 | P2 — Offline receipt loop | 1/4 | Receipt capture implemented; detection, appeal and lore pending |
 | P3–P5 — Live experience | Planned | Overlay, Twitch and intelligence |
 | P6 — Release | Planned | Deployment, live proof and judge readiness |
 
-[TA implementation phase and acceptance criteria](dev-diary/PHASE-A-accounts.md), with [account scope](docs/accounts-scope.md). TA.1 identity/sessions is implemented; TA.2 enables shared channel runtimes, TA.3 joins the overlay work, and TA.4 verifies the deployed judge experience before submission preparation.
+[TA implementation phase and acceptance criteria](dev-diary/PHASE-A-accounts.md), with [account scope](docs/accounts-scope.md). TA.1 identity/sessions and TA.2 channel isolation are implemented, TA.3 joins the overlay work, and TA.4 verifies the deployed judge experience before submission preparation.
 
 ## Current commands
 
@@ -33,7 +33,7 @@ The replay database path must be new. Replay currently persists transcript fixtu
 
 ## Planned streamer experience
 
-Hosted onboarding will offer Twitch sign-in and OBS pairing for the owner’s channel, plus a recorded demo without login. The identity/session foundation is implemented; hosted onboarding, channel isolation and OBS pairing remain planned.
+Hosted onboarding will offer Twitch sign-in and OBS pairing for the owner’s channel, plus a recorded demo without login. Identity/session and channel-isolation foundations are implemented; hosted onboarding, OBS pairing and live-adapter activation remain planned.
 
 Add the overlay to OBS as a browser source. Chat commands: `!receipt`, `!lore`, `!uphold`, `!overturn`; the streamer and mods also have `!receipts off` and `!void`.
 

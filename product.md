@@ -4,7 +4,7 @@
 
 Entry for the Codex × TwitchCon Hackathon (Devpost). Official submission requirements are rechecked during P6 readiness.
 
-This document describes the target product. P0/P1 foundation and TA.1 identity/sessions are implemented; the full receipt loop and hosted onboarding are still being built. Current evidence and task status are in [the phase index](dev-diary/README.md).
+This document describes the target product. P0/P1 foundation, T2.1 capture and TA.1–TA.2 identity/isolation are implemented; the full receipt loop and hosted onboarding are still being built. Current evidence and task status are in [the phase index](dev-diary/README.md).
 
 ## The product
 
@@ -30,7 +30,7 @@ It works on any stream with someone talking: games, IRL, just chatting, tabletop
 
 ## Accounts and onboarding
 
-A streamer signs in with Twitch and owns their own broadcaster channel. Hosted scope includes isolated channel runtimes and budgets, a private dashboard and revocable read-only OBS pairing. Viewers keep using Twitch chat without a Receipts account. Judges can try a clearly labelled, isolated recorded demo without signing in or going live. TA.1 OAuth/session support is implemented; channel runtime authorization, onboarding/pairing and judge demo acceptance remain TA.2–TA.4. See [account scope](docs/accounts-scope.md). Billing, account teams and moderator dashboard delegation are deferred; verified Twitch moderator chat commands remain in the product scope.
+A streamer signs in with Twitch and owns their own broadcaster channel. Hosted scope includes isolated channel runtimes and budgets, a private dashboard and revocable read-only OBS pairing. Viewers keep using Twitch chat without a Receipts account. Judges can try a clearly labelled, isolated recorded demo without signing in or going live. TA.1 OAuth/session support and TA.2 channel runtime authorization are implemented; onboarding/pairing and judge demo acceptance remain TA.3–TA.4. Live adapter activation remains P4. See [account scope](docs/accounts-scope.md). Billing, account teams and moderator dashboard delegation are deferred; verified Twitch moderator chat commands remain in the product scope.
 
 ## The rules that keep it fun
 

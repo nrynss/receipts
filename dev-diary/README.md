@@ -10,7 +10,7 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 |---|---|---|---|
 | P0 | [Ground and feasibility](PHASE-0-ground.md) | 4 / 4 | Complete; owner confirmed OBS video, audio and autoplay |
 | P1 | [Contracts, storage and lifecycle](PHASE-1-contracts.md) | 4 / 4 | Complete; replay driver landed; full product scenario acceptance belongs to T2.4 |
-| TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 1 / 4 | Identity/sessions complete; Luna implementing TA.2 isolation |
+| TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 2 / 4 | Identity and runtime isolation complete; onboarding awaits T3.1 |
 | P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 1 / 4 | Receipt capture reviewed; T2.2 detection is next |
 | P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 0 / 3 | Not started |
 | P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 0 / 4 | Not started |
@@ -45,7 +45,7 @@ For a completed task record the revision, relevant checks, evidence location and
 
 ## Scope boundaries
 
-- Hosted scope: multiple Twitch owners, one owned channel per account, one Go process and one SQLite file, with isolated channel runtimes and overlays. See [accounts and judge onboarding scope](../docs/accounts-scope.md); TA.1 identity/sessions is implemented; TA.2–TA.4 remain planned.
+- Hosted scope: multiple Twitch owners, one owned channel per account, one Go process and one SQLite file, with isolated channel runtimes and overlays. See [accounts and judge onboarding scope](../docs/accounts-scope.md); TA.1 identity/sessions and TA.2 runtime isolation are implemented; TA.3–TA.4 remain planned.
 - Viewers use existing Twitch chat commands; the streamer uses a private control page/OBS dock.
 - Explicit spoken promises and spoken contradictions first. Visual gameplay recognition and billing are deferred. Self-service Twitch onboarding is now required by the hosted scope.
 - Capture preserves transcript evidence even if a clip is pending, late or unavailable. A transcript fallback is clearly labelled.
@@ -71,13 +71,15 @@ T0.1 → T0.4 → T1.2 → T1.3 → T1.4 → T2.1 → T2.2 → T2.3 → T2.4 est
 |---|---|---|
 | P0 feasibility | `c7682b0` | [P0 evidence](PHASE-0-ground.md); owner-reported local OBS acceptance; deployed origin still unverified |
 | T1.1 settings and T1.2 ledger | `19795cf` | Explicit modes, durable transitions and startup migration; offline gate and race checks |
-| T1.3 contracts | `96b4c43` | Go/TS goldens, API authorization and SSE recovery; product services/router mounting still pending |
+| T1.3 contracts | `96b4c43` | Go/TS goldens, API authorization and SSE recovery; hosted router/scoped reads mounted by TA.2; P2 lifecycle actions pending |
 | Keel upgrade | `142c2a3` | v0.9.0; [compatibility review](../docs/keel-upgrade.md) |
 | T1.4 replay foundation | `ced2280` | Strict offline dispatch, injected clock/IDs and real ledger determinism; full product demo is T2.4 |
 | TA.1 identity and sessions | `ed2c7d6` | OAuth, encrypted tokens, session/CSRF and validation lifecycle; [auth handoff](../docs/ta1-auth-handoff.md); real hosted consent remains TA.4 |
+| T2.1 receipt capture | `4150ce5` | Exact attributed evidence, durable dedup/throttles and clip jobs; live extraction/transport remain downstream |
+| TA.2 channel isolation | `7c463e1` | Reviewed runtime/API/device isolation and durable budgets; [runtime handoff](../docs/ta2-runtime-handoff.md); live activation remains P4 |
 
-The combined tree at `ed2c7d6` passed the full offline gate and uncached auth/replay/store/settings/API/events/startup race checks. No deployed multi-streamer or full receipt-loop acceptance is claimed.
+The integrated capture/isolation tree passed the full offline gate and uncached auth/API/events/runtime/settings/store/commands/startup race checks. Provider HTTP tests use an in-memory transport, so the gate requires no localhost socket permissions. No deployed multi-streamer or full receipt-loop acceptance is claimed.
 
 ## Ready next
 
-T2.1 receipt capture is reviewed and landed; T2.2 detection and T3.1 overlay states are ready and unassigned. Luna continues TA.2 channel authorization/runtime isolation, with principal-thread budget implementation and review support. Later tasks retain their explicit dependencies. T6.1 deploys after TA.3; TA.4 verifies that deployment and gates T6.3 judge readiness.
+T2.1 receipt capture is reviewed and landed; T2.2 detection, T3.1 overlay states and T4.1 authorized channel adapters are ready and unassigned. TA.2 channel authorization/runtime isolation is reviewed. No implementation agent is active; TA.3 needs T3.1. Later tasks retain their explicit dependencies. T6.1 deploys after TA.3; TA.4 verifies that deployment and gates T6.3 judge readiness.

@@ -45,6 +45,9 @@ type Settings struct {
 	HTTPAddress           string        `toml:"http_address"`
 	DatabasePath          string        `toml:"database_path"`
 	AuthEnabled           bool          `toml:"auth_enabled"`
+	MaxActiveChannels     int           `toml:"max_active_channels"`
+	GlobalSpendLimitUSD   float64       `toml:"global_spend_limit_usd"`
+	ChannelSpendLimitUSD  float64       `toml:"channel_spend_limit_usd"`
 	TwitchClientID        config.Secret `toml:"twitch_client_id"`
 	TwitchAccessToken     config.Secret `toml:"twitch_access_token"`
 	TwitchClientSecret    config.Secret `toml:"twitch_client_secret"`
@@ -73,6 +76,9 @@ type configValues struct {
 	HTTPAddress           string  `toml:"http_address"`
 	DatabasePath          string  `toml:"database_path"`
 	AuthEnabled           bool    `toml:"auth_enabled"`
+	MaxActiveChannels     int     `toml:"max_active_channels"`
+	GlobalSpendLimitUSD   float64 `toml:"global_spend_limit_usd"`
+	ChannelSpendLimitUSD  float64 `toml:"channel_spend_limit_usd"`
 }
 
 func configDefaults() configValues {
@@ -84,7 +90,8 @@ func configDefaults() configValues {
 		LiveStatusFreshness: d.LiveStatusFreshness.String(), TranscriptionModel: d.TranscriptionModel,
 		EmbeddingModel: d.EmbeddingModel, JudgeModel: d.JudgeModel,
 		TranscriptionSpendUSD: d.TranscriptionSpendUSD, EmbeddingSpendUSD: d.EmbeddingSpendUSD,
-		JudgeSpendUSD: d.JudgeSpendUSD, HTTPAddress: d.HTTPAddress, DatabasePath: d.DatabasePath, AuthEnabled: d.AuthEnabled,
+		JudgeSpendUSD: d.JudgeSpendUSD, HTTPAddress: d.HTTPAddress, DatabasePath: d.DatabasePath, AuthEnabled: d.AuthEnabled, MaxActiveChannels: d.MaxActiveChannels,
+		GlobalSpendLimitUSD: d.GlobalSpendLimitUSD, ChannelSpendLimitUSD: d.ChannelSpendLimitUSD,
 	}
 }
 
@@ -112,7 +119,8 @@ func (c configValues) settings() (Settings, error) {
 		TranscriptionModel: c.TranscriptionModel, EmbeddingModel: c.EmbeddingModel,
 		JudgeModel: c.JudgeModel, TranscriptionSpendUSD: c.TranscriptionSpendUSD,
 		EmbeddingSpendUSD: c.EmbeddingSpendUSD, JudgeSpendUSD: c.JudgeSpendUSD,
-		HTTPAddress: c.HTTPAddress, DatabasePath: c.DatabasePath, AuthEnabled: c.AuthEnabled,
+		HTTPAddress: c.HTTPAddress, DatabasePath: c.DatabasePath, AuthEnabled: c.AuthEnabled, MaxActiveChannels: c.MaxActiveChannels,
+		GlobalSpendLimitUSD: c.GlobalSpendLimitUSD, ChannelSpendLimitUSD: c.ChannelSpendLimitUSD,
 	}, nil
 }
 
@@ -121,6 +129,9 @@ var channelNamePattern = regexp.MustCompile(`^[A-Za-z0-9_]{1,25}$`)
 func Defaults() Settings {
 	return Settings{
 		PublicOrigin:          "http://localhost:8080",
+		MaxActiveChannels:     2,
+		GlobalSpendLimitUSD:   3,
+		ChannelSpendLimitUSD:  1.5,
 		TranscriptRetention:   30 * time.Minute,
 		StampCooldown:         30 * time.Second,
 		AppealDuration:        2 * time.Minute,
@@ -146,7 +157,8 @@ func Load(ctx context.Context, lookup func(string) (string, bool)) (Settings, er
 			field == "transcript_retention" || field == "stamp_cooldown" || field == "appeal_duration" ||
 			field == "live_status_freshness" || field == "transcription_model" || field == "embedding_model" ||
 			field == "judge_model" || field == "transcription_spend_usd" || field == "embedding_spend_usd" ||
-			field == "judge_spend_usd" || field == "http_address" || field == "database_path" || field == "auth_enabled" {
+			field == "judge_spend_usd" || field == "http_address" || field == "database_path" || field == "auth_enabled" || field == "max_active_channels" ||
+			field == "global_spend_limit_usd" || field == "channel_spend_limit_usd" {
 			return lookup("RECEIPTS_" + key)
 		}
 		return lookup(key)
@@ -312,6 +324,14 @@ func (s Settings) Validate() error {
 	}
 	if s.TranscriptRetention < time.Minute || s.TranscriptRetention > 24*time.Hour {
 		return errorsf("RECEIPTS_TRANSCRIPT_RETENTION must be between 1m and 24h")
+	}
+	if s.MaxActiveChannels < 1 || s.MaxActiveChannels > 64 {
+		return errorsf("RECEIPTS_MAX_ACTIVE_CHANNELS must be between 1 and 64")
+	}
+	if math.IsNaN(s.GlobalSpendLimitUSD) || math.IsInf(s.GlobalSpendLimitUSD, 0) || s.GlobalSpendLimitUSD <= 0 ||
+		math.IsNaN(s.ChannelSpendLimitUSD) || math.IsInf(s.ChannelSpendLimitUSD, 0) || s.ChannelSpendLimitUSD <= 0 ||
+		s.ChannelSpendLimitUSD > s.GlobalSpendLimitUSD || s.GlobalSpendLimitUSD > 1e6 {
+		return errorsf("spend limits must be finite, positive, at most $1,000,000, and channel limit cannot exceed global")
 	}
 	if s.StampCooldown < 0 || s.StampCooldown > 24*time.Hour {
 		return errorsf("RECEIPTS_STAMP_COOLDOWN must be between 0 and 24h")

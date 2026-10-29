@@ -13,7 +13,7 @@ import (
 
 func TestTwitchProviderAuthorizationExchangeValidationAndRefresh(t *testing.T) {
 	var tokenCalls int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/oauth2/token":
 			if err := r.ParseForm(); err != nil {
@@ -46,16 +46,15 @@ func TestTwitchProviderAuthorizationExchangeValidationAndRefresh(t *testing.T) {
 		default:
 			http.NotFound(w, r)
 		}
-	}))
-	defer server.Close()
-	p := TwitchProvider{ClientID: "app-1", ClientSecret: "client-secret", BaseURL: server.URL, HTTPClient: server.Client()}
+	})
+	p := TwitchProvider{ClientID: "app-1", ClientSecret: "client-secret", BaseURL: "https://provider.test", HTTPClient: providerTestClient(handler)}
 
 	parsed, err := url.Parse(p.AuthorizeURL("state-random", "https://receipts.example/auth/twitch/callback", DefaultScopes))
 	if err != nil {
 		t.Fatal(err)
 	}
 	query := parsed.Query()
-	if parsed.Hostname() != "127.0.0.1" || query.Get("response_type") != "code" || query.Get("client_id") != "app-1" || query.Get("state") != "state-random" || query.Get("scope") != strings.Join(DefaultScopes, " ") {
+	if parsed.Hostname() != "provider.test" || query.Get("response_type") != "code" || query.Get("client_id") != "app-1" || query.Get("state") != "state-random" || query.Get("scope") != strings.Join(DefaultScopes, " ") {
 		t.Fatalf("authorize URL = %s", parsed.Redacted())
 	}
 	tokens, err := p.ExchangeCode(context.Background(), "one-time-code", "https://receipts.example/auth/twitch/callback")
@@ -73,14 +72,26 @@ func TestTwitchProviderAuthorizationExchangeValidationAndRefresh(t *testing.T) {
 }
 
 func TestTwitchProviderDoesNotExposeProviderErrorBodies(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		io.WriteString(w, `{"message":"refresh-secret-must-not-leak"}`)
-	}))
-	defer server.Close()
-	p := TwitchProvider{ClientID: "app-1", ClientSecret: "client-secret", BaseURL: server.URL, HTTPClient: server.Client()}
+	})
+	p := TwitchProvider{ClientID: "app-1", ClientSecret: "client-secret", BaseURL: "https://provider.test", HTTPClient: providerTestClient(handler)}
 	_, err := p.Refresh(context.Background(), "refresh-secret-must-not-leak")
 	if !errors.Is(err, ErrAuthorizationLost) || strings.Contains(err.Error(), "refresh-secret-must-not-leak") {
 		t.Fatalf("provider error = %v", err)
 	}
+}
+
+// In-memory transport exercises provider HTTP requests without opening a
+// localhost listener, so the offline gate works with networking disabled.
+type providerTestTransport struct{ handler http.Handler }
+
+func (t providerTestTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	response := httptest.NewRecorder()
+	t.handler.ServeHTTP(response, r)
+	return response.Result(), nil
+}
+func providerTestClient(handler http.Handler) *http.Client {
+	return &http.Client{Transport: providerTestTransport{handler: handler}}
 }

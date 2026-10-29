@@ -4,11 +4,14 @@ package api
 import (
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/nrynss/keel/wire"
+	"receipts/internal/auth"
 	"receipts/internal/events"
+	channelruntime "receipts/internal/runtime"
 )
 
 type Reader interface {
@@ -24,6 +27,20 @@ type Controls interface {
 	VoidReceipt(r *http.Request, input ControlInput) error
 	ResolveReview(r *http.Request, input ControlInput) error
 	SetReceiptDecision(r *http.Request, input ControlInput) error
+}
+
+// ScopedReader and ScopedControls are the only application seams accepted by
+// hosted mode. Every lookup receives server-validated owner/channel authority.
+type ScopedReader interface {
+	OverlaySnapshotFor(*http.Request, auth.ChannelContext) (events.OverlaySnapshot, error)
+	ReviewQueueFor(*http.Request, auth.ChannelContext) ([]events.ReviewItem, error)
+	HealthFor(*http.Request, auth.ChannelContext) (events.Health, error)
+}
+type ScopedControls interface {
+	SetPausedFor(*http.Request, auth.ChannelContext, ControlInput) error
+	VoidReceiptFor(*http.Request, auth.ChannelContext, ControlInput) error
+	ResolveReviewFor(*http.Request, auth.ChannelContext, ControlInput) error
+	SetReceiptDecisionFor(*http.Request, auth.ChannelContext, ControlInput) error
 }
 type ReviewDecision string
 
@@ -53,10 +70,15 @@ type Config struct {
 	Reader                               Reader
 	Controls                             Controls
 	Events                               *events.Publisher
+	EventsFor                            func(auth.ChannelContext) *events.Publisher
+	OwnerReader                          ScopedReader
+	OwnerControls                        ScopedControls
 }
 type Server struct {
-	cfg Config
-	mux *http.ServeMux
+	cfg            Config
+	mux            *http.ServeMux
+	requireChannel bool
+	ownerRuntime   *channelruntime.Manager
 }
 
 func New(cfg Config) *Server {
@@ -71,6 +93,46 @@ func New(cfg Config) *Server {
 	s.mux.HandleFunc("POST /api/control/decision", s.control("decision"))
 	return s
 }
+
+// NewForOwner creates the hosted account API. Every request receives owner
+// and channel authority from TA.1's opaque session; mutations also pass CSRF
+// and origin validation in the auth middleware.
+func NewForOwner(cfg Config, sessions *auth.Service, supervisor *channelruntime.Manager) http.Handler {
+	server := New(cfg)
+	server.requireChannel = true
+	server.ownerRuntime = supervisor
+	if sessions == nil || supervisor == nil {
+		return unavailableHandler()
+	}
+	return sessions.ChannelMiddleware(supervisor.Middleware(server))
+}
+
+func unavailableHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { unavailable(w) })
+}
+
+func (s *Server) channelAuthorized(r *http.Request) bool {
+	if !s.requireChannel {
+		return true
+	}
+	_, err := auth.ChannelFromContext(r.Context())
+	if err != nil {
+		return false
+	}
+	identity, _ := auth.ChannelFromContext(r.Context())
+	return identity.LiveSessionID != "" && identity.Generation != 0
+}
+
+func (s *Server) publisher(r *http.Request) *events.Publisher {
+	if s.requireChannel {
+		channel, ok := channelruntime.ChannelFromContext(r.Context())
+		if !ok || channel == nil {
+			return nil
+		}
+		return channel.Events
+	}
+	return s.cfg.Events
+}
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.mux.ServeHTTP(w, r) }
 
 func (s *Server) validCredentials() bool {
@@ -81,6 +143,10 @@ func equalCredential(want, got string) bool {
 	return want != "" && len(want) == len(got) && subtle.ConstantTimeCompare([]byte(want), []byte(got)) == 1
 }
 func (s *Server) overlayAuth(r *http.Request) bool {
+	if s.requireChannel {
+		_, err := auth.ChannelFromContext(r.Context())
+		return err == nil
+	}
 	if !s.validCredentials() {
 		return false
 	}
@@ -92,6 +158,10 @@ func (s *Server) overlayAuth(r *http.Request) bool {
 	return equalCredential(s.cfg.OverlayCredential, got)
 }
 func (s *Server) controlAuth(r *http.Request) bool {
+	if s.requireChannel {
+		value, err := auth.ChannelFromContext(r.Context())
+		return err == nil && !value.Device
+	}
 	if !s.validCredentials() {
 		return false
 	}
@@ -115,8 +185,31 @@ func encode(w http.ResponseWriter, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 func (s *Server) overlay(w http.ResponseWriter, r *http.Request) {
+	if !s.channelAuthorized(r) {
+		unauthorized(w)
+		return
+	}
 	if !s.overlayAuth(r) {
 		unauthorized(w)
+		return
+	}
+	if s.requireChannel {
+		if s.cfg.OwnerReader == nil {
+			unavailable(w)
+			return
+		}
+		identity, _ := auth.ChannelFromContext(r.Context())
+		channel, ok := channelruntime.ChannelFromContext(r.Context())
+		if !ok || channel == nil {
+			unavailable(w)
+			return
+		}
+		value, err := channel.Events.Snapshot(func() (events.OverlaySnapshot, error) { return s.cfg.OwnerReader.OverlaySnapshotFor(r, identity) })
+		if err != nil {
+			apiError(w, http.StatusInternalServerError, "snapshot_unavailable", "The overlay snapshot is unavailable")
+			return
+		}
+		encode(w, value)
 		return
 	}
 	if s.cfg.Reader == nil {
@@ -125,9 +218,14 @@ func (s *Server) overlay(w http.ResponseWriter, r *http.Request) {
 	}
 	var value events.OverlaySnapshot
 	var err error
-	if s.cfg.Events != nil {
-		value, err = s.cfg.Events.Snapshot(func() (events.OverlaySnapshot, error) { return s.cfg.Reader.OverlaySnapshot(r) })
+	publisher := s.publisher(r)
+	if publisher != nil {
+		value, err = publisher.Snapshot(func() (events.OverlaySnapshot, error) { return s.cfg.Reader.OverlaySnapshot(r) })
 	} else {
+		if s.requireChannel {
+			unavailable(w)
+			return
+		}
 		value, err = s.cfg.Reader.OverlaySnapshot(r)
 	}
 	if err != nil {
@@ -137,11 +235,16 @@ func (s *Server) overlay(w http.ResponseWriter, r *http.Request) {
 	encode(w, value)
 }
 func (s *Server) overlayEvents(w http.ResponseWriter, r *http.Request) {
+	if !s.channelAuthorized(r) {
+		unauthorized(w)
+		return
+	}
 	if !s.overlayAuth(r) {
 		unauthorized(w)
 		return
 	}
-	if s.cfg.Events == nil {
+	publisher := s.publisher(r)
+	if publisher == nil {
 		unavailable(w)
 		return
 	}
@@ -151,11 +254,33 @@ func (s *Server) overlayEvents(w http.ResponseWriter, r *http.Request) {
 	// resets Chaaya's numeric cursor after server restart, when Keel's new
 	// process-local broker starts IDs over. Chaaya's event filter must include
 	// "reset" so it observes this cursor control frame.
-	s.cfg.Events.Broker.ServeTopic(&resetFrameWriter{ResponseWriter: w}, r, events.TopicOverlay)
+	publisher.Broker.ServeTopic(&resetFrameWriter{ResponseWriter: w}, r, events.TopicOverlay)
 }
 func (s *Server) review(w http.ResponseWriter, r *http.Request) {
+	if !s.channelAuthorized(r) {
+		unauthorized(w)
+		return
+	}
 	if !s.controlAuth(r) {
 		unauthorized(w)
+		return
+	}
+	if s.requireChannel {
+		identity, _ := auth.ChannelFromContext(r.Context())
+		if identity.Device {
+			unauthorized(w)
+			return
+		}
+		if s.cfg.OwnerReader == nil {
+			unavailable(w)
+			return
+		}
+		value, err := s.cfg.OwnerReader.ReviewQueueFor(r, identity)
+		if err != nil {
+			apiError(w, http.StatusInternalServerError, "review_queue_unavailable", "The review queue is unavailable")
+			return
+		}
+		encode(w, value)
 		return
 	}
 	if s.cfg.Reader == nil {
@@ -170,8 +295,30 @@ func (s *Server) review(w http.ResponseWriter, r *http.Request) {
 	encode(w, value)
 }
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
+	if !s.channelAuthorized(r) {
+		unauthorized(w)
+		return
+	}
 	if !s.controlAuth(r) {
 		unauthorized(w)
+		return
+	}
+	if s.requireChannel {
+		identity, _ := auth.ChannelFromContext(r.Context())
+		if identity.Device {
+			unauthorized(w)
+			return
+		}
+		if s.cfg.OwnerReader == nil {
+			unavailable(w)
+			return
+		}
+		value, err := s.cfg.OwnerReader.HealthFor(r, identity)
+		if err != nil {
+			apiError(w, http.StatusInternalServerError, "health_unavailable", "Health information is unavailable")
+			return
+		}
+		encode(w, value)
 		return
 	}
 	if s.cfg.Reader == nil {
@@ -187,11 +334,28 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) control(action string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.channelAuthorized(r) {
+			unauthorized(w)
+			return
+		}
 		if !s.controlAuth(r) {
 			unauthorized(w)
 			return
 		}
 		if s.cfg.Controls == nil {
+			if s.requireChannel && s.cfg.OwnerControls == nil {
+				apiError(w, http.StatusNotImplemented, "not_implemented", "This control action is not implemented")
+				return
+			}
+		}
+		if s.requireChannel {
+			identity, _ := auth.ChannelFromContext(r.Context())
+			if identity.Device {
+				unauthorized(w)
+				return
+			}
+		}
+		if !s.requireChannel && s.cfg.Controls == nil {
 			apiError(w, http.StatusNotImplemented, "not_implemented", "This control action is not implemented")
 			return
 		}
@@ -207,27 +371,51 @@ func (s *Server) control(action string) http.HandlerFunc {
 				apiError(w, http.StatusBadRequest, "invalid_request", "paused is required")
 				return
 			}
-			err = s.cfg.Controls.SetPaused(r, input)
+			if s.requireChannel {
+				identity, _ := auth.ChannelFromContext(r.Context())
+				err = s.cfg.OwnerControls.SetPausedFor(r, identity, input)
+			} else {
+				err = s.cfg.Controls.SetPaused(r, input)
+			}
 		case "void":
 			if input.ReceiptID == "" {
 				apiError(w, http.StatusBadRequest, "invalid_request", "receipt_id is required")
 				return
 			}
-			err = s.cfg.Controls.VoidReceipt(r, input)
+			if s.requireChannel {
+				identity, _ := auth.ChannelFromContext(r.Context())
+				err = s.cfg.OwnerControls.VoidReceiptFor(r, identity, input)
+			} else {
+				err = s.cfg.Controls.VoidReceipt(r, input)
+			}
 		case "review":
 			if input.ReviewID == "" || (input.ReviewDecision != ReviewApprove && input.ReviewDecision != ReviewReject) {
 				apiError(w, http.StatusBadRequest, "invalid_request", "review_id and an approve or reject decision are required")
 				return
 			}
-			err = s.cfg.Controls.ResolveReview(r, input)
+			if s.requireChannel {
+				identity, _ := auth.ChannelFromContext(r.Context())
+				err = s.cfg.OwnerControls.ResolveReviewFor(r, identity, input)
+			} else {
+				err = s.cfg.Controls.ResolveReview(r, input)
+			}
 		case "decision":
 			if input.ReceiptID == "" || (input.ReceiptDecision != DecisionAdmit && input.ReceiptDecision != DecisionAppeal && input.ReceiptDecision != DecisionContextChanged) {
 				apiError(w, http.StatusBadRequest, "invalid_request", "receipt_id and a valid receipt_decision are required")
 				return
 			}
-			err = s.cfg.Controls.SetReceiptDecision(r, input)
+			if s.requireChannel {
+				identity, _ := auth.ChannelFromContext(r.Context())
+				err = s.cfg.OwnerControls.SetReceiptDecisionFor(r, identity, input)
+			} else {
+				err = s.cfg.Controls.SetReceiptDecision(r, input)
+			}
 		}
 		if err != nil {
+			if errors.Is(err, ErrUnimplemented) {
+				apiError(w, http.StatusNotImplemented, "not_implemented", "This control action is not implemented")
+				return
+			}
 			apiError(w, http.StatusConflict, "control_failed", "The control action could not be applied")
 			return
 		}

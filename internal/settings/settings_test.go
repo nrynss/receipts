@@ -133,6 +133,9 @@ func TestValidateRejectsInvalidOriginAndLimits(t *testing.T) {
 		{"stale status", func(s *Settings) { s.LiveStatusFreshness = 0 }},
 		{"zero spend", func(s *Settings) { s.JudgeSpendUSD = 0 }},
 		{"nan spend", func(s *Settings) { s.JudgeSpendUSD = math.NaN() }},
+		{"zero global channel capacity", func(s *Settings) { s.MaxActiveChannels = 0 }},
+		{"channel spend exceeds global", func(s *Settings) { s.ChannelSpendLimitUSD = s.GlobalSpendLimitUSD + 1 }},
+		{"infinite global spend", func(s *Settings) { s.GlobalSpendLimitUSD = math.Inf(1) }},
 		{"invalid listen address", func(s *Settings) { s.HTTPAddress = "bad" }},
 	}
 	for _, tc := range tests {
