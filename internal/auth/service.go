@@ -9,6 +9,7 @@ import (
 	"crypto/subtle"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -93,6 +94,14 @@ type Service struct {
 	now                func() time.Time
 	locksMu            sync.Mutex
 	locks              map[string]*sync.Mutex
+	deviceMu           sync.Mutex
+	deviceStreams      map[string]map[uint64]context.CancelFunc
+	deviceWatchSeq     uint64
+	disconnectMu       sync.RWMutex
+	onDisconnect       func(string)
+	sessionMu          sync.Mutex
+	sessionStreams     map[string]map[uint64]context.CancelFunc
+	sessionWatchSeq    uint64
 }
 
 func New(ctx context.Context, cfg Config) (*Service, error) {
@@ -144,7 +153,7 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	svc := &Service{db: cfg.DB, provider: cfg.Provider, clientID: cfg.ClientID, redirect: cfg.RedirectURL,
 		origin: normalizedOrigin, key: append([]byte(nil), cfg.EncryptionKey...), scopes: append([]string(nil), cfg.Scopes...),
 		sessionTTL: cfg.SessionTTL, stateTTL: cfg.StateTTL, validationInterval: cfg.ValidationInterval,
-		startedAt: cfg.Now().UTC(), secure: cfg.SecureCookie, now: cfg.Now, locks: map[string]*sync.Mutex{}}
+		startedAt: cfg.Now().UTC(), secure: cfg.SecureCookie, now: cfg.Now, locks: map[string]*sync.Mutex{}, deviceStreams: map[string]map[uint64]context.CancelFunc{}, sessionStreams: map[string]map[uint64]context.CancelFunc{}}
 	if err := svc.ValidateAll(ctx); err != nil {
 		return nil, err
 	}
@@ -245,6 +254,7 @@ func (s *Service) logout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Sign-out unavailable", http.StatusInternalServerError)
 		return
 	}
+	s.cancelSessionStreams(hex.EncodeToString(sessionHash))
 	http.SetCookie(w, s.expiredCookie(SessionCookie, true))
 	http.SetCookie(w, s.expiredCookie(CSRFCookie, false))
 	w.WriteHeader(http.StatusNoContent)
@@ -408,6 +418,14 @@ func (s *Service) RevokeProviderAuthorization(ctx context.Context, accountID str
 	lock.Lock()
 	defer lock.Unlock()
 	return s.markReconnectLocked(ctx, accountID)
+}
+
+// OnDisconnect registers the runtime shutdown hook used when provider
+// authorization is revoked or requires reconnection.
+func (s *Service) OnDisconnect(hook func(accountID string)) {
+	s.disconnectMu.Lock()
+	s.onDisconnect = hook
+	s.disconnectMu.Unlock()
 }
 
 // ValidateAll validates every connected account before startup and during
@@ -616,7 +634,11 @@ func (s *Service) issueSession(ctx context.Context, accountID, previous string) 
 	if err != nil {
 		return "", "", err
 	}
-	return rawSession, csrf, tx.Commit()
+	err = tx.Commit()
+	if err == nil && previous != "" {
+		s.cancelSessionStreams(hex.EncodeToString(digest(previous)))
+	}
+	return rawSession, csrf, err
 }
 
 func (s *Service) loadAccountTokens(ctx context.Context, accountID string) (accountRow, storedTokens, error) {
@@ -658,6 +680,12 @@ func (s *Service) markReconnectLocked(ctx context.Context, accountID string) err
 	}
 	if err = tx.Commit(); err != nil {
 		return errors.New("auth: reconnect state could not be saved")
+	}
+	s.disconnectMu.RLock()
+	hook := s.onDisconnect
+	s.disconnectMu.RUnlock()
+	if hook != nil {
+		hook(accountID)
 	}
 	return nil
 }

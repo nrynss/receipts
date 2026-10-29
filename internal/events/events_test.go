@@ -2,12 +2,24 @@ package events
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/nrynss/keel/stream"
 )
+
+func TestCommitErrorPublishesNothingOnFailedMutation(t *testing.T) {
+	p := NewPublisher("epoch")
+	errWant := errors.New("store refused")
+	if err := p.CommitError(Status, func() (OverlayEvent, error) { return OverlayEvent{}, errWant }); !errors.Is(err, errWant) {
+		t.Fatalf("CommitError=%v", err)
+	}
+	if p.Sequence() != 0 {
+		t.Fatalf("failed mutation advanced sequence to %d", p.Sequence())
+	}
+}
 
 func TestConcurrentCommitSequenceIsOrderedAndPayloadsAreOwned(t *testing.T) {
 	const count = 32
