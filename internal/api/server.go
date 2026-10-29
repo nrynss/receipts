@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/nrynss/keel/wire"
+	"receipts/internal/auth"
 	"receipts/internal/events"
 )
 
@@ -53,10 +54,12 @@ type Config struct {
 	Reader                               Reader
 	Controls                             Controls
 	Events                               *events.Publisher
+	EventsFor                            func(auth.ChannelContext) *events.Publisher
 }
 type Server struct {
-	cfg Config
-	mux *http.ServeMux
+	cfg            Config
+	mux            *http.ServeMux
+	requireChannel bool
 }
 
 func New(cfg Config) *Server {
@@ -71,6 +74,34 @@ func New(cfg Config) *Server {
 	s.mux.HandleFunc("POST /api/control/decision", s.control("decision"))
 	return s
 }
+
+// NewForOwner creates the hosted account API. Every request receives owner
+// and channel authority from TA.1's opaque session; mutations also pass CSRF
+// and origin validation in the auth middleware.
+func NewForOwner(cfg Config, sessions *auth.Service) http.Handler {
+	server := New(cfg)
+	server.requireChannel = true
+	return sessions.ChannelMiddleware(server)
+}
+
+func (s *Server) channelAuthorized(r *http.Request) bool {
+	if !s.requireChannel {
+		return true
+	}
+	_, err := auth.ChannelFromContext(r.Context())
+	return err == nil
+}
+
+func (s *Server) publisher(r *http.Request) *events.Publisher {
+	if s.requireChannel {
+		ctx, err := auth.ChannelFromContext(r.Context())
+		if err != nil || s.cfg.EventsFor == nil {
+			return nil
+		}
+		return s.cfg.EventsFor(ctx)
+	}
+	return s.cfg.Events
+}
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.mux.ServeHTTP(w, r) }
 
 func (s *Server) validCredentials() bool {
@@ -81,6 +112,10 @@ func equalCredential(want, got string) bool {
 	return want != "" && len(want) == len(got) && subtle.ConstantTimeCompare([]byte(want), []byte(got)) == 1
 }
 func (s *Server) overlayAuth(r *http.Request) bool {
+	if s.requireChannel {
+		_, err := auth.ChannelFromContext(r.Context())
+		return err == nil
+	}
 	if !s.validCredentials() {
 		return false
 	}
@@ -92,6 +127,10 @@ func (s *Server) overlayAuth(r *http.Request) bool {
 	return equalCredential(s.cfg.OverlayCredential, got)
 }
 func (s *Server) controlAuth(r *http.Request) bool {
+	if s.requireChannel {
+		value, err := auth.ChannelFromContext(r.Context())
+		return err == nil && !value.Device
+	}
 	if !s.validCredentials() {
 		return false
 	}
@@ -115,6 +154,10 @@ func encode(w http.ResponseWriter, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 func (s *Server) overlay(w http.ResponseWriter, r *http.Request) {
+	if !s.channelAuthorized(r) {
+		unauthorized(w)
+		return
+	}
 	if !s.overlayAuth(r) {
 		unauthorized(w)
 		return
@@ -125,9 +168,14 @@ func (s *Server) overlay(w http.ResponseWriter, r *http.Request) {
 	}
 	var value events.OverlaySnapshot
 	var err error
-	if s.cfg.Events != nil {
-		value, err = s.cfg.Events.Snapshot(func() (events.OverlaySnapshot, error) { return s.cfg.Reader.OverlaySnapshot(r) })
+	publisher := s.publisher(r)
+	if publisher != nil {
+		value, err = publisher.Snapshot(func() (events.OverlaySnapshot, error) { return s.cfg.Reader.OverlaySnapshot(r) })
 	} else {
+		if s.requireChannel {
+			unavailable(w)
+			return
+		}
 		value, err = s.cfg.Reader.OverlaySnapshot(r)
 	}
 	if err != nil {
@@ -137,11 +185,16 @@ func (s *Server) overlay(w http.ResponseWriter, r *http.Request) {
 	encode(w, value)
 }
 func (s *Server) overlayEvents(w http.ResponseWriter, r *http.Request) {
+	if !s.channelAuthorized(r) {
+		unauthorized(w)
+		return
+	}
 	if !s.overlayAuth(r) {
 		unauthorized(w)
 		return
 	}
-	if s.cfg.Events == nil {
+	publisher := s.publisher(r)
+	if publisher == nil {
 		unavailable(w)
 		return
 	}
@@ -151,9 +204,13 @@ func (s *Server) overlayEvents(w http.ResponseWriter, r *http.Request) {
 	// resets Chaaya's numeric cursor after server restart, when Keel's new
 	// process-local broker starts IDs over. Chaaya's event filter must include
 	// "reset" so it observes this cursor control frame.
-	s.cfg.Events.Broker.ServeTopic(&resetFrameWriter{ResponseWriter: w}, r, events.TopicOverlay)
+	publisher.Broker.ServeTopic(&resetFrameWriter{ResponseWriter: w}, r, events.TopicOverlay)
 }
 func (s *Server) review(w http.ResponseWriter, r *http.Request) {
+	if !s.channelAuthorized(r) {
+		unauthorized(w)
+		return
+	}
 	if !s.controlAuth(r) {
 		unauthorized(w)
 		return
@@ -170,6 +227,10 @@ func (s *Server) review(w http.ResponseWriter, r *http.Request) {
 	encode(w, value)
 }
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
+	if !s.channelAuthorized(r) {
+		unauthorized(w)
+		return
+	}
 	if !s.controlAuth(r) {
 		unauthorized(w)
 		return
@@ -187,6 +248,10 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) control(action string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.channelAuthorized(r) {
+			unauthorized(w)
+			return
+		}
 		if !s.controlAuth(r) {
 			unauthorized(w)
 			return
