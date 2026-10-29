@@ -1,12 +1,14 @@
 CREATE TABLE receipt_commands (
   channel_id TEXT NOT NULL REFERENCES channels(id),
   command_id TEXT NOT NULL,
+  session_id TEXT NOT NULL REFERENCES live_sessions(id),
   user_id TEXT NOT NULL,
   received_at INTEGER NOT NULL,
+  admitted_at INTEGER NOT NULL,
   status TEXT NOT NULL CHECK(status IN ('processing','captured','no_claim','suppressed','unavailable','throttled')),
   PRIMARY KEY(channel_id, command_id)
 );
-CREATE INDEX receipt_commands_user_time ON receipt_commands(channel_id,user_id,received_at DESC);
+CREATE INDEX receipt_commands_user_time ON receipt_commands(channel_id,user_id,admitted_at DESC);
 CREATE TABLE receipt_captures (
   receipt_id TEXT PRIMARY KEY REFERENCES receipts(id) ON DELETE CASCADE,
   channel_id TEXT NOT NULL REFERENCES channels(id),

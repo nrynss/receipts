@@ -34,10 +34,11 @@ type SensitiveClassifier interface {
 	Sensitive(context.Context, string) (bool, error)
 }
 type ClipQueue interface {
-	Enqueue(context.Context, string, string, time.Time) error
+	Enqueue(context.Context, string, string, string, time.Time) error
 }
 type Ledger interface {
 	Transcript(context.Context, string) ([]receipt.Segment, error)
+	ReceiptSession(context.Context, string, string) (receipt.Session, error)
 	BeginReceiptCommand(context.Context, string, string, string, string, time.Time) (string, error)
 	FinishReceiptCommand(context.Context, string, string, string) error
 	CaptureReceipt(context.Context, receipt.CaptureInput) (receipt.Receipt, error)
@@ -83,6 +84,10 @@ func (s *Service) Handle(ctx context.Context, authority Authority, cmd ports.Cha
 	if window <= 0 {
 		window = 30 * time.Second
 	}
+	if cmd.ReceivedAt.IsZero() || cmd.ReceivedAt.After(now) || now.Sub(cmd.ReceivedAt) > 30*time.Second {
+		return Result{Code: ReplyNoClaim}, nil
+	}
+	cmd.ReceivedAt = cmd.ReceivedAt.UTC().Truncate(time.Millisecond)
 	state, err := s.Ledger.BeginReceiptCommand(ctx, authority.ChannelID, authority.SessionID, cmd.ID, cmd.UserID, cmd.ReceivedAt)
 	if err != nil {
 		return Result{Code: ReplyTranscriptUnavailable}, err
@@ -94,22 +99,28 @@ func (s *Service) Handle(ctx context.Context, authority Authority, cmd ports.Cha
 		return Result{Code: ReplyThrottled}, nil
 	}
 	finish := func(status string) { _ = s.Ledger.FinishReceiptCommand(ctx, authority.ChannelID, cmd.ID, status) }
+	session, err := s.Ledger.ReceiptSession(ctx, authority.ChannelID, authority.SessionID)
+	if err != nil || session.State != "live" {
+		finish("unavailable")
+		return Result{Code: ReplyTranscriptUnavailable}, ErrUnavailable
+	}
+	commandOffset := cmd.ReceivedAt.Sub(session.StartedAt)
+	if commandOffset < 0 {
+		finish("no_claim")
+		return Result{Code: ReplyNoClaim}, nil
+	}
 	segments, err := s.Ledger.Transcript(ctx, authority.SessionID)
 	if err != nil {
 		finish("unavailable")
 		return Result{Code: ReplyTranscriptUnavailable}, ErrUnavailable
 	}
-	cutoff := time.Duration(0)
-	latestEnd := time.Duration(0)
-	for _, seg := range segments {
-		if seg.End > latestEnd {
-			latestEnd = seg.End
-		}
+	cutoff := commandOffset - window
+	if cutoff < 0 {
+		cutoff = 0
 	}
-	cutoff = latestEnd - window
 	bounded := make([]receipt.Segment, 0, len(segments))
 	for _, seg := range segments {
-		if seg.SessionID == authority.SessionID && seg.End >= cutoff && seg.Attribution == string(ports.AttributionBroadcaster) {
+		if seg.SessionID == authority.SessionID && seg.Start >= cutoff && seg.End <= commandOffset && seg.Attribution == string(ports.AttributionBroadcaster) {
 			bounded = append(bounded, seg)
 		}
 	}
@@ -153,7 +164,18 @@ func (s *Service) Handle(ctx context.Context, authority Authority, cmd ports.Cha
 		seen[id] = true
 		evidence = append(evidence, receipt.EvidenceInput{SourceID: seg.ID, Text: seg.Text, Start: seg.Start, End: seg.End, Attribution: seg.Attribution})
 	}
-	captured, err := s.Ledger.CaptureReceipt(ctx, receipt.CaptureInput{CommandID: cmd.ID, ChannelID: authority.ChannelID, SessionID: authority.SessionID, UserID: cmd.UserID, Login: cmd.Login, Claim: claim, CreatedAt: now, Window: window, Evidence: evidence})
+	for _, ev := range evidence {
+		classifiedEvidence, e := s.Sensitive.Sensitive(ctx, ev.Text)
+		if e != nil {
+			finish("unavailable")
+			return Result{Code: ReplyTranscriptUnavailable}, ErrUnavailable
+		}
+		if classifiedEvidence {
+			finish("suppressed")
+			return Result{Code: ReplySuppressed}, nil
+		}
+	}
+	captured, err := s.Ledger.CaptureReceipt(ctx, receipt.CaptureInput{CommandID: cmd.ID, ChannelID: authority.ChannelID, SessionID: authority.SessionID, UserID: cmd.UserID, Login: cmd.Login, Claim: claim, ReceivedAt: cmd.ReceivedAt, Window: window, Evidence: evidence})
 	if errors.Is(err, ErrDuplicate) {
 		return Result{Code: ReplyDuplicate}, nil
 	}
@@ -161,11 +183,12 @@ func (s *Service) Handle(ctx context.Context, authority Authority, cmd ports.Cha
 		return Result{Code: ReplyThrottled}, nil
 	}
 	if err != nil {
+		finish("unavailable")
 		return Result{}, err
 	}
 	// Clip work is independent and best-effort. Failure leaves the text receipt.
 	if s.Clips != nil {
-		_ = s.Clips.Enqueue(ctx, authority.ChannelID, captured.ID, now)
+		_ = s.Clips.Enqueue(ctx, authority.ChannelID, cmd.ID, captured.ID, now)
 	}
 	return Result{Code: ReplyCaptured, Receipt: &captured}, nil
 }

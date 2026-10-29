@@ -134,9 +134,13 @@ type ReceiptInput struct {
 type CaptureInput struct {
 	CommandID, ChannelID, SessionID, UserID, Login string
 	Claim                                          string
-	CreatedAt                                      time.Time
+	ReceivedAt                                     time.Time
 	Window                                         time.Duration
 	Evidence                                       []EvidenceInput
 }
 
 type Credit struct{ UserID, Login string }
+type ClipJob struct {
+	ID, ChannelID, ReceiptID, Status, ClipID, ClipURL, LastError string
+	RequestedAt                                                  time.Time
+}

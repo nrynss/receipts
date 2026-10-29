@@ -210,6 +210,22 @@ func (s *Store) EndSession(ctx context.Context, channelID, sessionID string) err
 	return nil
 }
 
+func (s *Store) ReceiptSession(ctx context.Context, channelID, sessionID string) (receipt.Session, error) {
+	var sess receipt.Session
+	var started int64
+	var ended sql.NullInt64
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT id,channel_id,started_at,ended_at,state FROM live_sessions WHERE id=? AND channel_id=?`, sessionID, channelID).Scan(&sess.ID, &sess.ChannelID, &started, &ended, &sess.State)
+	if errors.Is(err, sql.ErrNoRows) {
+		return sess, ErrNotFound
+	}
+	if err != nil {
+		return sess, err
+	}
+	sess.StartedAt = time.UnixMilli(started).UTC()
+	sess.EndedAt = date(ended)
+	return sess, nil
+}
+
 // AddSegment inserts a session-relative transcript segment and trims the session
 // to both its configured age window and row bound within the same transaction.
 func (s *Store) AddSegment(ctx context.Context, seg receipt.Segment) error {
@@ -311,21 +327,26 @@ func (s *Store) Transcript(ctx context.Context, sessionID string) ([]receipt.Seg
 // BeginReceiptCommand durably deduplicates before extraction. Throttles are
 // scoped to the channel and authenticated Twitch user, with a channel-wide cap.
 // A failed process leaves a processing marker, preventing duplicate work.
-func (s *Store) BeginReceiptCommand(ctx context.Context, channelID, sessionID, commandID, userID string, at time.Time) (string, error) {
-	if channelID == "" || sessionID == "" || commandID == "" || userID == "" || at.IsZero() {
+func (s *Store) BeginReceiptCommand(ctx context.Context, channelID, sessionID, commandID, userID string, receivedAt time.Time) (string, error) {
+	if channelID == "" || sessionID == "" || commandID == "" || userID == "" || receivedAt.IsZero() {
 		return "", ErrInvalid
 	}
-	tx, err := s.db.Writer().BeginTx(ctx, nil)
+	tx, err := s.db.BeginWrite(ctx)
 	if err != nil {
 		return "", err
 	}
 	defer tx.Rollback()
 	var live int
-	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM live_sessions WHERE id=? AND channel_id=? AND state='live'`, sessionID, channelID).Scan(&live); err != nil {
+	var startedMillis int64
+	if err = tx.QueryRowContext(ctx, `SELECT count(*),coalesce(max(started_at),0) FROM live_sessions WHERE id=? AND channel_id=? AND state='live'`, sessionID, channelID).Scan(&live, &startedMillis); err != nil {
 		return "", err
 	}
 	if live == 0 {
 		return "", ErrConflict
+	}
+	serverNow := s.now().UTC()
+	if receivedAt.Before(time.UnixMilli(startedMillis).UTC()) || receivedAt.After(serverNow) || serverNow.Sub(receivedAt) > 30*time.Second {
+		return "", ErrNotEligible
 	}
 	var exists int
 	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM receipt_commands WHERE channel_id=? AND command_id=?`, channelID, commandID).Scan(&exists); err != nil {
@@ -334,19 +355,19 @@ func (s *Store) BeginReceiptCommand(ctx context.Context, channelID, sessionID, c
 	if exists != 0 {
 		return "duplicate", tx.Commit()
 	}
-	stamp := millis(at)
+	stamp := millis(serverNow)
 	var userRecent, channelRecent int
-	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM receipt_commands WHERE channel_id=? AND user_id=? AND status IN ('processing','captured') AND received_at>?`, channelID, userID, stamp-int64(30_000)).Scan(&userRecent); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM receipt_commands WHERE channel_id=? AND user_id=? AND status!='throttled' AND admitted_at>?`, channelID, userID, stamp-int64(30_000)).Scan(&userRecent); err != nil {
 		return "", err
 	}
-	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM receipt_commands WHERE channel_id=? AND status IN ('processing','captured') AND received_at>?`, channelID, stamp-int64(5_000)).Scan(&channelRecent); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM receipt_commands WHERE channel_id=? AND status!='throttled' AND admitted_at>?`, channelID, stamp-int64(5_000)).Scan(&channelRecent); err != nil {
 		return "", err
 	}
 	status := "processing"
 	if userRecent > 0 || channelRecent >= 3 {
 		status = "throttled"
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO receipt_commands(channel_id,command_id,user_id,received_at,status) VALUES(?,?,?,?,?)`, channelID, commandID, userID, stamp, status); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO receipt_commands(channel_id,command_id,session_id,user_id,received_at,admitted_at,status) VALUES(?,?,?,?,?,?,?)`, channelID, commandID, sessionID, userID, millis(receivedAt), stamp, status); err != nil {
 		return "", err
 	}
 	if err = tx.Commit(); err != nil {
@@ -386,7 +407,7 @@ func (s *Store) CaptureReceipt(ctx context.Context, in receipt.CaptureInput) (re
 	if err != nil {
 		return receipt.Receipt{}, err
 	}
-	tx, err := s.db.Writer().BeginTx(ctx, nil)
+	tx, err := s.db.BeginWrite(ctx)
 	if err != nil {
 		return receipt.Receipt{}, err
 	}
@@ -398,11 +419,14 @@ func (s *Store) CaptureReceipt(ctx context.Context, in receipt.CaptureInput) (re
 	if live == 0 {
 		return receipt.Receipt{}, ErrConflict
 	}
-	var commandStatus string
-	if err = tx.QueryRowContext(ctx, `SELECT status FROM receipt_commands WHERE channel_id=? AND command_id=? AND user_id=?`, in.ChannelID, in.CommandID, in.UserID).Scan(&commandStatus); errors.Is(err, sql.ErrNoRows) {
+	var commandStatus, commandSession string
+	if err = tx.QueryRowContext(ctx, `SELECT status,session_id FROM receipt_commands WHERE channel_id=? AND command_id=? AND user_id=?`, in.ChannelID, in.CommandID, in.UserID).Scan(&commandStatus, &commandSession); errors.Is(err, sql.ErrNoRows) {
 		return receipt.Receipt{}, ErrNotFound
 	} else if err != nil {
 		return receipt.Receipt{}, err
+	}
+	if commandSession != in.SessionID {
+		return receipt.Receipt{}, ErrConflict
 	}
 	if commandStatus != "processing" {
 		if commandStatus == "throttled" {
@@ -410,9 +434,34 @@ func (s *Store) CaptureReceipt(ctx context.Context, in receipt.CaptureInput) (re
 		}
 		return receipt.Receipt{}, receipt.ErrCommandDuplicate
 	}
-	now := in.CreatedAt.UTC()
-	if now.IsZero() {
-		now = s.now().UTC()
+	now := s.now().UTC()
+	if in.ReceivedAt.IsZero() || in.ReceivedAt.After(now) || now.Sub(in.ReceivedAt) > 30*time.Second {
+		return receipt.Receipt{}, ErrNotEligible
+	}
+	var startedMillis int64
+	if err = tx.QueryRowContext(ctx, `SELECT started_at FROM live_sessions WHERE id=? AND channel_id=? AND state='live'`, in.SessionID, in.ChannelID).Scan(&startedMillis); err != nil {
+		return receipt.Receipt{}, ErrConflict
+	}
+	var persistedReceived int64
+	if err = tx.QueryRowContext(ctx, `SELECT received_at FROM receipt_commands WHERE channel_id=? AND command_id=? AND user_id=? AND session_id=? AND status='processing'`, in.ChannelID, in.CommandID, in.UserID, in.SessionID).Scan(&persistedReceived); errors.Is(err, sql.ErrNoRows) {
+		return receipt.Receipt{}, ErrConflict
+	} else if err != nil {
+		return receipt.Receipt{}, err
+	}
+	if persistedReceived != millis(in.ReceivedAt) {
+		return receipt.Receipt{}, ErrConflict
+	}
+	commandReceived := time.UnixMilli(persistedReceived).UTC()
+	if commandReceived.After(now) || now.Sub(commandReceived) > 30*time.Second {
+		return receipt.Receipt{}, ErrNotEligible
+	}
+	commandOffset := commandReceived.Sub(time.UnixMilli(startedMillis).UTC())
+	if commandOffset < 0 || in.Window <= 0 {
+		return receipt.Receipt{}, ErrNotEligible
+	}
+	cutoff := commandOffset - in.Window
+	if cutoff < 0 {
+		cutoff = 0
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO receipts(id,channel_id,session_id,created_at,claim,clipped_by,validity,sensitive) VALUES(?,?,?,?,?,?,'valid',0)`, key, in.ChannelID, in.SessionID, millis(now), in.Claim, in.Login)
 	if err != nil {
@@ -422,6 +471,9 @@ func (s *Store) CaptureReceipt(ctx context.Context, in receipt.CaptureInput) (re
 		return receipt.Receipt{}, err
 	}
 	for _, e := range in.Evidence {
+		if e.Start < cutoff || e.End > commandOffset {
+			return receipt.Receipt{}, ErrNotEligible
+		}
 		if err = validateSource(ctx, tx, in.SessionID, e); err != nil {
 			return receipt.Receipt{}, err
 		}
@@ -536,6 +588,63 @@ func (s *Store) ReceiptCredit(ctx context.Context, receiptID string) (receipt.Cr
 		return credit, ErrNotFound
 	}
 	return credit, err
+}
+
+func (s *Store) ClipJobForReceipt(ctx context.Context, channelID, receiptID string) (receipt.ClipJob, error) {
+	var job receipt.ClipJob
+	var requested int64
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT id,channel_id,receipt_id,requested_at,status,clip_id,clip_url,last_error FROM clip_jobs WHERE channel_id=? AND receipt_id=?`, channelID, receiptID).Scan(&job.ID, &job.ChannelID, &job.ReceiptID, &requested, &job.Status, &job.ClipID, &job.ClipURL, &job.LastError)
+	if errors.Is(err, sql.ErrNoRows) {
+		return job, ErrNotFound
+	}
+	if err != nil {
+		return job, err
+	}
+	job.RequestedAt = time.UnixMilli(requested).UTC()
+	return job, nil
+}
+
+// CompleteClipJob only lets the command that created the receipt change its
+// clip outcome. Repeated identical results are safe; conflicting results fail.
+func (s *Store) CompleteClipJob(ctx context.Context, channelID, commandID, status, clipID, clipURL, detail string) error {
+	if channelID == "" || commandID == "" || (status != "ready" && status != "unavailable" && status != "failed") {
+		return ErrInvalid
+	}
+	if status == "ready" && (clipID == "" || clipURL == "") {
+		return ErrInvalid
+	}
+	tx, err := s.db.BeginWrite(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var jobID, receiptID, oldStatus, oldID, oldURL, oldDetail string
+	err = tx.QueryRowContext(ctx, `SELECT j.id,j.receipt_id,j.status,j.clip_id,j.clip_url,j.last_error FROM clip_jobs j JOIN receipt_captures c ON c.receipt_id=j.receipt_id WHERE j.channel_id=? AND c.channel_id=? AND c.command_id=?`, channelID, channelID, commandID).Scan(&jobID, &receiptID, &oldStatus, &oldID, &oldURL, &oldDetail)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if oldStatus != "pending" {
+		if oldStatus == status && oldID == clipID && oldURL == clipURL && oldDetail == detail {
+			return tx.Commit()
+		}
+		return ErrConflict
+	}
+	_, err = tx.ExecContext(ctx, `UPDATE clip_jobs SET status=?,clip_id=?,clip_url=?,last_error=? WHERE id=? AND status='pending'`, status, clipID, clipURL, detail, jobID)
+	if err != nil {
+		return err
+	}
+	receiptStatus := receipt.ClipUnavailable
+	if status == "ready" {
+		receiptStatus = receipt.ClipReady
+	}
+	_, err = tx.ExecContext(ctx, `UPDATE receipts SET clip_status=?,clip_id=?,clip_url=?,version=version+1 WHERE id=? AND channel_id=?`, receiptStatus, clipID, clipURL, receiptID, channelID)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) Evidence(ctx context.Context, receiptID string) ([]receipt.Evidence, error) {
