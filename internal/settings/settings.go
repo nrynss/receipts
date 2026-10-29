@@ -44,8 +44,11 @@ type Settings struct {
 	JudgeSpendUSD         float64       `toml:"judge_spend_usd"`
 	HTTPAddress           string        `toml:"http_address"`
 	DatabasePath          string        `toml:"database_path"`
+	AuthEnabled           bool          `toml:"auth_enabled"`
 	TwitchClientID        config.Secret `toml:"twitch_client_id"`
 	TwitchAccessToken     config.Secret `toml:"twitch_access_token"`
+	TwitchClientSecret    config.Secret `toml:"twitch_client_secret"`
+	TokenEncryptionKey    config.Secret `toml:"token_encryption_key"`
 	OpenAIAPIKey          config.Secret `toml:"openai_api_key"`
 }
 
@@ -69,6 +72,7 @@ type configValues struct {
 	JudgeSpendUSD         float64 `toml:"judge_spend_usd"`
 	HTTPAddress           string  `toml:"http_address"`
 	DatabasePath          string  `toml:"database_path"`
+	AuthEnabled           bool    `toml:"auth_enabled"`
 }
 
 func configDefaults() configValues {
@@ -80,7 +84,7 @@ func configDefaults() configValues {
 		LiveStatusFreshness: d.LiveStatusFreshness.String(), TranscriptionModel: d.TranscriptionModel,
 		EmbeddingModel: d.EmbeddingModel, JudgeModel: d.JudgeModel,
 		TranscriptionSpendUSD: d.TranscriptionSpendUSD, EmbeddingSpendUSD: d.EmbeddingSpendUSD,
-		JudgeSpendUSD: d.JudgeSpendUSD, HTTPAddress: d.HTTPAddress, DatabasePath: d.DatabasePath,
+		JudgeSpendUSD: d.JudgeSpendUSD, HTTPAddress: d.HTTPAddress, DatabasePath: d.DatabasePath, AuthEnabled: d.AuthEnabled,
 	}
 }
 
@@ -108,7 +112,7 @@ func (c configValues) settings() (Settings, error) {
 		TranscriptionModel: c.TranscriptionModel, EmbeddingModel: c.EmbeddingModel,
 		JudgeModel: c.JudgeModel, TranscriptionSpendUSD: c.TranscriptionSpendUSD,
 		EmbeddingSpendUSD: c.EmbeddingSpendUSD, JudgeSpendUSD: c.JudgeSpendUSD,
-		HTTPAddress: c.HTTPAddress, DatabasePath: c.DatabasePath,
+		HTTPAddress: c.HTTPAddress, DatabasePath: c.DatabasePath, AuthEnabled: c.AuthEnabled,
 	}, nil
 }
 
@@ -142,7 +146,7 @@ func Load(ctx context.Context, lookup func(string) (string, bool)) (Settings, er
 			field == "transcript_retention" || field == "stamp_cooldown" || field == "appeal_duration" ||
 			field == "live_status_freshness" || field == "transcription_model" || field == "embedding_model" ||
 			field == "judge_model" || field == "transcription_spend_usd" || field == "embedding_spend_usd" ||
-			field == "judge_spend_usd" || field == "http_address" || field == "database_path" {
+			field == "judge_spend_usd" || field == "http_address" || field == "database_path" || field == "auth_enabled" {
 			return lookup("RECEIPTS_" + key)
 		}
 		return lookup(key)
@@ -168,10 +172,22 @@ func Load(ctx context.Context, lookup func(string) (string, bool)) (Settings, er
 		return s, nil
 	}
 	missing := make([]string, 0, 6)
-	for _, key := range []string{"TWITCH_CLIENT_ID", "TWITCH_ACCESS_TOKEN", "OPENAI_API_KEY"} {
+	requiredSecrets := []string{"TWITCH_CLIENT_ID", "OPENAI_API_KEY"}
+	if !s.AuthEnabled {
+		requiredSecrets = append(requiredSecrets, "TWITCH_ACCESS_TOKEN")
+	}
+	for _, key := range requiredSecrets {
 		value, ok := lookup(key)
 		if !ok || strings.TrimSpace(value) == "" {
 			missing = append(missing, key)
+		}
+	}
+	if s.AuthEnabled {
+		for _, key := range []string{"TWITCH_CLIENT_SECRET", "RECEIPTS_TOKEN_ENCRYPTION_KEY"} {
+			value, ok := lookup(key)
+			if !ok || strings.TrimSpace(value) == "" {
+				missing = append(missing, key)
+			}
 		}
 	}
 	for key, value := range map[string]string{
@@ -189,22 +205,38 @@ func Load(ctx context.Context, lookup func(string) (string, bool)) (Settings, er
 	// Fixture mode has no secret references at all, so Keel cannot require
 	// credentials during a replay. Live mode adds references only (never values).
 	type secretValues struct {
-		TwitchClientID    config.Secret `toml:"twitch_client_id"`
-		TwitchAccessToken config.Secret `toml:"twitch_access_token"`
-		OpenAIAPIKey      config.Secret `toml:"openai_api_key"`
+		TwitchClientID     config.Secret `toml:"twitch_client_id"`
+		TwitchAccessToken  config.Secret `toml:"twitch_access_token"`
+		TwitchClientSecret config.Secret `toml:"twitch_client_secret"`
+		TokenEncryptionKey config.Secret `toml:"token_encryption_key"`
+		OpenAIAPIKey       config.Secret `toml:"openai_api_key"`
 	}
 	secrets := secretValues{}
-	const secretRefs = `
+	secretRefs := `
 [twitch_client_id]
 source = "env"
 var = "TWITCH_CLIENT_ID"
-[twitch_access_token]
-source = "env"
-var = "TWITCH_ACCESS_TOKEN"
 [openai_api_key]
 source = "env"
 var = "OPENAI_API_KEY"
 `
+	if !s.AuthEnabled {
+		secretRefs += `
+[twitch_access_token]
+source = "env"
+var = "TWITCH_ACCESS_TOKEN"
+`
+	}
+	if s.AuthEnabled {
+		secretRefs += `
+[twitch_client_secret]
+source = "env"
+var = "TWITCH_CLIENT_SECRET"
+[token_encryption_key]
+source = "env"
+var = "RECEIPTS_TOKEN_ENCRYPTION_KEY"
+`
+	}
 	if err := config.Decode([]byte(secretRefs), &secrets, reg); err != nil {
 		return Settings{}, fmt.Errorf("initialize secret references: %w", err)
 	}
@@ -214,6 +246,8 @@ var = "OPENAI_API_KEY"
 	}
 	s.TwitchClientID = secrets.TwitchClientID
 	s.TwitchAccessToken = secrets.TwitchAccessToken
+	s.TwitchClientSecret = secrets.TwitchClientSecret
+	s.TokenEncryptionKey = secrets.TokenEncryptionKey
 	s.OpenAIAPIKey = secrets.OpenAIAPIKey
 	if err := s.Validate(); err != nil {
 		return Settings{}, err
@@ -242,14 +276,14 @@ func (s Settings) Validate() error {
 		return errorsf("RECEIPTS_CHANNEL_ID must not contain surrounding whitespace")
 	}
 	if s.Mode == ModeLive {
-		if s.ChannelID == "" || !channelNamePattern.MatchString(s.ChannelName) {
+		if !s.AuthEnabled && (s.ChannelID == "" || !channelNamePattern.MatchString(s.ChannelName)) {
 			return errorsf("live mode requires RECEIPTS_CHANNEL_ID and a valid RECEIPTS_CHANNEL_NAME")
 		}
 		missing := make([]string, 0, 6)
 		if !hasSecret(s.TwitchClientID) {
 			missing = append(missing, "TWITCH_CLIENT_ID")
 		}
-		if !hasSecret(s.TwitchAccessToken) {
+		if !s.AuthEnabled && !hasSecret(s.TwitchAccessToken) {
 			missing = append(missing, "TWITCH_ACCESS_TOKEN")
 		}
 		if !hasSecret(s.OpenAIAPIKey) {
@@ -266,6 +300,14 @@ func (s Settings) Validate() error {
 		}
 		if len(missing) > 0 {
 			return fmt.Errorf("live mode missing required settings: %s", strings.Join(missing, ", "))
+		}
+	}
+	if s.AuthEnabled {
+		if s.Mode != ModeLive || !hasSecret(s.TwitchClientID) || !hasSecret(s.TwitchClientSecret) || !hasSecret(s.TokenEncryptionKey) {
+			return errorsf("RECEIPTS_AUTH_ENABLED requires live mode and Twitch client ID, Twitch client secret, and token encryption key")
+		}
+		if u.Scheme != "https" {
+			return errorsf("RECEIPTS_AUTH_ENABLED requires an HTTPS public origin")
 		}
 	}
 	if s.TranscriptRetention < time.Minute || s.TranscriptRetention > 24*time.Hour {

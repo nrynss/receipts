@@ -2,7 +2,7 @@
 
 **Goal:** Let judges try Receipts immediately and streamers connect their own channel safely.
 
-**Status:** not-started (0/4)
+**Status:** in-progress (1/4)
 
 Read [the phase index](README.md), [account scope](../docs/accounts-scope.md), [product](../product.md) and [agent protocol](../AGENTS.md). The scope defines product boundaries; this document owns TA task status, dependencies and implementation evidence.
 
@@ -12,7 +12,7 @@ Read [the phase index](README.md), [account scope](../docs/accounts-scope.md), [
 requires: T1.1, T1.2
 fixture-ok: yes
 owns: internal/auth/, internal/store/migrations/, internal/settings/, cmd/receipts/, testdata/auth/
-status: not-started
+status: done
 ```
 
 Implement Twitch authorization-code login, verified identity and one owned channel per account. Persist encrypted provider credentials and refresh rotation. Use opaque browser sessions, login rotation, expiry, CSRF protection and safe logout. Reconnect after revoked authorization; the local implicit probe is not production login.
@@ -72,4 +72,6 @@ TA.1 can start alongside T1.4. P2 continues against explicit channel context. TA
 
 ## Handoff log
 
-Planning only; no account implementation is claimed. TA.1 is ready to begin. Public HTTPS origin, active-channel capacity and operator spend limits must be configured before hosted activation. Billing, moderator delegation and multiple owned channels per account remain deferred.
+TA.1 is reviewed from `50ced59` and integrated with startup. Principal-thread full offline gate and uncached auth/settings/store/startup race tests passed. TA.2 is the next account task; channel-scoped runtime/API authorization and onboarding UI are not implemented. Public HTTPS origin, active-channel capacity and operator spend limits must be configured before hosted activation. Billing, moderator delegation and multiple owned channels per account remain deferred.
+
+Review fixed login/refresh/revocation ordering, durable rotated-token persistence despite caller cancellation or temporary validation outage, subject-bound encryption, and session issuance after revocation. Startup and cancellable hourly maintenance validate connected grants; invalid authorization revokes browser sessions. Provider tests are offline; real Twitch consent at the hosted HTTPS origin remains TA.4 acceptance. See [auth handoff](../docs/ta1-auth-handoff.md).

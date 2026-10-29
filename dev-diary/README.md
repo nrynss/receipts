@@ -10,7 +10,7 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 |---|---|---|---|
 | P0 | [Ground and feasibility](PHASE-0-ground.md) | 4 / 4 | Complete; owner confirmed OBS video, audio and autoplay |
 | P1 | [Contracts, storage and lifecycle](PHASE-1-contracts.md) | 3 / 4 | Settings, ledger and API/event contracts complete; Replay foundation reviewed; full T1.4 scenario awaits P2 |
-| TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 0 / 4 | Not started; TA.1 identity can begin alongside T1.4 |
+| TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 1 / 4 | Identity/sessions reviewed; TA.2 channel authorization and isolation next |
 | P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 0 / 4 | Not started |
 | P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 0 / 3 | Not started |
 | P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 0 / 4 | Not started |
