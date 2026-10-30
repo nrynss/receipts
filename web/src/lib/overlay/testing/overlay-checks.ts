@@ -1,8 +1,8 @@
 import { mount, unmount, flushSync } from 'svelte';
 import Harness from './Harness.svelte';
-import { fixture } from '../src/lib/overlay/fixtures';
-import { displayFromSnapshot } from '../src/lib/overlay/model';
-import type { Display } from '../src/lib/overlay/model';
+import { fixture } from '../fixtures';
+import { displayFromSnapshot } from '../model';
+import type { Display } from '../model';
 
 const result = document.querySelector('#result')!;
 const target = document.querySelector('#target') as HTMLElement;
