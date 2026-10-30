@@ -11,8 +11,8 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 | P0 | [Ground and feasibility](PHASE-0-ground.md) | 4 / 4 | Complete; owner confirmed OBS video, audio and autoplay |
 | P1 | [Contracts, storage and lifecycle](PHASE-1-contracts.md) | 4 / 4 | Complete; replay driver landed; full product scenario acceptance belongs to T2.4 |
 | TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 2 / 4 | Identity/isolation complete; Onboarding implemented; actual OBS acceptance pending |
-| P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 3 / 4 | Capture/detection/appeals complete; lore and replay acceptance pending |
-| P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 1 / 3 | Overlay states complete; controls ready for implementation |
+| P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 4 / 4 | Complete; capture, detection, appeals, lore and full offline replay verified |
+| P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 2 / 3 | Overlay and owner controls complete; OBS/SSE rehearsal remains |
 | P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 0 / 4 | Authorized adapters implemented; tagged live acceptance pending |
 | P5 | [Live transcription and contradiction judging](PHASE-5-intelligence.md) | 0 / 4 | Not started |
 | P6 | [Live proof, operations and submission](PHASE-6-ship.md) | 0 / 4 | Not started |
@@ -71,17 +71,23 @@ T0.1 → T0.4 → T1.2 → T1.3 → T1.4 → T2.1 → T2.2 → T2.3 → T2.4 est
 |---|---|---|
 | P0 feasibility | `c7682b0` | [P0 evidence](PHASE-0-ground.md); owner-reported local OBS acceptance; deployed origin still unverified |
 | T1.1 settings and T1.2 ledger | `19795cf` | Explicit modes, durable transitions and startup migration; offline gate and race checks |
-| T1.3 contracts | `96b4c43` | Go/TS goldens, API authorization and SSE recovery; hosted router/scoped reads mounted by TA.2; P2 lifecycle actions pending |
+| T1.3 contracts | `96b4c43` | Go/TS goldens, API authorization and SSE recovery; hosted router/scoped reads mounted by TA.2; P2 lifecycle actions implemented |
 | Keel upgrade | `142c2a3` | v0.9.0; [compatibility review](../docs/keel-upgrade.md) |
 | T1.4 replay foundation | `ced2280` | Strict offline dispatch, injected clock/IDs and real ledger determinism; full product demo is T2.4 |
 | TA.1 identity and sessions | `ed2c7d6` | OAuth, encrypted tokens, session/CSRF and validation lifecycle; [auth handoff](../docs/ta1-auth-handoff.md); real hosted consent remains TA.4 |
 | T2.1 receipt capture | `4150ce5` | Exact attributed evidence, durable dedup/throttles and clip jobs; live extraction/transport remain downstream |
 | TA.2 channel isolation | `3b9242c` | Runtime/API/device isolation and durable budgets; [runtime handoff](../docs/ta2-runtime-handoff.md); live activation remains P4 |
 | T2.2 detection/review | `0190538` | Delayed-result guards, durable cooldown and replay/SSE recovery |
-| T3.1 overlay states | `090acd8` | Reviewed original fixture UI and mounted browser checks; authenticated SSE/OBS remain downstream |
+| T3.1 overlay states | `090acd8` | Reviewed original fixture UI and mounted browser checks; authenticated SSE implemented; actual OBS acceptance remains |
 
-The integrated capture/isolation tree passed the full offline gate and uncached auth/API/events/runtime/settings/store/commands/startup race checks. Provider HTTP tests use an in-memory transport, so the gate requires no localhost socket permissions. No deployed multi-streamer or full receipt-loop acceptance is claimed.
+| T2.3 appeals | `75d2a52` | Guarded decisions, votes, review and restart recovery |
+| TA.3 onboarding | `e1821fa` | Account lifecycle and OBS pairing implemented; actual OBS acceptance pending |
+| T4.1 authorization | `2627aea` | Scoped adapter and read-only live probe; real capability acceptance pending |
+| T2.4 lore/replay | `418121b` | Two fresh stores, complete event payload comparison, failed clip and restart |
+| T3.2 owner controls | `a796c8b` candidate | Reviewed dock, keyboard rehearsal, retry recovery; integrated with this handoff |
+
+The integrated capture/isolation tree passed the full offline gate and uncached auth/API/events/runtime/settings/store/commands/startup race checks. Provider HTTP tests use an in-memory transport, so the gate requires no localhost socket permissions. The full offline receipt loop is verified; deployed multi-streamer acceptance remains open.
 
 ## Ready next
 
-T2.1 receipt capture is reviewed and landed; T2.2 detection and T3.1 overlay states are reviewed and landed. T2.3 answer/appeal is reviewed and landed. TA.3 onboarding/OBS pairing and T4.1 authorized adapters are implemented and reviewed; actual OBS and tagged live acceptance remain pending. All work is isolated and tracked by the principal thread through review and landing. Later tasks retain their explicit dependencies. T6.1 deploys after TA.3; TA.4 verifies that deployment and gates T6.3 judge readiness.
+T3.3 SSE recovery/OBS rehearsal and T4.2 EventSub/chat transport are ready by their listed dependencies. T4.4 live-session authority unlocks actual listening activation. TA.3 actual OBS acceptance and T4.1 tagged live capability acceptance remain open. T6.1 deploys after TA.3; TA.4 verifies the deployed experience and gates T6.3 judge readiness.

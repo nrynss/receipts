@@ -4,7 +4,7 @@
 
 Chat types `!receipt` when a streamer promises something on stream. Receipts clips the moment and keeps the claim. When the streamer later goes back on it, a **RECEIPT** stamp lands on the overlay with the old clip, and chat votes on the appeal. `!lore` gives new viewers the channel's running promises and the ones that broke.
 
-> **Status:** entry for the Codex × TwitchCon Hackathon, in development. P0 feasibility and P1 foundation are complete. Twitch account/session support (TA.1), deterministic replay infrastructure, the ledger and API/event contracts are implemented. The product receipt loop, hosted onboarding and shared live channel runtimes remain planned; see [`product.md`](product.md).
+> **Status:** entry for the Codex × TwitchCon Hackathon, in development. P0 feasibility, P1 foundation and the offline receipt loop are complete. Account isolation, onboarding/OBS pairing and owner controls are implemented. Actual OBS acceptance, shared live activation and hosted judge acceptance remain open; see the [development diary](dev-diary/README.md).
 
 Implementation phases, task dependencies and acceptance criteria are in the [development diary](dev-diary/README.md).
 Build and run the current server using the [development instructions](docs/development.md).
@@ -16,8 +16,8 @@ Build and run the current server using the [development instructions](docs/devel
 | P0 — Feasibility | 4/4 | Twitch, audio and OBS probes |
 | P1 — Foundation | 4/4 | Settings, ledger, contracts and deterministic replay driver |
 | TA — Accounts and onboarding | 2/4 | Identity/isolation implemented; OBS pairing implemented pending manual acceptance; judge demo pending |
-| P2 — Offline receipt loop | 3/4 | Capture, detection and appeals implemented; lore/replay acceptance pending |
-| P3 — Overlay/controls | 1/3 | Overlay states implemented; controls and OBS/SSE rehearsal pending |
+| P2 — Offline receipt loop | 4/4 | Capture, detection, appeals, lore and deterministic full-loop replay verified |
+| P3 — Overlay/controls | 2/3 | Overlay and owner controls verified; OBS/SSE recovery rehearsal pending |
 | P4–P5 — Live integration | Planned | Twitch and intelligence adapters |
 | P6 — Release | Planned | Deployment, live proof and judge readiness |
 
@@ -30,11 +30,11 @@ RECEIPTS_MODE=fixture ./bin/receipts serve
 ./bin/receipts replay --fixture testdata/replay/foundation.json --db /tmp/receipts-fresh.db
 ```
 
-The replay database path must be new. Replay currently persists transcript fixtures through the real ledger; full product replay is T2.4 acceptance. Hosted auth setup is documented in [the TA.1 handoff](docs/ta1-auth-handoff.md).
+The replay database path must be new. The CLI replay persists transcript fixtures through the real ledger. The T2.4 offline acceptance test exercises the full product loop through real services. Hosted auth setup is documented in [the TA.1 handoff](docs/ta1-auth-handoff.md).
 
 ## Planned streamer experience
 
-Hosted onboarding will offer Twitch sign-in and OBS pairing for the owner’s channel, plus a recorded demo without login. Identity/session and channel-isolation foundations are implemented; hosted onboarding, OBS pairing and live-adapter activation remain planned.
+Twitch sign-in and OBS pairing for the owner’s channel are implemented. Owners reach the private control dock at `/control` from account setup. Actual OBS acceptance, live-adapter activation and the anonymous recorded demo remain open.
 
 Add the overlay to OBS as a browser source. Chat commands: `!receipt`, `!lore`, `!uphold`, `!overturn`; the streamer and mods also have `!receipts off` and `!void`.
 

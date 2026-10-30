@@ -69,7 +69,7 @@ Render !lore from stored claims and verdicts with a bounded response and a defin
 
 ### What exists now
 
-T2.1 receipt capture is implemented and reviewed from `e0bdbec`. T2.2 detection and quiet review are implemented from reviewed candidate `492f6c1`. Appeals and lore remain unimplemented. The T1.4 driver and real-ledger replay boundary landed in `ced2280`, and TA.1 in `ed2c7d6`; these are prerequisites, not evidence of a working receipt loop.
+T2.1 receipt capture is implemented and reviewed from `e0bdbec`. T2.2 detection and quiet review are implemented from reviewed candidate `492f6c1`. Appeals and lore are implemented; full recorded replay acceptance passes. The T1.4 driver and real-ledger replay boundary landed in `ced2280`, and TA.1 in `ed2c7d6`; these are prerequisites, not evidence of a working receipt loop.
 
 ### Evidence and decisions
 
@@ -77,7 +77,7 @@ Record task IDs, relevant revision, checks and artifact paths when work lands. N
 
 ### Notes for the next task
 
-T2.3 answer/appeal is ready from the landed detection service. Reuse `internal/replay` clock/ID and typed sink boundaries. Preserve explicit channel context for TA.2. T2.4 owns the original full demo event/verdict acceptance; do not recreate decisions inside replay.
+T2.3 answer/appeal and T2.4 lore/replay are complete. Reuse `internal/replay` clock/ID and typed sink boundaries. Preserve explicit channel context for TA.2. T2.4 owns the original full demo event/verdict acceptance; do not recreate decisions inside replay.
 
 ### T2.1 acceptance
 
@@ -87,7 +87,7 @@ The principal thread independently ran the full offline gate and uncached comman
 
 Reviewed `492f6c1` adds recorded judge responses, exact persisted-source preflight, post-judge authority/version/source checks and a serialized runtime/database/event commit. Durable stamp history keeps cooldown through restart and void. Eligible uncertainty enters the channel-scoped quiet review queue; public snapshots project the current valid stamp with viewer credit. Principal full-gate and uncached detect/store/runtime/API race checks passed. Tests cover delayed void/expiry/pause/rollover/revocation/cancellation, concurrent candidates, channel isolation, deterministic replay through SSE and a nonanimated reconnect snapshot. Live retrieval/judge adapters remain P5; P4 still owns live session activation.
 
-T2.3 is reviewed and integrated in `75d2a52`: guarded answers/review, trusted votes, deterministic deadlines and startup recovery pass the offline gate and race tests. Verified-runtime scheduling and trusted chat delivery connect through P4 activation; no live acceptance is claimed. T2.4 lore and full replay acceptance remains open.
+T2.3 is reviewed and integrated in `75d2a52`: guarded answers/review, trusted votes, deterministic deadlines and startup recovery pass the offline gate and race tests. Verified-runtime scheduling and trusted chat delivery connect through P4 activation; no live acceptance is claimed. T2.4 lore and full replay acceptance is landed in `418121b`.
 
 ### T2.4 acceptance
 
