@@ -142,15 +142,18 @@ export function createOverlayRebaser(fetchSnapshot: () => Promise<OverlaySnapsho
     record.promise = pendingFlight;
     return pendingFlight;
   };
-  const rebase = (): Promise<void> => {
-    // A Chaaya catchUp marks a new connection. It supersedes unresolved reads
-    // and frames from the previous connection; generation checks keep a late
-    // response from replacing this connection's snapshot.
+  const invalidate = () => {
     generation++;
     snapshot = undefined;
     pending.length = 0;
     flight = undefined;
+  };
+  const rebase = (): Promise<void> => {
+    // A Chaaya catchUp marks a new connection. It supersedes unresolved reads
+    // and frames from the previous connection; generation checks keep a late
+    // response from replacing this connection's snapshot.
+    invalidate();
     return refresh(generation);
   };
-  return { receive, rebase };
+  return { receive, rebase, invalidate };
 }

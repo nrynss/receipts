@@ -3,7 +3,8 @@
   import Overlay from '$lib/overlay/Overlay.svelte';
   import { fixture } from '$lib/overlay/fixtures';
   import { decodeSnapshot } from '$lib/api/contracts';
-  import { displayFromSnapshot, type Display } from '$lib/overlay/model';
+  import { createOverlayRecovery } from '$lib/events/recovery';
+  import { type Display } from '$lib/overlay/model';
   let display = $state<Display>({state:'idle'});
   let paired = $state(false);
   let code = $state('');
@@ -12,16 +13,20 @@
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     let events: EventSource | undefined;
-    let generation = 0;
-    async function update() {
-      const current = ++generation;
-      try { const response = await fetch('/api/overlay'); const next = response.ok ? displayFromSnapshot(decodeSnapshot(await response.json())) : {state:'idle'} as Display; if (!stopped && current === generation) display = next; } catch { if (!stopped && current === generation) display = {state:'idle'}; }
-    }
+    let recovery: ReturnType<typeof createOverlayRecovery> | undefined;
     function activate() {
-      paired = true; void update(); events = new EventSource('/api/events');
-      events.onopen = () => { void update(); };
-      for (const name of ['snapshot','stamp','status','reset']) events.addEventListener(name, () => { void update(); });
-      events.onerror = () => { generation++; display = {state:'idle'}; };
+      paired = true;
+      recovery = createOverlayRecovery(async () => {
+        const response = await fetch('/api/overlay');
+        if (!response.ok) throw new Error(`overlay snapshot unavailable (${response.status})`);
+        return decodeSnapshot(await response.json());
+      }, next => { if (!stopped) display = next; });
+      events = new EventSource('/api/events');
+      events.onopen = () => { void recovery?.catchUp(); };
+      for (const name of ['snapshot','stamp','status','reset']) events.addEventListener(name, event => {
+        recovery?.onFrame({ name, data: (event as MessageEvent<string>).data });
+      });
+      events.onerror = () => { recovery?.disconnect(); };
     }
     async function check() {
       try {
@@ -41,7 +46,7 @@
       } catch { status='Pairing unavailable. Refresh this source to try again.'; }
     }
     if (import.meta.env.DEV) { const mode = new URLSearchParams(window.location.search).get('fixture'); if (mode === 'pairing') { code='SAMPLE123456'; status='Enter this code in your Receipts setup.'; return; } if (mode === 'paired') { paired=true; display=fixture('evidence'); return; } }
-    void check(); return () => { stopped=true; clearTimeout(timer); events?.close(); };
+    void check(); return () => { stopped=true; clearTimeout(timer); events?.close(); recovery?.dispose(); };
   });
 </script>
 <svelte:head><title>Receipts OBS source</title></svelte:head>
