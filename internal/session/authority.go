@@ -218,34 +218,39 @@ func (a *Authority) StartWithOptions(ctx context.Context, identity auth.ChannelC
 		return errors.New("session: runtime stopped during activation")
 	}
 	if a.Attach != nil || a.AttachAudio != nil {
-		var detach func()
+		var cleanups []func()
+		cleanup := func() {
+			for i := len(cleanups) - 1; i >= 0; i-- {
+				cleanups[i]()
+			}
+		}
+		attach := func(fn func() (func(), error)) error {
+			detach, err := fn()
+			if detach != nil {
+				cleanups = append(cleanups, detach)
+			}
+			return err
+		}
 		var attachErr error
-		if a.AttachAudio != nil {
-			detach, attachErr = a.AttachAudio(channel.Context, authority, soleBroadcaster)
-		} else {
-			detach, attachErr = a.Attach(channel.Context, authority)
+		if a.Attach != nil {
+			attachErr = attach(func() (func(), error) { return a.Attach(channel.Context, authority) })
+		}
+		if attachErr == nil && a.AttachAudio != nil {
+			attachErr = attach(func() (func(), error) { return a.AttachAudio(channel.Context, authority, soleBroadcaster) })
+		}
+		if attachErr == nil && !a.activationCurrent(identity.ChannelID, activation) {
+			attachErr = context.Canceled
 		}
 		if attachErr != nil {
-			if detach != nil {
-				detach()
-			}
 			_ = a.Runtime.Cancel(authority)
+			cleanup()
 			a.clearRuntime(authority)
 			_ = a.Ledger.ClearLivePermission(context.Background(), identity.ChannelID, sess.ID, authority.Generation)
 			return attachErr
 		}
-		if !a.activationCurrent(identity.ChannelID, activation) {
-			if detach != nil {
-				detach()
-			}
+		if len(cleanups) > 0 && !channel.Go(func(runCtx context.Context) { <-runCtx.Done(); cleanup() }) {
 			_ = a.Runtime.Cancel(authority)
-			a.clearRuntime(authority)
-			_ = a.Ledger.ClearLivePermission(context.Background(), identity.ChannelID, sess.ID, authority.Generation)
-			return context.Canceled
-		}
-		if detach != nil && !channel.Go(func(runCtx context.Context) { <-runCtx.Done(); detach() }) {
-			detach()
-			_ = a.Runtime.Cancel(authority)
+			cleanup()
 			a.clearRuntime(authority)
 			_ = a.Ledger.ClearLivePermission(context.Background(), identity.ChannelID, sess.ID, authority.Generation)
 			return errors.New("session: runtime stopped while attaching worker")

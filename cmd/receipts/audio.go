@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"regexp"
 	"sync"
 	"time"
@@ -22,6 +23,7 @@ type audioAttachment struct {
 	ledger      *store.Store
 	runtime     *runtime.Manager
 	apiKey      string
+	streamlink  string
 	transcriber transcribe.Transcriber
 	active      sync.Map
 	capture     func(context.Context, string, string, string, func(context.Context, audio.IngestChunk) error) error
@@ -33,8 +35,14 @@ func (a *audioAttachment) activeFor(identity auth.ChannelContext) bool {
 		return false
 	}
 	value, ok := a.active.Load(channel.Authority.ChannelID)
-	return ok && value == channel.Authority.Generation
+	return ok && value == (captureIdentity{channel.Authority.LiveSessionID, channel.Authority.Generation})
 }
+
+type captureIdentity struct {
+	session    string
+	generation uint64
+}
+
 func (a *audioAttachment) attach(ctx context.Context, authority auth.ChannelContext, sole bool) (func(), error) {
 	login, started, err := a.ledger.LiveAudioSource(ctx, authority.AccountID, authority.ChannelID, authority.LiveSessionID, authority.Generation)
 	if err != nil {
@@ -42,6 +50,18 @@ func (a *audioAttachment) attach(ctx context.Context, authority auth.ChannelCont
 	}
 	if !twitchLogin.MatchString(login) {
 		return nil, errors.New("audio: invalid channel login")
+	}
+	streamlink := a.streamlink
+	if streamlink == "" {
+		streamlink = "streamlink"
+	}
+	if a.capture == nil {
+		if _, err := exec.LookPath(streamlink); err != nil {
+			return nil, errors.New("audio: streamlink unavailable")
+		}
+		if _, err := exec.LookPath("ffmpeg"); err != nil {
+			return nil, errors.New("audio: ffmpeg unavailable")
+		}
 	}
 	dir, err := os.MkdirTemp("", "receipts-audio-*")
 	if err != nil {
@@ -57,13 +77,13 @@ func (a *audioAttachment) attach(ctx context.Context, authority auth.ChannelCont
 	go func() {
 		defer close(done)
 		defer os.RemoveAll(dir)
-		defer a.active.CompareAndDelete(authority.ChannelID, authority.Generation)
+		defer a.active.CompareAndDelete(authority.ChannelID, captureIdentity{authority.LiveSessionID, authority.Generation})
 		capture := a.capture
 		if capture == nil {
 			capture = audio.StreamChunks
 		}
-		err := capture(runCtx, "", fmt.Sprintf("https://www.twitch.tv/%s", login), dir, func(ctx context.Context, chunk audio.IngestChunk) error {
-			a.active.Store(authority.ChannelID, authority.Generation)
+		err := capture(runCtx, streamlink, fmt.Sprintf("https://www.twitch.tv/%s", login), dir, func(ctx context.Context, chunk audio.IngestChunk) error {
+			a.active.Store(authority.ChannelID, captureIdentity{authority.LiveSessionID, authority.Generation})
 			if !sole {
 				return nil
 			}

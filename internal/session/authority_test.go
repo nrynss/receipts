@@ -182,6 +182,27 @@ func TestConfirmedBroadcastActivatesOwnerSessionAndOfflineCancels(t *testing.T) 
 	if _, _, checked, mic, _, err := ledger.CurrentLiveAuthority(ctx, "owner", channel.ID); err != nil || checked.UnixMilli() != 0 || mic {
 		t.Fatalf("failed worker attach left active freshness or mic permission: checked=%v mic=%v err=%v", checked, mic, err)
 	}
+	var calls []string
+	a.Attach = func(context.Context, auth.ChannelContext) (func(), error) {
+		calls = append(calls, "attach")
+		return func() { calls = append(calls, "detach") }, nil
+	}
+	a.AttachAudio = func(_ context.Context, _ auth.ChannelContext, sole bool) (func(), error) {
+		if !sole {
+			t.Error("attestation lost")
+		}
+		calls = append(calls, "audio")
+		return func() { calls = append(calls, "audio-detach") }, nil
+	}
+	if err = a.StartWithOptions(ctx, identity, false, true); err != nil {
+		t.Fatal(err)
+	}
+	if err = a.Stop(ctx, identity); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(calls, ","); got != "attach,audio,audio-detach,detach" {
+		t.Fatalf("hook order %s", got)
+	}
 }
 
 func TestStopDuringStatusProbeCancelsPendingActivation(t *testing.T) {

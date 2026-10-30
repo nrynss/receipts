@@ -141,7 +141,8 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 		if err != nil {
 			return fmt.Errorf("initialize transcription configuration")
 		}
-		capture := &audioAttachment{ledger: ledger, runtime: supervisor, apiKey: openAIKey}
+		streamlink, _ := lookup("RECEIPTS_STREAMLINK_BIN")
+		capture := &audioAttachment{ledger: ledger, runtime: supervisor, apiKey: openAIKey, streamlink: streamlink}
 		liveAuthority := &session.Authority{Adapter: adapter, Ledger: ledger, Runtime: supervisor, Freshness: cfg.LiveStatusFreshness, Root: ctx, AttachAudio: capture.attach, AudioActive: capture.activeFor}
 		mux.Handle("/account-api/", api.AccountHandlerWithBackend(authService, supervisor, authService.DisconnectProviderAuthorization, budgets, liveAuthority))
 		mux.Handle("/api/", api.NewForOwner(api.Config{
