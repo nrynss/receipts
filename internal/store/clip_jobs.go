@@ -123,7 +123,15 @@ func (s *Store) SaveClipJobAttempt(ctx context.Context, a DetectionAuthority, jo
 	if clipID == "" {
 		clipID = oldID
 	}
-	res, err := tx.ExecContext(ctx, `UPDATE clip_jobs SET clip_id=?,clip_requested_at=CASE WHEN ?<>'' AND clip_requested_at=0 THEN ? ELSE clip_requested_at END,create_started=CASE WHEN ?<>'' THEN 0 ELSE create_started END,attempts=attempts+CASE WHEN ?<>'' THEN 1 ELSE 0 END,polls=polls+CASE WHEN clip_id<>'' AND ?='' THEN 1 ELSE 0 END,last_error=?,next_attempt_at=?,lease_until=0,lease_token='' WHERE id=? AND channel_id=? AND status='pending' AND claim_generation=? AND lease_token=? AND lease_until>?`, clipID, clipID, millis(s.now()), clipID, detail, clipID, detail, millis(next), job.ID, job.ChannelID, a.Generation, job.LeaseToken, millis(s.now()))
+	// Count a POST attempt when it has either succeeded (clipID is newly set)
+	// or Twitch explicitly rejected it with 429 (the durable request timestamp
+	// remains after ResetClipCreateStarted). Poll retries must not consume the
+	// create-attempt budget.
+	createAttempt := 0
+	if oldID == "" && (clipID != "" || !job.ClipRequestedAt.IsZero()) {
+		createAttempt = 1
+	}
+	res, err := tx.ExecContext(ctx, `UPDATE clip_jobs SET clip_id=?,clip_requested_at=CASE WHEN ?<>'' AND clip_requested_at=0 THEN ? ELSE clip_requested_at END,create_started=CASE WHEN ?<>'' THEN 0 ELSE create_started END,attempts=attempts+?,polls=polls+CASE WHEN clip_id<>'' AND ?='' THEN 1 ELSE 0 END,last_error=?,next_attempt_at=?,lease_until=0,lease_token='' WHERE id=? AND channel_id=? AND status='pending' AND claim_generation=? AND lease_token=? AND lease_until>?`, clipID, clipID, millis(s.now()), clipID, createAttempt, clipID, detail, millis(next), job.ID, job.ChannelID, a.Generation, job.LeaseToken, millis(s.now()))
 	if err != nil {
 		return err
 	}

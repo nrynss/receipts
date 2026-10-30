@@ -1,43 +1,21 @@
-# T4.3 clip jobs and playback handoff
-
-T4.3 implementation candidate: `codex/t43-clips` from `85c69b8`.
+# T4.3 clip readiness handoff
 
 ## Implemented
 
-- Clip jobs remain created in the same transaction as the transcript receipt. The worker resumes pending records after restart, leases each job to one active runtime generation, and persists the returned clip ID before readiness polling.
-- Before the non-idempotent create POST, a durable intent and request timestamp are committed. If the process disappears after that marker without persisting a clip ID, recovery marks the job uncertain/failed instead of issuing another POST. Only a received 429 can clear the intent for a bounded retry. Jobs are claimed one at a time; HTTP calls have a shorter deadline than the lease.
-- The job records the latest transcript evidence end and the delay to the clip create request for correlation. This timing is metadata, not proof that Twitch's resulting clip contains those words.
-- Readiness uses channel-bound `GET /helix/clips?id=...` with no additional OAuth scope. It requires Helix's `broadcaster_id` to match the authorized channel and accepts the official clips host URL or Twitch's channel-style `www.twitch.tv/{channel}/clip/{id}` URL; it then canonicalizes by the returned clip ID to `https://clips.twitch.tv/{id}` for the existing embed. A missing result is pending; a safe, correctly owned Twitch clip marks the job ready. A bounded deadline marks it unavailable. Permanent authorization/HTTP failures and ambiguous clip-creation outcomes are failed. The public claim and transcript evidence remain separate from these clip states.
-- Job claims are atomic and expiring. Mutations verify account, channel, live session, receipt eligibility, runtime generation and lease token. Runtime stop/revocation and delayed old-generation responses cannot publish a result.
-- Poll errors use bounded exponential retry. HTTP 429 honors a bounded `Retry-After`; its retry budget is capped. A failed or timed-out clip-creation POST is not retried blindly because Twitch may have created a clip before the response was lost.
-- The overlay keeps the claim visible and says clip timing may not include every word. No transcript claim is inferred from the clip video.
+- Durable clip jobs now track create intent, retry deadlines, readiness polls and leases. A worker restart with an unresolved Twitch create intent marks the job failed as uncertain and does not issue a duplicate create request.
+- Worker outcomes are fenced by the authenticated account, channel, live session, runtime generation, receipt eligibility and lease. Late results cannot publish after a void or session rollover.
+- Create retries are bounded across restarts. `attempts` counts persisted create attempts, including explicit Twitch 429 rejections; readiness polls use the separate `polls` counter.
+- Readiness lookup accepts the supported public Twitch clip URL forms, verifies the clip belongs to the authorized broadcaster, and uses the read-only `GET /clips` endpoint.
+- A clip that becomes ready later is a video reference only. Transcript evidence remains authoritative; the delayed clip does not assert that it contains words the capture missed.
 
-The worker allows 60 seconds for readiness, following the POST section of Twitch's [API reference](https://dev.twitch.tv/docs/api/reference#post-clips). Twitch's separate [Clips API guide](https://dev.twitch.tv/docs/api/clips/) still says to assume failure after 15 seconds. This documentation conflict is recorded for acceptance; the longer bound avoids declaring failure before the reference's current POST contract. Twitch's [Get Clips reference](https://dev.twitch.tv/docs/api/reference#get-clips) documents both clip URL fields and the broadcaster ID. The embed still needs the exact `parent` domain and HTTPS as described in [Video and Clips embedding](https://dev.twitch.tv/docs/embed/video-and-clips/).
+## Verification
 
-## Offline verification
+- Real SQLite integration tests run capture through `commands.Service` and cover create, persisted ID, database reopen and readiness completion; simultaneous workers; crash recovery after create intent; stale lease, foreign owner, void and rollover fencing; and bounded 429 retries across restart.
+- `GOCACHE=/tmp/receipts-go-cache ./tools/check.sh` passes.
+- `GOCACHE=/tmp/receipts-go-cache go test -race -count=1 ./internal/twitch/clips ./internal/store ./internal/commands` passes.
+- Read-only live readiness evidence for the existing authorized test clip is recorded in `docs/evidence/t43-live-readiness.json`. No clip was created during this work.
 
-Original bounded response fixtures live under `testdata/twitch/clips/`: processing, ready and a hostile URL. Connection tests make no sockets; worker tests cover recovery from a persisted ID, ambiguous POST failure, 429 retry bounds and stop races. Store migration 009 adds retry timing and lease fields to the existing durable job table.
+## Acceptance still open
 
-Run the focused checks with:
-
-```sh
-go test ./internal/store ./internal/twitch/... ./internal/commands
-```
-
-The overlay fallback copy changed in `web/src/lib/overlay/Overlay.svelte`; the required project gate also checks overlay lint, types and tests.
-
-## Live readiness and playback acceptance
-
-`TestLiveClipReadiness` is a read-only check of one existing clip. It requires the owner to set `RECEIPTS_LIVE_CLIP_READINESS=1`, `RECEIPTS_LIVE_CLIP_ID`, and the existing `TWITCH_CLIENT_ID`, `TWITCH_ACCESS_TOKEN`, and `TWITCH_BROADCASTER_ID` environment values, then run:
-
-```sh
-go test -tags live ./internal/twitch/connection -run '^TestLiveClipReadiness$' -count=1
-```
-
-It validates the broadcaster/client and makes one bounded Helix lookup. It creates no clip, sends no chat, subscribes to no events and spends no model budget. The sanitized `docs/evidence/t41-adapter-live-write.json` confirms one clip ID was created but intentionally omits that ID. The owner supplied that existing clip ID for this check; the successful two-request live result and canonical embed URL are recorded in `docs/evidence/t43-live-readiness.json`. `docs/evidence/p0-twitch.json` and the owner report document successful prior localhost OBS playback. This readiness result verifies metadata only; it does not verify playback in OBS or on a deployed origin.
-
-For playback, open the running overlay as an OBS Browser Source at the origin that will actually host the overlay. The Twitch embed requires HTTPS and `parent` equal to that origin's hostname; the player has minimum viewport dimensions of 400×300, and autoplay can depend on size and visibility. Confirm the clip's video and audio in OBS, confirm clicking Play works when autoplay does not, and preserve the public claim fallback. To avoid feeding the clip back into listening, keep the Receipts audio capture source separate from the Browser Source; if OBS controls Browser Source audio, verify it is not routed to the captured mic/desktop input. Record the OBS version, exact overlay origin, audio routing and observed playback outcome in a new sanitized evidence file. The deployed origin is not available from this worktree, so deployed-origin and no-feedback acceptance remain open.
-
-## Integration seam and limits
-
-The parent runtime must call `Worker.Attach(authority)` after trusted activation with the same channel authority used by the connection adapter. Attachment is runtime-scoped; pending jobs for other/ended sessions are deliberately not picked up by a newer session. The parent owns the P4 index/task status and final review. The worker does not activate listening or authorize T4.4 behavior.
+- Playback from a deployed origin, OBS scene routing and end-to-end audio routing remain unverified. No deployed-origin proof is claimed. T4.4 activation remains disabled pending its own verification.
+- `attempts` is create-attempt count; `polls` is readiness-poll count. Consumers should not treat the former as a combined request count.
