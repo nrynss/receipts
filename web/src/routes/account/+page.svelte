@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { resolve } from '$app/paths';
   import { fixtureFetch } from '$lib/account/testing/fixture';
   type State = 'unavailable' | 'unknown' | 'offline' | 'missing_grant' | 'capacity' | 'not_listening' | 'listening' | 'paused';
   let request: typeof fetch = fetch;
@@ -43,6 +44,7 @@
   <h1>Receipts setup</h1>
   {#if account}
     <p>Connected as {account.login}</p>
+    <p><a href={resolve("/control")}>Open streamer control dock</a></p>
     <p>{({unavailable:'Listening is unavailable.',unknown:'Stream status is unknown. Try again.',offline:'Your channel is offline.',missing_grant:'Reconnect Twitch to grant the required permissions.',capacity:'Listening capacity is full. Try again later.',not_listening:'Your channel is live and not listening.',listening:'Listening.',paused:'Listening; stamps paused.'})[statusValue]}</p>
     {#if listening}<button onclick={pause}>{paused ? "Resume stamps" : "Pause stamps"}</button><button onclick={stop}>Stop listening</button>{:else if statusValue === "not_listening"}{#if canStart}<button onclick={start}>Start listening</button>{:else}<p>Starting listening is currently unavailable.</p>{/if}{:else if statusValue === "missing_grant"}<button onclick={() => { window.location.href = "/auth/twitch"; }}>Reconnect Twitch</button>{/if}
     <h2>OBS browser source</h2>

@@ -20,6 +20,7 @@ describe('owner control actions', () => {
     const actions = createActions(request, () => '', () => 'key');
     const first = actions.send('/api/control/review', { review_id: 'r', decision: 'approve' }, true);
     expect(await actions.send('/api/control/review', { review_id: 'r', decision: 'approve' }, true)).toBe(false);
+    await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1));
     finish(new Response(null, { status: 204 }));
     await first;
     expect(request).toHaveBeenCalledTimes(1);
@@ -46,4 +47,18 @@ it('restores an uncertain action per owner and channel without persisting the re
   await reloaded.send('/api/control/decision', body, true);
   expect(JSON.parse(request.mock.calls[1][1].body).action_key).toBe('original');
   expect(data.size).toBe(0);
+});
+
+it('releases a definitively refused action and binds an uncertain retry to the reason', async () => {
+  const request = vi.fn().mockResolvedValueOnce(new Response(null, { status: 409 })).mockResolvedValueOnce(new Response(null, { status: 503 })).mockResolvedValueOnce(new Response(null, { status: 204 }));
+  let next = 0;
+  const actions = createActions(request, () => '', () => `key-${++next}`);
+  const body = { receipt_id: 'r', receipt_decision: 'context_changed', note: 'first reason' };
+  await expect(actions.send('/api/control/decision', body, true)).rejects.toThrow('refused');
+  await expect(actions.send('/api/control/decision', { ...body, note: 'second reason' }, true)).rejects.toThrow('confirmed');
+  await expect(actions.send('/api/control/decision', body, true)).rejects.toThrow('same choice and reason');
+  await actions.send('/api/control/decision', { ...body, note: 'second reason' }, true);
+  expect(JSON.parse(request.mock.calls[0][1].body).action_key).toBe('key-1');
+  expect(JSON.parse(request.mock.calls[1][1].body).action_key).toBe('key-2');
+  expect(JSON.parse(request.mock.calls[2][1].body).action_key).toBe('key-2');
 });

@@ -32,15 +32,22 @@ export function createActions(request: Request, cookie: () => string, key: () =>
     },
     async send(path: string, body: Record<string, unknown> = {}, keyed = false) {
       if (pending) return false;
-      // Only action identifiers are persisted; context notes and private review text are not.
-      const signature = JSON.stringify([path, body.receipt_id, body.review_id, body.receipt_decision, body.decision]);
-      if (keyed && retry && retry.signature !== signature) throw new Error('Retry the pending action before choosing another.');
-      if (keyed && !scope && storage) throw new Error('Account identity unavailable. Refresh and try again.');
-      if (keyed && !retry) { retry = { signature, actionKey: key() }; save(); }
       pending = true;
       try {
+        // Persist a digest of the full payload, never the private reason itself.
+        const bytes = new TextEncoder().encode(JSON.stringify([path, body]));
+        const digest = await crypto.subtle.digest('SHA-256', bytes);
+        const signature = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+        if (keyed && retry && retry.signature !== signature) throw new Error('Retry the pending action with the same choice and reason.');
+        if (keyed && !scope && storage) throw new Error('Account identity unavailable. Refresh and try again.');
+        if (keyed && !retry) { retry = { signature, actionKey: key() }; save(); }
         const response = await request(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf(cookie()) }, body: JSON.stringify(keyed ? { ...body, action_key: retry!.actionKey } : body) });
-        if (!response.ok) throw new Error('Action could not be applied. Retry or refresh to check the current state.');
+        if (!response.ok) {
+          // A 4xx response definitively refused this request; a network failure
+          // or 5xx may have followed a committed mutation, so retain its key.
+          if (keyed && response.status >= 400 && response.status < 500) { retry = undefined; save(); }
+          throw new Error(response.status >= 400 && response.status < 500 ? 'Action was refused. Refresh to check the current state.' : 'Action could not be confirmed. Retry the same choice and reason.');
+        }
         if (keyed) { retry = undefined; save(); }
         return true;
       } finally { pending = false; }
