@@ -47,9 +47,10 @@ type Health struct {
 
 // StreamStatus is an observational status snapshot, not live-session authority.
 type StreamStatus struct {
-	Known      bool
-	Live       bool
-	ObservedAt time.Time
+	Known       bool
+	Live        bool
+	BroadcastID string
+	ObservedAt  time.Time
 }
 
 type Adapter struct {
@@ -358,5 +359,9 @@ func (a *Adapter) ProbeStreamStatus(ctx context.Context, authority auth.ChannelC
 	if err != nil {
 		return StreamStatus{}, err
 	}
-	return StreamStatus{Known: true, Live: len(got.Data) > 0, ObservedAt: time.Now().UTC()}, nil
+	status := StreamStatus{Known: true, Live: len(got.Data) > 0, ObservedAt: time.Now().UTC()}
+	if status.Live {
+		status.BroadcastID = got.Data[0].ID
+	}
+	return status, nil
 }
