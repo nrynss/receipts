@@ -1,0 +1,19 @@
+# T5.3 Judge implementation and acceptance
+
+The pinned `gpt-4o-mini-2024-07-18` Judge receives one retrieved eligible claim and one persisted later broadcaster segment as untrusted data. Structured output names both exact source IDs and one of `contradicts`, `does_not_contradict`, or `unsure`. The adapter rejects refusals, malformed or incomplete output, mismatched references, non-success HTTP responses and late cancellation. No provider response body is logged. Calls have a 30-second timeout and no paid retries.
+
+Live transcription assigns an ID before persistence and offers the final broadcaster segment to a bounded, nonblocking per-runtime queue only after persistence. The worker retrieves eligible indexed claims and revalidates source, authority and candidate at commit. Until the T5.4 evaluation and calibrated policy, a contradiction is routed to private review, never an automatic stamp. Queue overflow drops new work; cancellation discards unsent work. The recorded demo retains its separately composed recorded policy.
+
+The global, channel and session caps use durable Keel cost accounts. The session limit defaults to $0.50 and is configurable with `RECEIPTS_SESSION_SPEND_LIMIT_USD`; it must not exceed the channel limit. The reindex endpoint uses a Keel gate and background queues bound concurrency. Pinned standard-tier token usage is reconciled at conservative uncached rates: GPT-4o mini $0.15 per million input tokens and $0.60 per million output tokens; text-embedding-3-small $0.02 per million input tokens. Missing or inconsistent usage, failed or ambiguous calls settle the full reservation. Rates and model allowlists must be reviewed together before changing models or service tier. Global spend is preserved when channel data is erased.
+
+A durable anonymous pending-attempt marker is written before each paid operation. If settlement or marker removal fails, or a process restarts with a marker, paid operations fail closed until an operator reconciles provider usage and repairs the affected ledger. There is no automated recovery UI yet. This deliberately favors blocking work over granting an uncertain refund. Existing historical session spend from before this implementation is not reconstructed into the new session ledger. A session with legacy charges and no session ledger is refused until a new live session begins; the global and channel ledgers retain their existing spend.
+
+Offline tests exercise structured output, reference validation, refusals, malformed JSON, rate limits, cancellation, usage validation, cap contention, restart, deletion and settlement-failure blocking. One separately budgeted live model case remains outstanding; no live accuracy is claimed. To run exactly one request after coordination, provide `OPENAI_API_KEY` through the environment and run:
+
+```sh
+RECEIPTS_T53_LIVE_BUDGET_USD=0.025 go test -tags live ./internal/judge -run '^TestLiveOneCase$' -count=1 -v
+```
+
+The test requires a ceiling between $0.025 and $0.05 and stops if usage is unavailable. Check the reported actual cost before any further live request. T5.4 must evaluate the same production policy on a labelled corpus before enabling automatic stamps.
+
+Official references: [GPT-4o mini](https://developers.openai.com/api/docs/models/gpt-4o-mini), [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs), [pricing](https://developers.openai.com/api/docs/pricing), and [embeddings](https://developers.openai.com/api/docs/models/text-embedding-3-small).

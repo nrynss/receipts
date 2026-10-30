@@ -11,7 +11,10 @@ import (
 	"github.com/nrynss/keel/id"
 	"receipts/internal/auth"
 	"receipts/internal/commands"
+	"receipts/internal/detect"
+	"receipts/internal/judge"
 	"receipts/internal/ports"
+	"receipts/internal/providerusage"
 	"receipts/internal/receipt"
 	"receipts/internal/retrieval"
 	runtime "receipts/internal/runtime"
@@ -42,8 +45,13 @@ type Index interface {
 	ValidateDetectionSource(context.Context, store.DetectionAuthority, receipt.Segment) error
 }
 
+type Judge interface {
+	Judge(context.Context, receipt.Receipt, receipt.Evidence, receipt.Segment) (judge.Result, error)
+}
 type Service struct {
 	Authority       auth.ChannelContext
+	Judge           Judge
+	DetectionStore  *store.Store
 	Meter           Meter
 	Ledger          commands.Ledger
 	Extractor       commands.Extractor
@@ -96,10 +104,12 @@ func (s *Service) call(ctx context.Context, kind string, estimate cost.Price, wo
 	err = s.Meter.Spend(ctx, s.Authority, kind, ref, estimate, func(c context.Context) (cost.Usage, error) {
 		if err := verifier.VerifyLiveGeneration(c, s.Authority.AccountID, s.Authority.ChannelID, s.Authority.LiveSessionID, s.Authority.Generation); err != nil {
 			callErr = err
-			return cost.Usage{}, nil
+			return cost.Usage{Measured: true}, nil
 		}
+		usage := cost.Usage{}
+		c = providerusage.WithCollector(c, func(measured cost.Usage) { usage = measured })
 		callErr = work(c)
-		return cost.Usage{}, nil
+		return usage, nil
 	})
 	if err != nil {
 		return err
@@ -283,4 +293,75 @@ func (s *Service) Nearest(ctx context.Context, source receipt.Segment, limit int
 		return err
 	})
 	return result, err
+}
+
+// JudgeSource judges only retrieved, eligible receipts. Until T5.4 establishes
+// a calibrated policy, contradictions are sent to review and cannot stamp.
+func (s *Service) JudgeSource(ctx context.Context, source receipt.Segment) error {
+	if s == nil || s.Judge == nil || s.DetectionStore == nil {
+		return errors.New("intelligence: judge unavailable")
+	}
+	ctx, cancel, err := s.bound(ctx)
+	if err != nil {
+		return err
+	}
+	defer cancel()
+	matches, err := s.Nearest(ctx, source, 3)
+	if err != nil {
+		return err
+	}
+	for _, match := range matches {
+		candidate := match.Receipt
+		sensitive, err := classified{s}.Sensitive(ctx, candidate.Claim)
+		if err != nil {
+			return err
+		}
+		if sensitive {
+			continue
+		}
+		evidence, err := s.DetectionStore.Evidence(ctx, candidate.ID)
+		if err != nil {
+			return err
+		}
+		if len(evidence) != 1 || evidence[0].Text != candidate.Claim || evidence[0].Attribution != "broadcaster" {
+			continue
+		}
+		var result judge.Result
+		err = s.call(ctx, "judge", extractionEstimate, func(c context.Context) error {
+			var e error
+			result, e = s.Judge.Judge(c, candidate, evidence[0], source)
+			return e
+		})
+		if err != nil {
+			return err
+		}
+		if result.ClaimSourceID != evidence[0].SourceID || result.LaterSourceID != source.ID {
+			return errors.New("intelligence: invalid judgment evidence")
+		}
+		outcome := receipt.Dismissed
+		switch result.Verdict {
+		case detect.Contradicts, detect.Unsure:
+			outcome = receipt.NeedsReview
+		case detect.DoesNot:
+		default:
+			return errors.New("intelligence: invalid judgment")
+		}
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+		err = s.Meter.WithActive(s.Authority, func(ch *runtime.Channel) error {
+			if ch.Paused() {
+				return store.ErrNotEligible
+			}
+			if err := s.Index.ValidateDetectionSource(ctx, s.indexAuthority(), source); err != nil {
+				return err
+			}
+			_, err := s.DetectionStore.ApplyDetection(ctx, s.indexAuthority(), candidate, source, outcome, 0)
+			return err
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

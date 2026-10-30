@@ -12,8 +12,10 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/nrynss/keel/cost"
+	"github.com/nrynss/keel/gate"
 	"github.com/nrynss/keel/sqlite"
 	"receipts/internal/api"
 	"receipts/internal/auth"
@@ -113,8 +115,12 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 		if err != nil {
 			return fmt.Errorf("invalid global spend limit: %w", err)
 		}
+		sessionLimit, err := usdPrice(cfg.SessionSpendLimitUSD)
+		if err != nil {
+			return fmt.Errorf("invalid session spend limit: %w", err)
+		}
 		budgets, err := channelruntime.OpenBudgets(ctx, db, channelruntime.BudgetConfig{
-			GlobalLimit: globalLimit, ChannelLimit: channelLimit,
+			GlobalLimit: globalLimit, ChannelLimit: channelLimit, SessionLimit: sessionLimit,
 		})
 		if err != nil {
 			return fmt.Errorf("initialize durable channel budgets: %w", err)
@@ -143,8 +149,17 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 		}
 		streamlink, _ := lookup("RECEIPTS_STREAMLINK_BIN")
 		capture := &audioAttachment{ledger: ledger, runtime: supervisor, apiKey: openAIKey, streamlink: streamlink}
-		intelligence := &intelligenceAttachment{ledger: ledger, runtime: supervisor, adapter: adapter, apiKey: openAIKey, extractionModel: cfg.ExtractionModel, embeddingModel: cfg.EmbeddingModel, embeddingVersion: cfg.EmbeddingVersion, embeddingDimensions: cfg.EmbeddingDimensions}
-		mux.Handle("/api/index/reindex", authService.ChannelMiddleware(supervisor.Middleware(http.HandlerFunc(intelligence.reindex))))
+		intelligence := &intelligenceAttachment{ledger: ledger, runtime: supervisor, adapter: adapter, apiKey: openAIKey, extractionModel: cfg.ExtractionModel, embeddingModel: cfg.EmbeddingModel, embeddingVersion: cfg.EmbeddingVersion, embeddingDimensions: cfg.EmbeddingDimensions, judgeModel: cfg.JudgeModel}
+		capture.onSegment = intelligence.enqueue
+		reindexGate, err := gate.New(gate.Config{})
+		if err != nil {
+			return fmt.Errorf("initialize reindex gate: %w", err)
+		}
+		reindexHandler, err := reindexGate.Protect(gate.Rule{Name: "reindex", PerClient: gate.Limit{Burst: 1, Every: time.Minute}, Global: gate.Limit{Burst: 2, Every: time.Minute}}, http.HandlerFunc(intelligence.reindex))
+		if err != nil {
+			return fmt.Errorf("initialize reindex rule: %w", err)
+		}
+		mux.Handle("/api/index/reindex", authService.ChannelMiddleware(supervisor.Middleware(reindexHandler)))
 		liveAuthority := &session.Authority{Adapter: adapter, Ledger: ledger, Runtime: supervisor, Freshness: cfg.LiveStatusFreshness, Root: ctx, Attach: intelligence.attach, AttachAudio: capture.attach, AudioActive: capture.activeFor, TranscriptionActive: capture.transcriptionFor}
 		mux.Handle("/account-api/", api.AccountHandlerWithBackend(authService, supervisor, authService.DisconnectProviderAuthorization, budgets, liveAuthority))
 		mux.Handle("/api/", api.NewForOwner(api.Config{

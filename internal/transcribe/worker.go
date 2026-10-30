@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nrynss/keel/cost"
+	"github.com/nrynss/keel/id"
 	"receipts/internal/audio"
 	"receipts/internal/auth"
 	"receipts/internal/receipt"
@@ -40,6 +41,7 @@ type Ledger interface {
 // mixed audio. SoleBroadcaster must be an explicit session-scoped attestation,
 // supplied only by a trusted owner authorization path, not microphone consent.
 type Worker struct {
+	OnSegment       func(receipt.Segment)
 	Authority       auth.ChannelContext
 	Transcriber     Transcriber
 	Meter           Meter
@@ -112,10 +114,19 @@ func (w *Worker) Submit(ctx context.Context, chunk Chunk) error {
 		attribution = "broadcaster"
 		speaker = w.Authority.ChannelID
 	}
-	return w.Meter.WithActive(w.Authority, func(_ *runtime.Channel) error {
+	segmentID, err := id.New()
+	if err != nil {
+		return err
+	}
+	seg := receipt.Segment{ID: segmentID, SessionID: w.Authority.LiveSessionID, Start: chunk.Start, End: chunk.End, Text: text, SpeakerID: speaker, Attribution: attribution, TimingBasis: "coarse_pcm_ingest_hls_delay_unknown"}
+	err = w.Meter.WithActive(w.Authority, func(_ *runtime.Channel) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		return w.Ledger.AddLiveSegment(ctx, w.Authority.AccountID, w.Authority.ChannelID, w.Authority.LiveSessionID, w.Authority.Generation, receipt.Segment{SessionID: w.Authority.LiveSessionID, Start: chunk.Start, End: chunk.End, Text: text, SpeakerID: speaker, Attribution: attribution, TimingBasis: "coarse_pcm_ingest_hls_delay_unknown"})
+		return w.Ledger.AddLiveSegment(ctx, w.Authority.AccountID, w.Authority.ChannelID, w.Authority.LiveSessionID, w.Authority.Generation, seg)
 	})
+	if err == nil && w.OnSegment != nil && seg.Attribution == "broadcaster" {
+		w.OnSegment(seg)
+	}
+	return err
 }

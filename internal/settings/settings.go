@@ -51,6 +51,7 @@ type Settings struct {
 	MaxActiveChannels     int           `toml:"max_active_channels"`
 	GlobalSpendLimitUSD   float64       `toml:"global_spend_limit_usd"`
 	ChannelSpendLimitUSD  float64       `toml:"channel_spend_limit_usd"`
+	SessionSpendLimitUSD  float64       `toml:"session_spend_limit_usd"`
 	TwitchClientID        config.Secret `toml:"twitch_client_id"`
 	TwitchAccessToken     config.Secret `toml:"twitch_access_token"`
 	TwitchClientSecret    config.Secret `toml:"twitch_client_secret"`
@@ -85,6 +86,7 @@ type configValues struct {
 	MaxActiveChannels     int     `toml:"max_active_channels"`
 	GlobalSpendLimitUSD   float64 `toml:"global_spend_limit_usd"`
 	ChannelSpendLimitUSD  float64 `toml:"channel_spend_limit_usd"`
+	SessionSpendLimitUSD  float64 `toml:"session_spend_limit_usd"`
 }
 
 func configDefaults() configValues {
@@ -97,7 +99,7 @@ func configDefaults() configValues {
 		ExtractionModel: d.ExtractionModel, EmbeddingModel: d.EmbeddingModel, EmbeddingVersion: d.EmbeddingVersion, EmbeddingDimensions: d.EmbeddingDimensions, JudgeModel: d.JudgeModel,
 		TranscriptionSpendUSD: d.TranscriptionSpendUSD, EmbeddingSpendUSD: d.EmbeddingSpendUSD,
 		JudgeSpendUSD: d.JudgeSpendUSD, HTTPAddress: d.HTTPAddress, DatabasePath: d.DatabasePath, AuthEnabled: d.AuthEnabled, MaxActiveChannels: d.MaxActiveChannels,
-		GlobalSpendLimitUSD: d.GlobalSpendLimitUSD, ChannelSpendLimitUSD: d.ChannelSpendLimitUSD,
+		GlobalSpendLimitUSD: d.GlobalSpendLimitUSD, ChannelSpendLimitUSD: d.ChannelSpendLimitUSD, SessionSpendLimitUSD: d.SessionSpendLimitUSD,
 	}
 }
 
@@ -126,7 +128,7 @@ func (c configValues) settings() (Settings, error) {
 		JudgeModel: c.JudgeModel, TranscriptionSpendUSD: c.TranscriptionSpendUSD,
 		EmbeddingSpendUSD: c.EmbeddingSpendUSD, JudgeSpendUSD: c.JudgeSpendUSD,
 		HTTPAddress: c.HTTPAddress, DatabasePath: c.DatabasePath, AuthEnabled: c.AuthEnabled, MaxActiveChannels: c.MaxActiveChannels,
-		GlobalSpendLimitUSD: c.GlobalSpendLimitUSD, ChannelSpendLimitUSD: c.ChannelSpendLimitUSD,
+		GlobalSpendLimitUSD: c.GlobalSpendLimitUSD, ChannelSpendLimitUSD: c.ChannelSpendLimitUSD, SessionSpendLimitUSD: c.SessionSpendLimitUSD,
 	}, nil
 }
 
@@ -138,6 +140,7 @@ func Defaults() Settings {
 		MaxActiveChannels:     2,
 		GlobalSpendLimitUSD:   3,
 		ChannelSpendLimitUSD:  1.5,
+		SessionSpendLimitUSD:  0.5,
 		TranscriptRetention:   30 * time.Minute,
 		StampCooldown:         30 * time.Second,
 		AppealDuration:        2 * time.Minute,
@@ -167,7 +170,7 @@ func Load(ctx context.Context, lookup func(string) (string, bool)) (Settings, er
 			field == "live_status_freshness" || field == "transcription_model" || field == "extraction_model" || field == "embedding_model" ||
 			field == "embedding_version" || field == "embedding_dimensions" || field == "judge_model" || field == "transcription_spend_usd" || field == "embedding_spend_usd" ||
 			field == "judge_spend_usd" || field == "http_address" || field == "database_path" || field == "auth_enabled" || field == "max_active_channels" ||
-			field == "global_spend_limit_usd" || field == "channel_spend_limit_usd" {
+			field == "global_spend_limit_usd" || field == "channel_spend_limit_usd" || field == "session_spend_limit_usd" {
 			return lookup("RECEIPTS_" + key)
 		}
 		return lookup(key)
@@ -342,7 +345,7 @@ func (s Settings) Validate() error {
 	}
 	if math.IsNaN(s.GlobalSpendLimitUSD) || math.IsInf(s.GlobalSpendLimitUSD, 0) || s.GlobalSpendLimitUSD <= 0 ||
 		math.IsNaN(s.ChannelSpendLimitUSD) || math.IsInf(s.ChannelSpendLimitUSD, 0) || s.ChannelSpendLimitUSD <= 0 ||
-		s.ChannelSpendLimitUSD > s.GlobalSpendLimitUSD || s.GlobalSpendLimitUSD > 1e6 {
+		math.IsNaN(s.SessionSpendLimitUSD) || math.IsInf(s.SessionSpendLimitUSD, 0) || s.SessionSpendLimitUSD <= 0 || s.SessionSpendLimitUSD > s.ChannelSpendLimitUSD || s.ChannelSpendLimitUSD > s.GlobalSpendLimitUSD || s.GlobalSpendLimitUSD > 1e6 {
 		return errorsf("spend limits must be finite, positive, at most $1,000,000, and channel limit cannot exceed global")
 	}
 	if s.StampCooldown < 0 || s.StampCooldown > 24*time.Hour {

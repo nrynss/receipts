@@ -38,7 +38,7 @@ Choose supported OpenAI extraction/judge and embedding models from current offic
 requires: T5.2, T2.2, TA.2
 fixture-ok: yes
 owns: internal/judge/, internal/budget/, testdata/models/
-status: not-started
+status: in-progress
 ```
 
 Judge retrieved claim/later-line pairs with structured contradicts, does-not-contradict or unsure plus evidence references. Require validated evidence and calibrated policy before stamping; a model confidence number alone is insufficient. Use Keel v0.9.0 gate/cost and durable context-aware metering for bounded concurrency, per-channel/session and installation-wide spend, with an explicit preflight live budget. Reserve before calls and reconcile actual usage. Bound retries/timeouts and distinguish unavailable service from unsure. Failed or late results never fabricate a stamp.
@@ -84,3 +84,7 @@ T5.1 passed the offline gate, targeted uncached race checks and a real one-reque
 ### T5.2 implementation
 
 Owner-bound capture, conservative extraction and source sensitivity checks, durable budget admission, and explicit embedding reindexing are implemented. See [T5.2 handoff](../docs/t52-claims-handoff.md) for model contracts, operational limits and offline verification. No live-model accuracy or T5.3 judging is claimed.
+
+### T5.3 implementation
+
+The structured Judge and durable metering implementation are under review. Automatic live stamps remain disabled until T5.4 calibration. The single-case live acceptance remains outstanding; see [T5.3 handoff](../docs/t53-judge-handoff.md).

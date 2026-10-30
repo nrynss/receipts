@@ -12,6 +12,8 @@ import (
 	"receipts/internal/auth"
 	"receipts/internal/claims"
 	"receipts/internal/intelligence"
+	"receipts/internal/judge"
+	"receipts/internal/receipt"
 	"receipts/internal/retrieval"
 	runtime "receipts/internal/runtime"
 	"receipts/internal/store"
@@ -25,8 +27,10 @@ type intelligenceAttachment struct {
 	runtime                                                   *runtime.Manager
 	adapter                                                   *connection.Adapter
 	apiKey, extractionModel, embeddingModel, embeddingVersion string
+	judgeModel                                                string
 	embeddingDimensions                                       int
 	services                                                  sync.Map
+	judgeQueues                                               sync.Map
 }
 
 // One worker serializes receipt processing without blocking the EventSub reader.
@@ -115,20 +119,44 @@ func (a *intelligenceAttachment) attach(ctx context.Context, authority auth.Chan
 	if embedding == "" {
 		embedding = retrieval.DefaultModel
 	}
-	if model != claims.DefaultModel || embedding != retrieval.DefaultModel {
+	if model != claims.DefaultModel || embedding != retrieval.DefaultModel || a.judgeModel != judge.Model {
 		return nil, errors.New("intelligence: unsupported metered model")
 	}
 	extractor := claims.Client{APIKey: a.apiKey, Model: model}
 	space := retrieval.Space{Model: embedding, Version: a.embeddingVersion, Dimensions: a.embeddingDimensions}
-	svc := &intelligence.Service{Authority: authority, Meter: a.runtime, Ledger: a.ledger, Extractor: extractor, Sensitive: extractor, Embedder: retrieval.Client{APIKey: a.apiKey, Space: space}, Index: a.ledger, Space: space, ExtractionModel: model}
-	a.services.Store(authority.ChannelID, svc)
-	router := &chat.Router{Authority: authority, ChannelPlatformID: grant.ChannelPlatformID, Capture: svc}
+	svc := &intelligence.Service{Authority: authority, Meter: a.runtime, Ledger: a.ledger, Extractor: extractor, Sensitive: extractor, Embedder: retrieval.Client{APIKey: a.apiKey, Space: space}, Index: a.ledger, Space: space, ExtractionModel: model, Judge: judge.Client{APIKey: a.apiKey, Model: a.judgeModel}, DetectionStore: a.ledger}
 	run, cancel := context.WithCancel(ctx)
+	a.services.Store(authority.ChannelID, svc)
+	queue := make(chan receipt.Segment, 16)
+	a.judgeQueues.Store(authority.ChannelID, queue)
+	judgeDone := make(chan struct{})
+	go func() {
+		defer close(judgeDone)
+		for {
+			select {
+			case <-run.Done():
+				return
+			case seg := <-queue:
+				if run.Err() != nil {
+					return
+				}
+				_ = svc.JudgeSource(run, seg)
+			}
+		}
+	}()
+	router := &chat.Router{Authority: authority, ChannelPlatformID: grant.ChannelPlatformID, Capture: svc}
 	sink := newCaptureSink(run, router, captureQueueSize)
 	client := &eventsub.Client{Helix: eventsub.Adapter{Connection: a.adapter}, Sink: sink, OnAuthorizationLost: func(error) { _ = a.runtime.Cancel(authority) }}
 	done := make(chan struct{})
 	go func() { defer close(done); _ = client.Run(run, authority) }()
-	return func() { cancel(); <-done; sink.stop(); a.services.CompareAndDelete(authority.ChannelID, svc) }, nil
+	return func() {
+		cancel()
+		<-done
+		sink.stop()
+		a.judgeQueues.CompareAndDelete(authority.ChannelID, queue)
+		<-judgeDone
+		a.services.CompareAndDelete(authority.ChannelID, svc)
+	}, nil
 }
 
 // reindex requires the existing owner session, CSRF/origin validation and
@@ -158,4 +186,23 @@ func (a *intelligenceAttachment) reindex(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *intelligenceAttachment) enqueue(authority auth.ChannelContext, seg receipt.Segment) {
+	v, ok := a.services.Load(authority.ChannelID)
+	if !ok {
+		return
+	}
+	svc := v.(*intelligence.Service)
+	if svc.Authority != authority {
+		return
+	}
+	q, ok := a.judgeQueues.Load(authority.ChannelID)
+	if !ok {
+		return
+	}
+	select {
+	case q.(chan receipt.Segment) <- seg:
+	default:
+	}
 }

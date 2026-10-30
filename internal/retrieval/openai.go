@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"receipts/internal/providerusage"
 )
 
 const DefaultModel = "text-embedding-3-small"
@@ -60,6 +62,7 @@ func (c Client) Embed(ctx context.Context, text string) ([]float64, error) {
 	if len(raw) > 1<<20 {
 		return nil, errors.New("retrieval: response too large")
 	}
+	providerusage.Embedding(ctx, raw)
 	var output struct {
 		Model string `json:"model"`
 		Data  []struct {

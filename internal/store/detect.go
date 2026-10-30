@@ -49,7 +49,7 @@ func (s *Store) ApplyDetection(ctx context.Context, a DetectionAuthority, candid
 	now := s.now().UTC()
 	var claim, clipURL, clipStatus, verdict, clippedBy string
 	var created, sessionStart int64
-	err = tx.QueryRowContext(ctx, `SELECT r.claim,r.clip_url,r.clip_status,r.verdict,r.clipped_by,r.created_at,l.started_at FROM receipts r JOIN accounts a ON a.channel_id=r.channel_id JOIN live_sessions l ON l.channel_id=r.channel_id WHERE a.id=? AND a.status='connected' AND r.channel_id=? AND r.id=? AND r.version=? AND r.claim=? AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) AND l.id=? AND l.state='live' AND l.ended_at IS NULL`, a.AccountID, a.ChannelID, candidate.ID, candidate.Version, candidate.Claim, millis(now), a.LiveSessionID).Scan(&claim, &clipURL, &clipStatus, &verdict, &clippedBy, &created, &sessionStart)
+	err = tx.QueryRowContext(ctx, `SELECT r.claim,r.clip_url,r.clip_status,r.verdict,r.clipped_by,r.created_at,l.started_at FROM receipts r JOIN accounts a ON a.channel_id=r.channel_id JOIN live_sessions l ON l.channel_id=r.channel_id WHERE a.id=? AND a.status='connected' AND r.channel_id=? AND r.id=? AND r.version=? AND r.claim=? AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) AND l.id=? AND l.state='live' AND l.ended_at IS NULL AND (l.runtime_generation=? OR (l.runtime_generation=0 AND l.broadcast_id='')) AND r.created_at <= l.started_at + ?`, a.AccountID, a.ChannelID, candidate.ID, candidate.Version, candidate.Claim, millis(now), a.LiveSessionID, a.Generation, source.End.Milliseconds()).Scan(&claim, &clipURL, &clipStatus, &verdict, &clippedBy, &created, &sessionStart)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotEligible
 	}
