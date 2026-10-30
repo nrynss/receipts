@@ -59,3 +59,28 @@ func TestLiveTranscriptGenerationAndOverlap(t *testing.T) {
 		t.Fatalf("persisted %d: %v", len(segments), err)
 	}
 }
+
+func TestDetectionTimingSurvivesTranscriptRetention(t *testing.T) {
+	s, _, c, session := setup(t, Retention{MaxSegments: 1})
+	ctx := context.Background()
+	first := segment(t, s, session.ID, "claim", 0)
+	r, err := s.CreateReceipt(ctx, receipt.ReceiptInput{ChannelID: c.ID, SessionID: session.ID, Claim: "claim", ClippedBy: "viewer", Evidence: []receipt.EvidenceInput{{SourceID: first.ID, Text: first.Text, Start: first.Start, End: first.End, Attribution: first.Attribution}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	later := segment(t, s, session.ID, "later speech", 10*time.Second)
+	_, err = s.db.Writer().ExecContext(ctx, `UPDATE transcript_segments SET timing_basis='coarse_pcm_ingest_hls_delay_unknown' WHERE id=?`, later.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := receipt.DetectionInput{ChannelID: c.ID, ReceiptID: r.ID, Evidence: receipt.EvidenceInput{SourceID: later.ID, Text: later.Text, Start: later.Start, End: later.End, Attribution: later.Attribution}, Outcome: receipt.NeedsReview}
+	d, err := s.RecordDetection(ctx, input)
+	if err != nil || d.TimingBasis != "coarse_pcm_ingest_hls_delay_unknown" {
+		t.Fatalf("detection provenance: %#v %v", d, err)
+	}
+	segment(t, s, session.ID, "newer speech", 20*time.Second)
+	d, err = s.RecordDetection(ctx, input)
+	if err != nil || d.TimingBasis != "coarse_pcm_ingest_hls_delay_unknown" {
+		t.Fatalf("retained provenance: %#v %v", d, err)
+	}
+}

@@ -88,10 +88,10 @@ type Receipt struct {
 	Version                  int
 }
 type Detection struct {
-	ID, ChannelID, ReceiptID, SessionID, SourceID, EvidenceText, Attribution string
-	Start, End                                                               time.Duration
-	Outcome                                                                  DetectionOutcome
-	CreatedAt                                                                time.Time
+	ID, ChannelID, ReceiptID, SessionID, SourceID, EvidenceText, Attribution, TimingBasis string
+	Start, End                                                                            time.Duration
+	Outcome                                                                               DetectionOutcome
+	CreatedAt                                                                             time.Time
 }
 type Review struct {
 	ID, DetectionID, State string

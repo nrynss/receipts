@@ -805,7 +805,7 @@ func (s *Store) RecordDetection(ctx context.Context, in receipt.DetectionInput) 
 	// First honor a durable retry even if its source session has since ended.
 	var d receipt.Detection
 	var a, b, created int64
-	err = tx.QueryRowContext(ctx, `SELECT id,channel_id,receipt_id,session_id,source_id,start_ms,end_ms,evidence_text,attribution,outcome,created_at FROM detections WHERE receipt_id=? AND source_id=? AND start_ms=? AND end_ms=?`, in.ReceiptID, e.SourceID, e.Start.Milliseconds(), e.End.Milliseconds()).Scan(&d.ID, &d.ChannelID, &d.ReceiptID, &d.SessionID, &d.SourceID, &a, &b, &d.EvidenceText, &d.Attribution, &d.Outcome, &created)
+	err = tx.QueryRowContext(ctx, `SELECT id,channel_id,receipt_id,session_id,source_id,start_ms,end_ms,evidence_text,attribution,outcome,created_at,timing_basis FROM detections WHERE receipt_id=? AND source_id=? AND start_ms=? AND end_ms=?`, in.ReceiptID, e.SourceID, e.Start.Milliseconds(), e.End.Milliseconds()).Scan(&d.ID, &d.ChannelID, &d.ReceiptID, &d.SessionID, &d.SourceID, &a, &b, &d.EvidenceText, &d.Attribution, &d.Outcome, &created, &d.TimingBasis)
 	if err == nil {
 		compatible := d.Outcome == in.Outcome || (in.Outcome == receipt.NeedsReview && (d.Outcome == receipt.Stamp || d.Outcome == receipt.Dismissed))
 		if d.ChannelID != in.ChannelID || d.EvidenceText != e.Text || d.Attribution != defaultText(e.Attribution, "uncertain") || !compatible {
@@ -835,11 +835,11 @@ func (s *Store) RecordDetection(ctx context.Context, in receipt.DetectionInput) 
 	if in.Outcome == receipt.Stamp && e.Attribution != "broadcaster" {
 		return receipt.Detection{}, ErrNotEligible
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO detections(id,channel_id,receipt_id,session_id,source_id,start_ms,end_ms,evidence_text,attribution,outcome,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(receipt_id,source_id,start_ms,end_ms) DO NOTHING`, key, in.ChannelID, in.ReceiptID, sessionID, e.SourceID, e.Start.Milliseconds(), e.End.Milliseconds(), e.Text, defaultText(e.Attribution, "uncertain"), in.Outcome, millis(now))
+	_, err = tx.ExecContext(ctx, `INSERT INTO detections(id,channel_id,receipt_id,session_id,source_id,start_ms,end_ms,evidence_text,attribution,outcome,created_at,timing_basis) VALUES(?,?,?,?,?,?,?,?,?,?,?,COALESCE((SELECT timing_basis FROM transcript_segments WHERE id=?),'unspecified')) ON CONFLICT(receipt_id,source_id,start_ms,end_ms) DO NOTHING`, key, in.ChannelID, in.ReceiptID, sessionID, e.SourceID, e.Start.Milliseconds(), e.End.Milliseconds(), e.Text, defaultText(e.Attribution, "uncertain"), in.Outcome, millis(now), e.SourceID)
 	if err != nil {
 		return receipt.Detection{}, err
 	}
-	err = tx.QueryRowContext(ctx, `SELECT id,channel_id,receipt_id,session_id,source_id,start_ms,end_ms,evidence_text,attribution,outcome,created_at FROM detections WHERE receipt_id=? AND source_id=? AND start_ms=? AND end_ms=?`, in.ReceiptID, e.SourceID, e.Start.Milliseconds(), e.End.Milliseconds()).Scan(&d.ID, &d.ChannelID, &d.ReceiptID, &d.SessionID, &d.SourceID, &a, &b, &d.EvidenceText, &d.Attribution, &d.Outcome, &created)
+	err = tx.QueryRowContext(ctx, `SELECT id,channel_id,receipt_id,session_id,source_id,start_ms,end_ms,evidence_text,attribution,outcome,created_at,timing_basis FROM detections WHERE receipt_id=? AND source_id=? AND start_ms=? AND end_ms=?`, in.ReceiptID, e.SourceID, e.Start.Milliseconds(), e.End.Milliseconds()).Scan(&d.ID, &d.ChannelID, &d.ReceiptID, &d.SessionID, &d.SourceID, &a, &b, &d.EvidenceText, &d.Attribution, &d.Outcome, &created, &d.TimingBasis)
 	if err != nil {
 		return d, err
 	}
