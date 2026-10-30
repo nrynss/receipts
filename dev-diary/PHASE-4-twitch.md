@@ -2,7 +2,7 @@
 
 **Goal:** Replace recorded Twitch adapters while keeping the proven product loop and explicit failure states.
 
-**Status:** not-started
+**Status:** in-progress (0/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -12,7 +12,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 requires: T0.2, T1.3, TA.2
 fixture-ok: yes
 owns: internal/twitch/connection/, internal/api/, testdata/twitch/, docs/setup.md
-status: not-started
+status: in-progress
 ```
 
 Consume TA.1 OAuth credentials through TA.2 validated channel context and runtime supervision. Do not implement a second login/token store. Bind each EventSub/Helix adapter to the verified broadcaster, use the shared refresh/validation lifecycle and report connection health and authorization loss. The owner uses their own broadcaster identity in the initial release; a shared bot is deferred. TA.3 owns setup and OBS pairing.

@@ -38,7 +38,7 @@ Use a judge port backed initially by recorded responses. Separate contradicts, d
 requires: T2.2
 fixture-ok: yes
 owns: internal/appeal/, internal/commands/, internal/api/
-status: not-started
+status: in-progress
 ```
 
 Implement Admit, Appeal and Context changed as authenticated streamer actions. Define !void for streamer/moderators and !receipts off/on with verified roles. Distinguish stamp pause from stopping audio. Count one vote per Twitch user per active appeal; accept !uphold and !overturn only in the correct channel and voting window. First vote is final for this version. A tie or no votes produces an explicit inconclusive verdict. Persist deadlines and close overdue appeals on recovery without replaying the stamp.

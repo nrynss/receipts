@@ -38,7 +38,7 @@ Resolve validated owner or device channel context at every API boundary. Give ea
 requires: TA.2, T3.1
 fixture-ok: yes
 owns: web/src/lib/account/, web/src/routes/, internal/auth/, internal/api/, docs/obs.md
-status: not-started
+status: in-progress
 ```
 
 Build connection/setup dashboard with offline, live, listening, paused, missing-grant and capacity states. Pair OBS through an expiring single-use code confirmed by the owner. Keep the copied browser-source URL free of credentials. Persist revocable read-only device sessions; store device credentials hashed. Implement disconnect and account deletion, including dependent records and documented backup retention.

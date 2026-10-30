@@ -10,10 +10,10 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 |---|---|---|---|
 | P0 | [Ground and feasibility](PHASE-0-ground.md) | 4 / 4 | Complete; owner confirmed OBS video, audio and autoplay |
 | P1 | [Contracts, storage and lifecycle](PHASE-1-contracts.md) | 4 / 4 | Complete; replay driver landed; full product scenario acceptance belongs to T2.4 |
-| TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 2 / 4 | Identity and runtime isolation complete; onboarding awaits T3.1 |
-| P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 2 / 4 | Capture and detection complete; T2.3 appeals next |
+| TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 2 / 4 | Identity/isolation complete; Terra implementing TA.3 onboarding |
+| P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 2 / 4 | Capture/detection complete; Terra implementing T2.3 appeals |
 | P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 1 / 3 | Overlay states complete; controls await T2.3 |
-| P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 0 / 4 | Not started |
+| P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 0 / 4 | Luna implementing T4.1 authorized adapters |
 | P5 | [Live transcription and contradiction judging](PHASE-5-intelligence.md) | 0 / 4 | Not started |
 | P6 | [Live proof, operations and submission](PHASE-6-ship.md) | 0 / 4 | Not started |
 
@@ -84,4 +84,4 @@ The integrated capture/isolation tree passed the full offline gate and uncached 
 
 ## Ready next
 
-T2.1 receipt capture is reviewed and landed; T2.2 detection and T3.1 overlay states are reviewed and landed. T2.3 answer/appeal, TA.3 onboarding/OBS pairing and T4.1 authorized channel adapters are ready and unassigned. No implementation agent is active. Later tasks retain their explicit dependencies. T6.1 deploys after TA.3; TA.4 verifies that deployment and gates T6.3 judge readiness.
+T2.1 receipt capture is reviewed and landed; T2.2 detection and T3.1 overlay states are reviewed and landed. Terra agents are implementing T2.3 answer/appeal and TA.3 onboarding/OBS pairing; Luna is implementing T4.1 authorized channel adapters. All work is isolated and tracked by the principal thread through review and landing. Later tasks retain their explicit dependencies. T6.1 deploys after TA.3; TA.4 verifies that deployment and gates T6.3 judge readiness.
