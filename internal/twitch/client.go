@@ -15,12 +15,26 @@ import (
 
 const helix = "https://api.twitch.tv/helix"
 
+type HTTPError struct {
+	StatusCode       int
+	Method, Endpoint string
+}
+
+func (e *HTTPError) Error() string {
+	return fmt.Sprintf("twitch: %s %s returned HTTP %d", e.Method, e.Endpoint, e.StatusCode)
+}
+
 // Client is a deliberately small Helix client used by the P0 probe.
 type Client struct {
 	ClientID string
 	Token    string
 	HTTP     *http.Client
 	BaseURL  string // Set only by tests; production defaults to Twitch Helix.
+}
+
+// Request exposes one Helix operation for higher-level channel-bound adapters.
+func (c Client) Request(ctx context.Context, method, endpoint string, query url.Values, body, out any) error {
+	return c.request(ctx, method, endpoint, query, body, out)
 }
 
 func (c Client) httpClient() *http.Client {
@@ -67,7 +81,7 @@ func (c Client) request(ctx context.Context, method, endpoint string, query url.
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		// Never include response bodies or request headers: provider errors can echo sensitive data.
-		return fmt.Errorf("twitch: %s %s returned HTTP %d", method, endpoint, resp.StatusCode)
+		return &HTTPError{StatusCode: resp.StatusCode, Method: method, Endpoint: endpoint}
 	}
 	if out == nil {
 		_, _ = io.Copy(io.Discard, resp.Body)

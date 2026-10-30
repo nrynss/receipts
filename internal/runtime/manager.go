@@ -281,6 +281,24 @@ func (m *Manager) Stop(authority auth.ChannelContext) error {
 	return nil
 }
 
+// Cancel invalidates one exact runtime authority and returns immediately. It
+// is safe to call from a registered worker because the supervisor drains that
+// worker asynchronously; a stale generation cannot cancel a replacement.
+func (m *Manager) Cancel(authority auth.ChannelContext) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	channel := m.active[authority.ChannelID]
+	if channel == nil || channel.Authority.AccountID != authority.AccountID ||
+		channel.Authority.LiveSessionID != authority.LiveSessionID || channel.Authority.Generation != authority.Generation {
+		return ErrStale
+	}
+	channel.launchMu.Lock()
+	channel.stopping.Store(true)
+	channel.launchMu.Unlock()
+	channel.cancel()
+	return nil
+}
+
 // RevokeAccount invalidates and cancels every active runtime for one account.
 // It returns after cancellation; the slot stays occupied until the supervisor
 // has reaped every worker.

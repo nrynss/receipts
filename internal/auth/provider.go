@@ -39,6 +39,12 @@ type Provider interface {
 	Refresh(context.Context, string) (Tokens, error)
 }
 
+// Revoker is optional so existing offline provider implementations need not
+// manage remote token teardown.
+type Revoker interface {
+	Revoke(context.Context, string) error
+}
+
 // TwitchProvider implements Twitch's authorization-code, validation, and
 // refresh endpoints. BaseURL is intended for local tests; production uses the
 // Twitch authorization origin.
@@ -87,6 +93,29 @@ func (p TwitchProvider) Refresh(ctx context.Context, refreshToken string) (Token
 		"client_id": {p.ClientID}, "client_secret": {p.ClientSecret},
 		"refresh_token": {refreshToken}, "grant_type": {"refresh_token"},
 	})
+}
+
+// Revoke removes one user access token at Twitch without including provider
+// response bodies in errors.
+func (p TwitchProvider) Revoke(ctx context.Context, accessToken string) error {
+	if p.ClientID == "" || accessToken == "" {
+		return errors.New("auth: provider revoke failed")
+	}
+	form := url.Values{"client_id": {p.ClientID}, "token": {accessToken}}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.base()+"/oauth2/revoke", strings.NewReader(form.Encode()))
+	if err != nil {
+		return errors.New("auth: provider revoke failed")
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := p.client().Do(req)
+	if err != nil {
+		return errors.New("auth: provider revoke failed")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return errors.New("auth: provider revoke failed")
+	}
+	return nil
 }
 
 func (p TwitchProvider) tokenRequest(ctx context.Context, form url.Values) (Tokens, error) {

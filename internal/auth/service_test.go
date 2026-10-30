@@ -36,6 +36,9 @@ type fakeProvider struct {
 	validateErr    error
 	exchangeCalls  int
 	validateCalls  int
+	revokeCalls    int
+	revokedToken   string
+	revokeErr      error
 	onRefresh      func(context.Context)
 	refreshStarted chan struct{}
 	refreshRelease chan struct{}
@@ -91,6 +94,13 @@ func (p *fakeProvider) Refresh(ctx context.Context, _ string) (Tokens, error) {
 		onRefresh(ctx)
 	}
 	return tokens, err
+}
+func (p *fakeProvider) Revoke(_ context.Context, token string) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.revokeCalls++
+	p.revokedToken = token
+	return p.revokeErr
 }
 
 type authFixture struct {
@@ -702,5 +712,62 @@ func TestTokenCiphertextCannotMoveBetweenAccounts(t *testing.T) {
 	}
 	if _, err := f.service.AccessToken(context.Background(), first.ID); err == nil || err.Error() != "auth: credentials unavailable" {
 		t.Fatalf("swapped ciphertext result=%v", err)
+	}
+}
+
+func TestDisconnectRevokesStoredTokenAndLocalSessions(t *testing.T) {
+	f := newAuthFixture(t, filepath.Join(t.TempDir(), "disconnect.db"), nil)
+	_, _, account := login(t, f.service)
+	if err := f.service.DisconnectProviderAuthorization(context.Background(), account.ID); err != nil {
+		t.Fatal(err)
+	}
+	f.provider.mu.Lock()
+	calls, token := f.provider.revokeCalls, f.provider.revokedToken
+	f.provider.mu.Unlock()
+	if calls != 1 || token != "access-secret" {
+		t.Fatalf("revoke call count=%d", calls)
+	}
+	if _, err := f.service.AccessToken(context.Background(), account.ID); !errors.Is(err, ErrReconnect) {
+		t.Fatalf("disconnected access token error=%v", err)
+	}
+	var status string
+	if err := f.db.Reader().QueryRow(`SELECT status FROM accounts WHERE id=?`, account.ID).Scan(&status); err != nil || status != "reconnect_required" {
+		t.Fatalf("status=%q err=%v", status, err)
+	}
+}
+
+func TestAccountForChannelReturnsOnlyPersistedMatchingMetadata(t *testing.T) {
+	f := newAuthFixture(t, filepath.Join(t.TempDir(), "channel-account.db"), nil)
+	_, _, account := login(t, f.service)
+	metadata, err := f.service.AccountForChannel(context.Background(), ChannelContext{AccountID: account.ID, ChannelID: account.ChannelID})
+	if err != nil || metadata.SubjectID != account.TwitchID || metadata.ChannelPlatformID != account.TwitchID || metadata.ClientID != "app-1" || !hasScopes(metadata.Scopes, DefaultScopes) {
+		t.Fatalf("metadata=%#v err=%v", metadata, err)
+	}
+	if _, err = f.service.AccountForChannel(context.Background(), ChannelContext{AccountID: account.ID, ChannelID: "another-channel"}); !errors.Is(err, ErrReconnect) {
+		t.Fatalf("foreign channel metadata error=%v", err)
+	}
+}
+
+func TestLateUnauthorizedCannotRevokeReconnectedGrant(t *testing.T) {
+	f := newAuthFixture(t, filepath.Join(t.TempDir(), "late-unauthorized.db"), nil)
+	_, _, account := login(t, f.service)
+	f.provider.mu.Lock()
+	f.provider.tokens = Tokens{AccessToken: "fresh-access", RefreshToken: "fresh-refresh", ExpiresIn: time.Hour}
+	f.provider.mu.Unlock()
+	_, _, reconnected := login(t, f.service)
+	if reconnected.ID != account.ID {
+		t.Fatalf("reconnected account changed identity: %s != %s", reconnected.ID, account.ID)
+	}
+	if err := f.service.RevokeProviderAuthorizationIfCurrent(context.Background(), account.ID, "old-token"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := f.service.AccessToken(context.Background(), account.ID); err != nil || got != "fresh-access" {
+		t.Fatalf("fresh grant was revoked: %v", err)
+	}
+	if err := f.service.RevokeProviderAuthorizationIfCurrent(context.Background(), account.ID, "fresh-access"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.service.AccessToken(context.Background(), account.ID); !errors.Is(err, ErrReconnect) {
+		t.Fatalf("current rejected grant status=%v", err)
 	}
 }
