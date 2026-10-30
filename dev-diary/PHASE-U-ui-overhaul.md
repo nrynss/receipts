@@ -16,7 +16,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 requires: T3.1, TA.3
 fixture-ok: yes
 owns: web/src/lib/brand/, web/src/app.html, web/static/
-status: not-started
+status: complete
 ```
 
 Introduce the unified **Dark Forest & Parchment Ledger** design system, the original **"Knife-Edge Chop"** SVG brand mark (`ReceiptMark.svelte` and `web/static/favicon.svg`), tactile button primitives, status pills and a shared top navigation bar for human-facing routes (`/`, `/demo/`, `/account`, `/control`). Keep `/obs` and `/?fixture=...` harness views free of navigation chrome and transparent when idle.
@@ -244,7 +244,7 @@ Planning complete; Option 1 ("The Knife-Edge Chop") SVG and full before/after UI
 
 ### Evidence and decisions
 
-Record task IDs, relevant revision, checks and artifact paths when work lands. Never record secrets.
+- **TU.1:** `codex/tu1-brand-shell`; added the exact Knife-Edge Chop SVG component and favicon, shared dark-ledger tokens, accessible tactile button/status classes, and a responsive human-route shell. `GOCACHE=/tmp/receipts-go-cache ./tools/check.sh` passed. Browser UI verification was unavailable in the subagent session; SvelteKit diagnostics, the production build, and all 29 overlay tests passed. `/obs` and fixture routes are excluded from the shell by the root layout.
 
 ### Notes for the next task
 
