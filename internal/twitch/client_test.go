@@ -3,10 +3,12 @@ package twitch
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -79,5 +81,22 @@ func TestClientDoesNotExposeProviderErrorBody(t *testing.T) {
 	}
 	if got := err.Error(); got == "" || strings.Contains(got, "secret-token") || strings.Contains(got, "secret-token-echo") {
 		t.Fatalf("error leaked sensitive text: %s", got)
+	}
+}
+
+func TestClientPreservesBoundedRetryAfterMetadataWithoutBody(t *testing.T) {
+	transport := roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		r := response(429, "private provider detail")
+		r.Header.Set("Retry-After", "3")
+		return r, nil
+	})
+	c := Client{ClientID: "client", Token: "token", HTTP: &http.Client{Transport: transport}, BaseURL: "https://unit.invalid"}
+	err := c.Request(context.Background(), http.MethodGet, "/clips", nil, nil, nil)
+	var provider *HTTPError
+	if !errors.As(err, &provider) || provider.StatusCode != 429 || provider.RetryAfter != 3*time.Second {
+		t.Fatalf("provider error=%#v err=%v", provider, err)
+	}
+	if strings.Contains(err.Error(), "private provider detail") {
+		t.Fatalf("error leaked body: %v", err)
 	}
 }

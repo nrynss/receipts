@@ -141,6 +141,10 @@ type CaptureInput struct {
 
 type Credit struct{ UserID, Login string }
 type ClipJob struct {
-	ID, ChannelID, ReceiptID, Status, ClipID, ClipURL, LastError string
-	RequestedAt                                                  time.Time
+	ID, ChannelID, ReceiptID, CommandID, Status, ClipID, ClipURL, LastError, LeaseToken string
+	RequestedAt, ClipRequestedAt, NextAttemptAt, EvidenceEndsAt                         time.Time
+	Attempts, Polls                                                                     int
+	LeaseGeneration                                                                     uint64
+	CreateStarted                                                                       bool
+	CaptureLag                                                                          time.Duration
 }

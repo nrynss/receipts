@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -18,6 +19,7 @@ const helix = "https://api.twitch.tv/helix"
 type HTTPError struct {
 	StatusCode       int
 	Method, Endpoint string
+	RetryAfter       time.Duration
 }
 
 func (e *HTTPError) Error() string {
@@ -81,7 +83,7 @@ func (c Client) request(ctx context.Context, method, endpoint string, query url.
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		// Never include response bodies or request headers: provider errors can echo sensitive data.
-		return &HTTPError{StatusCode: resp.StatusCode, Method: method, Endpoint: endpoint}
+		return &HTTPError{StatusCode: resp.StatusCode, Method: method, Endpoint: endpoint, RetryAfter: retryAfter(resp.Header.Get("Retry-After"), time.Now())}
 	}
 	if out == nil {
 		_, _ = io.Copy(io.Discard, resp.Body)
@@ -91,6 +93,23 @@ func (c Client) request(ctx context.Context, method, endpoint string, query url.
 		return fmt.Errorf("twitch: decode response: %w", err)
 	}
 	return nil
+}
+
+func retryAfter(value string, now time.Time) time.Duration {
+	if seconds, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64); err == nil && seconds >= 0 {
+		if seconds > int64((24*time.Hour)/time.Second) {
+			return 24 * time.Hour
+		}
+		return time.Duration(seconds) * time.Second
+	}
+	if at, err := http.ParseTime(value); err == nil && at.After(now) {
+		delay := at.Sub(now)
+		if delay > 24*time.Hour {
+			return 24 * time.Hour
+		}
+		return delay
+	}
+	return 0
 }
 
 type ValidateResponse struct {

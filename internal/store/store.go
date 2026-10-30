@@ -593,7 +593,9 @@ func (s *Store) ReceiptCredit(ctx context.Context, receiptID string) (receipt.Cr
 func (s *Store) ClipJobForReceipt(ctx context.Context, channelID, receiptID string) (receipt.ClipJob, error) {
 	var job receipt.ClipJob
 	var requested int64
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT id,channel_id,receipt_id,requested_at,status,clip_id,clip_url,last_error FROM clip_jobs WHERE channel_id=? AND receipt_id=?`, channelID, receiptID).Scan(&job.ID, &job.ChannelID, &job.ReceiptID, &requested, &job.Status, &job.ClipID, &job.ClipURL, &job.LastError)
+	var clipRequested, nextAttempt int64
+	var createStarted int
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT j.id,j.channel_id,j.receipt_id,c.command_id,j.requested_at,j.status,j.clip_id,j.clip_url,j.last_error,j.attempts,j.clip_requested_at,j.next_attempt_at,j.create_started FROM clip_jobs j JOIN receipt_captures c ON c.receipt_id=j.receipt_id WHERE j.channel_id=? AND j.receipt_id=?`, channelID, receiptID).Scan(&job.ID, &job.ChannelID, &job.ReceiptID, &job.CommandID, &requested, &job.Status, &job.ClipID, &job.ClipURL, &job.LastError, &job.Attempts, &clipRequested, &nextAttempt, &createStarted)
 	if errors.Is(err, sql.ErrNoRows) {
 		return job, ErrNotFound
 	}
@@ -601,6 +603,13 @@ func (s *Store) ClipJobForReceipt(ctx context.Context, channelID, receiptID stri
 		return job, err
 	}
 	job.RequestedAt = time.UnixMilli(requested).UTC()
+	job.CreateStarted = createStarted != 0
+	if clipRequested != 0 {
+		job.ClipRequestedAt = time.UnixMilli(clipRequested).UTC()
+	}
+	if nextAttempt != 0 {
+		job.NextAttemptAt = time.UnixMilli(nextAttempt).UTC()
+	}
 	return job, nil
 }
 
