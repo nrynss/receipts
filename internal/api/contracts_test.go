@@ -43,8 +43,8 @@ func TestGoPayloadsMatchGoldenContracts(t *testing.T) {
 		"live-session.change.json":      ports.LiveSessionChange{SessionID: "session1", ChannelID: "channel1", State: "live", ObservedAt: stamp, Confirmed: true},
 		"control.pause.json":            ControlInput{Paused: boolPointer(true)},
 		"control.void.json":             ControlInput{ReceiptID: "r1", Note: "wrong claim"},
-		"control.review.json":           ControlInput{ReviewID: "q1", ReviewDecision: ReviewApprove},
-		"control.receipt-decision.json": ControlInput{ReceiptID: "r1", ReceiptDecision: DecisionContextChanged, Note: "context"},
+		"control.review.json":           ControlInput{ActionKey: "review-action-1", ReviewID: "q1", ReviewDecision: ReviewApprove},
+		"control.receipt-decision.json": ControlInput{ActionKey: "decision-action-1", ReceiptID: "r1", ReceiptDecision: DecisionContextChanged, Note: "context"},
 	}
 	for name, value := range tests {
 		t.Run(name, func(t *testing.T) {

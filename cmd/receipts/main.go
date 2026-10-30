@@ -120,7 +120,7 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 		mux.Handle("/auth/", authService.Handler())
 		mux.Handle("/api/", api.NewForOwner(api.Config{
 			OwnerReader:   api.LedgerReader{Store: ledger, Mode: string(cfg.Mode)},
-			OwnerControls: api.LedgerControls{Store: ledger, Runtime: supervisor},
+			OwnerControls: api.LedgerControls{Store: ledger, Runtime: supervisor, AppealDuration: cfg.AppealDuration, StampCooldown: cfg.StampCooldown},
 		}, authService, supervisor))
 		mux.Handle("/", http.FileServer(http.FS(static)))
 		handler = mux

@@ -114,7 +114,7 @@ func (s *Store) ApplyDetection(ctx context.Context, a DetectionAuthority, candid
 func (s *Store) CurrentStamp(ctx context.Context, channelID, sessionID string) (*events.PublicReceipt, error) {
 	var p events.PublicReceipt
 	var created int64
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT r.id,r.claim,r.clip_url,r.clip_status,r.verdict,r.clipped_by,r.created_at FROM detections d JOIN receipts r ON r.id=d.receipt_id WHERE d.channel_id=? AND d.session_id=? AND d.outcome='stamp' AND r.channel_id=d.channel_id AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) ORDER BY d.created_at DESC,d.id DESC LIMIT 1`, channelID, sessionID, millis(s.now())).Scan(&p.ID, &p.Claim, &p.ClipURL, &p.ClipStatus, &p.Verdict, &p.ClippedBy, &created)
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT r.id,r.claim,r.clip_url,r.clip_status,r.verdict,r.clipped_by,r.created_at FROM (SELECT d.receipt_id FROM detections d LEFT JOIN stamp_history h ON h.detection_id=d.id WHERE d.channel_id=? AND d.session_id=? AND d.outcome='stamp' ORDER BY coalesce(h.stamped_at,d.created_at) DESC,d.id DESC LIMIT 1) latest JOIN receipts r ON r.id=latest.receipt_id WHERE r.channel_id=? AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?)`, channelID, sessionID, channelID, millis(s.now())).Scan(&p.ID, &p.Claim, &p.ClipURL, &p.ClipStatus, &p.Verdict, &p.ClippedBy, &created)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}

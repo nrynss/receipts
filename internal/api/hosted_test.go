@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -13,8 +14,10 @@ import (
 	"time"
 
 	"github.com/nrynss/keel/sqlite"
+	"receipts/internal/appeal"
 	"receipts/internal/auth"
 	"receipts/internal/events"
+	"receipts/internal/ports"
 	"receipts/internal/receipt"
 	channelruntime "receipts/internal/runtime"
 	"receipts/internal/store"
@@ -90,7 +93,12 @@ func TestProductionHostedCompositionScopesSessionsDevicesAndRevocation(t *testin
 		if err := ledger.AddSegment(ctx, seg); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := ledger.CreateReceipt(ctx, receipt.ReceiptInput{ChannelID: c.ID, SessionID: live.ID, Claim: name + "-promise", ClippedBy: "viewer", Evidence: []receipt.EvidenceInput{{SourceID: seg.ID, Text: seg.Text, Start: seg.Start, End: seg.End, Attribution: seg.Attribution}}}); err != nil {
+		evidence := receipt.EvidenceInput{SourceID: seg.ID, Text: seg.Text, Start: seg.Start, End: seg.End, Attribution: seg.Attribution}
+		captured, err := ledger.CreateReceipt(ctx, receipt.ReceiptInput{ChannelID: c.ID, SessionID: live.ID, Claim: name + "-promise", ClippedBy: "viewer", Evidence: []receipt.EvidenceInput{evidence}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = ledger.RecordDetection(ctx, receipt.DetectionInput{ChannelID: c.ID, ReceiptID: captured.ID, Evidence: evidence, Outcome: receipt.Stamp}); err != nil {
 			t.Fatal(err)
 		}
 		return owner{a, raw, csrf, running}
@@ -115,6 +123,96 @@ func TestProductionHostedCompositionScopesSessionsDevicesAndRevocation(t *testin
 	}
 	if response.Code != 200 || snapshot.Channel != a.authority.ChannelID || len(snapshot.Receipts) != 1 || snapshot.Receipts[0].Claim != "a-promise" {
 		t.Fatalf("snapshot status=%d value=%+v", response.Code, snapshot)
+	}
+	// Real authenticated owner action and trusted chat vote through the same ledger.
+	receiptID := snapshot.Receipts[0].ID
+	body := fmt.Sprintf(`{"receipt_id":%q,"receipt_decision":"appeal","action_key":"click-1"}`, receiptID)
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, req(a, http.MethodPost, "/api/control/decision", body, true))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("appeal: %d %s", response.Code, response.Body.String())
+	}
+	seq := a.channel.Events.Sequence()
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, req(a, http.MethodPost, "/api/control/decision", body, true))
+	if response.Code != http.StatusNoContent || a.channel.Events.Sequence() != seq {
+		t.Fatalf("retry: %d seq %d", response.Code, a.channel.Events.Sequence())
+	}
+	svc := appeal.Service{Store: ledger, Runtime: manager, Now: func() time.Time { return now }}
+	cmd := ports.ChatCommand{ID: "message-1", ChannelID: a.authority.ChannelID, SessionID: a.authority.LiveSessionID, UserID: "trusted-voter", Role: ports.ChatViewer, Command: "!uphold", ReceivedAt: now}
+	if err := svc.HandleChat(ctx, a.authority, cmd); err != nil {
+		t.Fatal(err)
+	}
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, req(a, http.MethodGet, "/api/overlay", "", false))
+	if err := json.Unmarshal(response.Body.Bytes(), &snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.CurrentAppeal == nil || snapshot.CurrentAppeal.UpholdVotes != 1 || strings.Contains(response.Body.String(), "trusted-voter") {
+		t.Fatalf("appeal snapshot: %s", response.Body.String())
+	}
+	foreign := cmd
+	foreign.ChannelID = b.authority.ChannelID
+	if err := svc.HandleChat(ctx, a.authority, foreign); err == nil {
+		t.Fatal("foreign chat accepted")
+	}
+	viewerPause := cmd
+	viewerPause.ID = "viewer-pause"
+	viewerPause.Command = "!receipts"
+	viewerPause.Arguments = "off"
+	if err := svc.HandleChat(ctx, a.authority, viewerPause); err == nil {
+		t.Fatal("viewer paused channel")
+	}
+	moderator := viewerPause
+	moderator.ID = "mod-pause"
+	moderator.Role = ports.ChatModerator
+	if err := svc.HandleChat(ctx, a.authority, moderator); err != nil || !a.channel.Paused() || a.channel.Context.Err() != nil {
+		t.Fatalf("moderator pause %v", err)
+	}
+	moderator.Arguments = "on"
+	if err := svc.HandleChat(ctx, a.authority, moderator); err != nil || a.channel.Paused() {
+		t.Fatalf("moderator resume %v", err)
+	}
+	// Restart with an overdue appeal. Recovery publishes status, never a stamp.
+	if err := manager.Stop(a.authority); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(3 * time.Minute)
+	a.channel, err = manager.StartVerified(ctx, a.authority, ledger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = svc.StartChannel(ctx, a.authority); err != nil {
+		t.Fatal(err)
+	}
+	seq = a.channel.Events.Sequence()
+	if seq != 1 {
+		t.Fatalf("recovery sequence %d", seq)
+	}
+	if err = svc.StartChannel(ctx, a.authority); err != nil || a.channel.Events.Sequence() != seq {
+		t.Fatalf("duplicate recovery %v", err)
+	}
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, req(a, http.MethodGet, "/api/overlay", "", false))
+	snapshot = events.OverlaySnapshot{}
+	if err = json.Unmarshal(response.Body.Bytes(), &snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.CurrentAppeal != nil || snapshot.CurrentStamp == nil || snapshot.CurrentStamp.Verdict != "upheld" {
+		t.Fatalf("recovered snapshot %s", response.Body.String())
+	}
+	voidCommand := ports.ChatCommand{ID: "void", ChannelID: a.authority.ChannelID, SessionID: a.authority.LiveSessionID, UserID: "moderator", Role: ports.ChatModerator, Command: "!void", Arguments: receiptID, ReceivedAt: now}
+	if err = svc.HandleChat(ctx, a.authority, voidCommand); err != nil {
+		t.Fatal(err)
+	}
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, req(a, http.MethodGet, "/api/overlay", "", false))
+	snapshot = events.OverlaySnapshot{}
+	if err = json.Unmarshal(response.Body.Bytes(), &snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.CurrentStamp != nil || len(snapshot.Receipts) != 0 {
+		t.Fatalf("void leaked %s", response.Body.String())
 	}
 	response = httptest.NewRecorder()
 	handler.ServeHTTP(response, req(a, http.MethodPost, "/api/control/pause", `{"paused":true}`, false))
