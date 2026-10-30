@@ -11,7 +11,6 @@ import (
 	"github.com/nrynss/keel/id"
 	"receipts/internal/auth"
 	"receipts/internal/commands"
-	"receipts/internal/detect"
 	"receipts/internal/judge"
 	"receipts/internal/ports"
 	"receipts/internal/providerusage"
@@ -344,13 +343,9 @@ func (s *Service) JudgeSource(ctx context.Context, source receipt.Segment) error
 		if result.ClaimSourceID != evidence[0].SourceID || result.LaterSourceID != source.ID {
 			return errors.New("intelligence: invalid judgment evidence")
 		}
-		outcome := receipt.Dismissed
-		switch result.Verdict {
-		case detect.Contradicts, detect.Unsure:
-			outcome = receipt.NeedsReview
-		case detect.DoesNot:
-		default:
-			return errors.New("intelligence: invalid judgment")
+		outcome, err := JudgmentOutcome(result.Verdict)
+		if err != nil {
+			return err
 		}
 		if err = ctx.Err(); err != nil {
 			return err

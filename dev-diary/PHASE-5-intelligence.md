@@ -51,7 +51,7 @@ Judge retrieved claim/later-line pairs with structured contradicts, does-not-con
 requires: T5.3, T0.4
 fixture-ok: yes
 owns: internal/eval/, testdata/eval/, docs/evaluation.md
-status: not-started
+status: in-progress
 ```
 
 Run the labelled corpus through the same retrieval/judge policy used by the app. Tune only on the tuning partition, freeze the policy, then report held-out counts, denominators, false stamps, precision, recall and abstentions. Also report retrieval misses, latency and measured spend. Version prompt, model, policy and dataset identifiers. Sensitive or unattributed cases must never auto-stamp. Any false stamp requires inspection and a documented decision before enabling automatic live stamps.
@@ -88,3 +88,7 @@ Owner-bound capture, conservative extraction and source sensitivity checks, dura
 ### T5.3 implementation
 
 The structured Judge and durable session/channel/global metering are reviewed and verified. The full offline gate and repeated targeted race checks passed. One live adapter request returned `contradicts`; reported usage priced at $0.00003735 was below the $0.025 ceiling. Automatic live stamps remain disabled until T5.4 calibration. Unresolved paid attempts block spending pending operator reconciliation. See [T5.3 handoff](../docs/t53-judge-handoff.md) and [live evidence](../docs/evidence/t53-live-judge.json).
+
+### T5.4 evaluation checkpoint
+
+The production review-only policy is exposed for replay, with automatic stamps still disabled. Corpus model and embedding recordings are not yet available; no corpus scores or calibration are claimed. See [T5.4 handoff](../docs/t54-evaluation-handoff.md).
