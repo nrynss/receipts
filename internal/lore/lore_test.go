@@ -2,8 +2,10 @@ package lore_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -12,10 +14,12 @@ import (
 	"unicode/utf8"
 
 	"github.com/nrynss/keel/sqlite"
+	"github.com/nrynss/keel/stream"
 	"receipts/internal/appeal"
 	"receipts/internal/auth"
 	"receipts/internal/commands"
 	"receipts/internal/detect"
+	"receipts/internal/events"
 	"receipts/internal/lore"
 	"receipts/internal/ports"
 	"receipts/internal/receipt"
@@ -27,17 +31,45 @@ import (
 type extraction struct{}
 
 func (extraction) Extract(context.Context, []receipt.Segment) (commands.Extraction, error) {
-	return commands.Extraction{Claim: "Never take the shortcut again.", SourceIDs: []string{"original"}}, nil
+	return commands.Extraction{Claim: "Never take the shortcut again.", SourceIDs: []string{"segment-receipt-1"}}, nil
 }
 
 type safe struct{}
 
 func (safe) Sensitive(context.Context, string) (bool, error) { return false, nil }
 
-type judge struct{}
+type transcriptSink func(context.Context, ports.TranscriptSegment) error
 
-func (judge) Judge(context.Context, receipt.Receipt, receipt.Segment) (detect.Verdict, error) {
-	return detect.Contradicts, nil
+func (f transcriptSink) AcceptTranscript(ctx context.Context, v ports.TranscriptSegment) error {
+	return f(ctx, v)
+}
+
+type chatSink func(context.Context, ports.ChatCommand) error
+
+func (f chatSink) AcceptChatCommand(ctx context.Context, v ports.ChatCommand) error { return f(ctx, v) }
+
+type clipSink func(context.Context, ports.ClipResult) error
+
+func (f clipSink) AcceptClipResult(ctx context.Context, v ports.ClipResult) error { return f(ctx, v) }
+func fixture(t *testing.T, name string) replay.Fixture {
+	t.Helper()
+	f, e := os.Open(name)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer f.Close()
+	v, e := replay.Decode(f)
+	if e != nil {
+		t.Fatal(e)
+	}
+	return v
+}
+func one(t *testing.T, f replay.Fixture, i int, sinks replay.Sinks, clock *replay.Clock) {
+	t.Helper()
+	f.Inputs = f.Inputs[i : i+1]
+	if err := f.Run(context.Background(), sinks, clock); err != nil {
+		t.Fatal(err)
+	}
 }
 
 type failedClip struct{}
@@ -48,7 +80,7 @@ func (failedClip) Enqueue(context.Context, string, string, string, time.Time) er
 func run(t *testing.T) []string {
 	t.Helper()
 	ctx := context.Background()
-	clock := replay.NewClock(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
+	clock := replay.NewClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	ids := replay.IDs()
 	path := filepath.Join(t.TempDir(), "ledger.db")
 	open := func() (*sqlite.DB, *store.Store) {
@@ -75,42 +107,72 @@ func run(t *testing.T) []string {
 	if e != nil {
 		t.Fatal(e)
 	}
-	original := receipt.Segment{ID: "original", SessionID: live.ID, Text: "I will never take the shortcut again.", Attribution: "broadcaster", End: time.Second}
-	if e = s.AddSegment(ctx, original); e != nil {
+	captureFixture := fixture(t, "../../testdata/replay/t21-capture.json")
+	capture := commands.Service{Ledger: s, Extractor: extraction{}, Sensitive: safe{}, Clips: failedClip{}, Now: clock.Now}
+	var got commands.Result
+	transcript := transcriptSink(func(ctx context.Context, v ports.TranscriptSegment) error {
+		return s.AddSegment(ctx, receipt.Segment{ID: v.ID, SessionID: v.SessionID, Start: v.Start, End: v.End, Text: v.Text, SpeakerID: v.SpeakerID, Attribution: string(v.Attribution)})
+	})
+	captureSink := commands.ChatSink{Service: &capture, Authority: commands.Authority{ChannelID: c.ID, SessionID: live.ID}, OnResult: func(r commands.Result) { got = r }}
+	if e = captureFixture.Run(ctx, replay.Sinks{Transcript: transcript, Chat: captureSink}, clock); e != nil {
 		t.Fatal(e)
 	}
-	_ = clock.Advance(clock.Now().Add(2 * time.Second))
-	capture := commands.Service{Ledger: s, Extractor: extraction{}, Sensitive: safe{}, Clips: failedClip{}, Now: clock.Now}
-	got, e := capture.Handle(ctx, commands.Authority{ChannelID: c.ID, SessionID: live.ID}, ports.ChatCommand{ID: "capture", UserID: "viewer", Login: "viewer", Command: "!receipt", ReceivedAt: clock.Now()})
-	if e != nil || got.Receipt == nil {
-		t.Fatalf("capture: %+v %v", got, e)
+	if got.Receipt == nil || got.Code != commands.ReplyCaptured {
+		t.Fatalf("capture: %+v", got)
 	}
 	rid := got.Receipt.ID
-	if e = s.CompleteClipJob(ctx, c.ID, "capture", "failed", "", "", "offline"); e != nil {
-		t.Fatal(e)
-	}
+	loop := fixture(t, "../../testdata/replay/t24-loop.json")
+	one(t, loop, 0, replay.Sinks{Clip: clipSink(func(ctx context.Context, v ports.ClipResult) error {
+		return s.CompleteClipJob(ctx, c.ID, v.RequestID, string(v.Status), "", "", "offline")
+	})}, clock)
 	a := auth.ChannelContext{AccountID: "owner", ChannelID: c.ID, LiveSessionID: live.ID, Generation: 1}
 	manager := channelruntime.New(channelruntime.Config{})
 	ch, e := manager.StartVerified(ctx, a, s)
 	if e != nil {
 		t.Fatal(e)
 	}
-	later := receipt.Segment{ID: "later", SessionID: live.ID, Text: "Fine, I'll take the shortcut.", Attribution: "broadcaster", Start: 2 * time.Second, End: 3 * time.Second}
-	if e = s.AddSegment(ctx, later); e != nil {
+	ch.Events = events.NewPublisher("before-restart")
+	sub := ch.Events.Broker.Subscribe(ctx, events.TopicOverlay)
+	judgeFile, e := os.Open("../../testdata/models/t22-judge.json")
+	if e != nil {
 		t.Fatal(e)
 	}
-	_ = clock.Advance(clock.Now().Add(time.Second))
-	d := detect.Service{Store: s, Runtime: manager, Judge: judge{}, Sensitive: safe{}, Now: clock.Now}
-	if e = d.Check(ctx, a, rid, later); e != nil {
+	recorded, e := detect.LoadRecorded(judgeFile)
+	judgeFile.Close()
+	if e != nil {
 		t.Fatal(e)
 	}
+	d := detect.Service{Store: s, Runtime: manager, Judge: recorded, Sensitive: safe{}, Now: clock.Now}
+	one(t, loop, 1, replay.Sinks{Transcript: transcriptSink(func(ctx context.Context, v ports.TranscriptSegment) error {
+		seg := receipt.Segment{ID: v.ID, SessionID: v.SessionID, Text: v.Text, Attribution: string(v.Attribution), SpeakerID: v.SpeakerID, Start: v.Start, End: v.End}
+		if err := s.AddSegment(ctx, seg); err != nil {
+			return err
+		}
+		return d.Check(ctx, a, rid, seg)
+	})}, clock)
 	ap := appeal.Service{Store: s, Runtime: manager, Duration: time.Minute, Now: clock.Now}
 	if e = ap.Answer(ctx, a, rid, "answer", "appeal", ""); e != nil {
 		t.Fatal(e)
 	}
-	if e = ap.Vote(ctx, a, "voter", receipt.VoteUphold); e != nil {
-		t.Fatal(e)
+	one(t, loop, 2, replay.Sinks{Chat: appeal.ChatSink{Service: ap, Authority: a}}, clock)
+	var emitted []string
+	for _, want := range []string{events.Stamp, events.Status, events.Status} {
+		var ev stream.Event
+		select {
+		case ev = <-sub.Events:
+		default:
+			t.Fatal("missing event")
+		}
+		if ev.Name != want {
+			t.Fatalf("event name %s want %s", ev.Name, want)
+		}
+		b, err := json.Marshal(ev.Data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		emitted = append(emitted, ev.Name+":"+string(b))
 	}
+	sub.Cancel()
 	before := ch.Events.Sequence()
 	if e = manager.Stop(a); e != nil {
 		t.Fatal(e)
@@ -118,7 +180,7 @@ func run(t *testing.T) []string {
 	if e = db.Close(); e != nil {
 		t.Fatal(e)
 	}
-	_ = clock.Advance(clock.Now().Add(time.Minute))
+	_ = clock.Advance(loop.Inputs[3].At)
 	db, s = open()
 	defer db.Close()
 	manager = channelruntime.New(channelruntime.Config{})
@@ -127,11 +189,33 @@ func run(t *testing.T) []string {
 		t.Fatal(e)
 	}
 	defer manager.Stop(a)
+	ch.Events = events.NewPublisher("after-restart")
+	sub = ch.Events.Broker.Subscribe(ctx, events.TopicOverlay)
+	defer sub.Cancel()
 	ap = appeal.Service{Store: s, Runtime: manager, Duration: time.Minute, Now: clock.Now}
 	if e = ap.Recover(ctx, a); e != nil {
 		t.Fatal(e)
 	}
-	text, e := (lore.Service{Ledger: s}).Render(ctx, c.ID)
+	var ev stream.Event
+	select {
+	case ev = <-sub.Events:
+	default:
+		t.Fatal("missing event")
+	}
+	if ev.Name != events.Status {
+		t.Fatalf("recovery event %s", ev.Name)
+	}
+	b, err := json.Marshal(ev.Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	emitted = append(emitted, ev.Name+":"+string(b))
+	var text string
+	one(t, loop, 3, replay.Sinks{Chat: chatSink(func(ctx context.Context, cmd ports.ChatCommand) error {
+		var err error
+		text, err = (lore.Service{Ledger: s}).Handle(ctx, c.ID, cmd)
+		return err
+	})}, clock)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -147,6 +231,8 @@ func run(t *testing.T) []string {
 		t.Fatalf("clip %+v %v", job, e)
 	}
 	result := []string{rid, outcome, text, job.Status, strings.Repeat("e", int(before)), strings.Repeat("e", int(ch.Events.Sequence()))}
+	t.Logf("events: %v", emitted)
+	result = append(result, emitted...)
 	for _, table := range []string{"receipts", "receipt_commands", "receipt_captures", "clip_jobs", "detections", "appeals", "votes", "verdicts", "receipt_actions"} {
 		rows, err := db.Reader().QueryContext(ctx, "SELECT * FROM "+table+" ORDER BY rowid")
 		if err != nil {
@@ -185,6 +271,13 @@ func run(t *testing.T) []string {
 	hidden, e = (lore.Service{Ledger: s}).Render(ctx, c.ID)
 	if e != nil || strings.Contains(hidden, "shortcut") || !strings.Contains(hidden, "0 total") {
 		t.Fatalf("void leak: %s %v", hidden, e)
+	}
+	if _, e = db.Writer().ExecContext(ctx, `UPDATE receipts SET validity='valid',expires_at=? WHERE id=?`, clock.Now().UnixMilli(), rid); e != nil {
+		t.Fatal(e)
+	}
+	hidden, e = (lore.Service{Ledger: s}).Render(ctx, c.ID)
+	if e != nil || strings.Contains(hidden, "shortcut") || !strings.Contains(hidden, "0 total") {
+		t.Fatalf("expired leak: %s %v", hidden, e)
 	}
 	return result
 }
