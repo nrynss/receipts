@@ -14,6 +14,7 @@ func TestUsageRejectsUntrustedOrMissingCounts(t *testing.T) {
 	}{
 		{`{"model":"gpt-4o-mini-2024-07-18","service_tier":"default","usage":{"prompt_tokens":100,"completion_tokens":20,"total_tokens":120}}`, 27000, true},
 		{`{"model":"gpt-6-luna","service_tier":"default","usage":{"prompt_tokens":100,"completion_tokens":20,"total_tokens":120}}`, 20000, true},
+		{`{"model":"gpt-6-luna","service_tier":"default","usage":{"prompt_tokens":100,"prompt_tokens_details":{"cached_tokens":90},"completion_tokens":20,"total_tokens":120}}`, 20000, true},
 		{`{"model":"gpt-4o-mini-2024-07-18","service_tier":"default","usage":{"prompt_tokens":100,"completion_tokens":20,"total_tokens":121}}`, 0, false},
 		{`{"model":"gpt-4o-mini-2024-07-18","usage":{"prompt_tokens":100,"completion_tokens":20,"total_tokens":120}}`, 0, false},
 	} {

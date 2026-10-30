@@ -102,7 +102,7 @@ func TestHostedAuthStartupNeedsNoSharedChannelToken(t *testing.T) {
 		values := map[string]string{
 			"RECEIPTS_MODE": "live", "RECEIPTS_AUTH_ENABLED": "true",
 			"RECEIPTS_PUBLIC_ORIGIN": "https://receipts.example", "RECEIPTS_DATABASE_PATH": dbPath,
-			"RECEIPTS_TRANSCRIPTION_MODEL": "gpt-transcribe", "RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "model-judge",
+			"RECEIPTS_TRANSCRIPTION_MODEL": "gpt-transcribe", "RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "gpt-6-luna",
 			"TWITCH_CLIENT_ID": "app-id", "TWITCH_CLIENT_SECRET": "app-secret",
 			"RECEIPTS_TOKEN_ENCRYPTION_KEY": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", "OPENAI_API_KEY": "openai-key",
 		}

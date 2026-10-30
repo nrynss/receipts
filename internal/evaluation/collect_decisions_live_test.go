@@ -139,7 +139,7 @@ func TestCollectDecisionsComparison(t *testing.T) {
 	httpClient := &http.Client{Transport: DigestTransport{}}
 	legacy := judge.Client{APIKey: key, HTTP: httpClient}
 	decisions := judge.DecisionsClient{APIKey: key, HTTP: httpClient}
-	legacySensitivity := legacySensitivityAdapter{Client: claims.Client{APIKey: key, HTTP: httpClient}}
+	legacySensitivity := legacySensitivityAdapter{Client: claims.Client{APIKey: key, Model: claims.LegacyModel, HTTP: httpClient}}
 	decisionsSensitivity := claims.DecisionsClient{APIKey: key, HTTP: httpClient}
 	for _, sc := range pending {
 		var pair Pair

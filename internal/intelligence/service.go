@@ -21,9 +21,11 @@ import (
 	"receipts/internal/store"
 )
 
-// Estimates conservatively cover the request limits of the pinned models and
-// are charged on ambiguous errors, matching transcription's existing policy.
+// Reservations cover the bounded Luna extraction and Decisions input sizes at
+// uncached standard-tier rates with headroom. Unmeasured attempts settle the
+// reservation; measured usage reconciles against it.
 const extractionEstimate cost.Price = 25_000_000
+const classificationEstimate cost.Price = 2_000_000
 const embeddingEstimate cost.Price = 1_000_000
 
 type Meter interface {
@@ -69,7 +71,9 @@ func (s *Service) validate() error {
 	if s == nil || s.Meter == nil || s.Authority.Device || s.Authority.AccountID == "" || s.Authority.ChannelID == "" || s.Authority.LiveSessionID == "" || s.Authority.Generation == 0 {
 		return errors.New("intelligence: owner runtime required")
 	}
-	if s.ExtractionModel != "gpt-4o-mini-2024-07-18" || s.Space.Model != "text-embedding-3-small" || s.Space.Version == "" || s.Space.Dimensions <= 0 || s.Space.Dimensions > 1536 {
+	// The old model remains accepted for offline historical service replay.
+	// The production attachment separately hard-requires Luna.
+	if (s.ExtractionModel != "gpt-6-luna" && s.ExtractionModel != "gpt-4o-mini-2024-07-18") || s.Space.Model != "text-embedding-3-small" || s.Space.Version == "" || s.Space.Dimensions <= 0 || s.Space.Dimensions > 1536 {
 		return errors.New("intelligence: unsupported metered model or embedding space")
 	}
 	_, err := s.Meter.Resolve(s.Authority)
@@ -131,7 +135,7 @@ type classified struct{ s *Service }
 
 func (c classified) Sensitive(ctx context.Context, text string) (bool, error) {
 	var result bool
-	err := c.s.call(ctx, "claim-sensitivity", extractionEstimate, func(ctx context.Context) (err error) { result, err = c.s.Sensitive.Sensitive(ctx, text); return })
+	err := c.s.call(ctx, "claim-sensitivity", classificationEstimate, func(ctx context.Context) (err error) { result, err = c.s.Sensitive.Sensitive(ctx, text); return })
 	return result, err
 }
 
@@ -339,7 +343,7 @@ func (s *Service) JudgeSource(ctx context.Context, source receipt.Segment) error
 			continue
 		}
 		var result judge.Result
-		err = s.call(ctx, "judge", extractionEstimate, func(c context.Context) error {
+		err = s.call(ctx, "judge", classificationEstimate, func(c context.Context) error {
 			var e error
 			result, e = s.Judge.Judge(c, candidate, evidence[0], source)
 			return e
