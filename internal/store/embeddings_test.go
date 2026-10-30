@@ -36,6 +36,28 @@ func TestEmbeddingIndexAuthorityAndSpace(t *testing.T) {
 	if err != nil || len(got) != 1 || got[0].Receipt.ID != r.ID {
 		t.Fatalf("index %#v %v", got, err)
 	}
+	_, err = s.db.Writer().ExecContext(ctx, `UPDATE receipts SET claim='changed' WHERE id=?`, r.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.IndexedReceipts(ctx, a, space); !errors.Is(err, ErrConflict) {
+		t.Fatalf("changed claim: %v", err)
+	}
+	_, err = s.db.Writer().ExecContext(ctx, `UPDATE receipts SET claim=? WHERE id=?`, r.Claim, r.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.db.Writer().ExecContext(ctx, `INSERT INTO receipts(id,channel_id,session_id,created_at,claim,clipped_by,validity,sensitive) VALUES('new',?,?,?,'new promise','viewer','valid',0)`, c.ID, session.ID, now.UnixMilli())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.IndexedReceipts(ctx, a, space); !errors.Is(err, ErrConflict) {
+		t.Fatalf("new receipt: %v", err)
+	}
+	_, err = s.db.Writer().ExecContext(ctx, `DELETE FROM receipts WHERE id='new'`)
+	if err != nil {
+		t.Fatal(err)
+	}
 	other := a
 	other.AccountID = "other"
 	if _, err = s.IndexedReceipts(ctx, other, space); !errors.Is(err, ErrNotEligible) {

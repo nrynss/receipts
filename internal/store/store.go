@@ -412,6 +412,19 @@ func (s *Store) CaptureReceipt(ctx context.Context, in receipt.CaptureInput) (re
 		return receipt.Receipt{}, err
 	}
 	defer tx.Rollback()
+	if (in.AccountID == "") != (in.Generation == 0) {
+		return receipt.Receipt{}, ErrInvalid
+	}
+	if in.AccountID != "" {
+		var owner int
+		err = tx.QueryRowContext(ctx, `SELECT count(*) FROM live_sessions l JOIN accounts a ON a.channel_id=l.channel_id WHERE a.id=? AND a.status='connected' AND l.channel_id=? AND l.id=? AND l.state='live' AND l.ended_at IS NULL AND l.runtime_generation=?`, in.AccountID, in.ChannelID, in.SessionID, in.Generation).Scan(&owner)
+		if err != nil {
+			return receipt.Receipt{}, err
+		}
+		if owner != 1 {
+			return receipt.Receipt{}, ErrConflict
+		}
+	}
 	var live int
 	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM live_sessions WHERE id=? AND channel_id=? AND state='live'`, in.SessionID, in.ChannelID).Scan(&live); err != nil {
 		return receipt.Receipt{}, err

@@ -47,3 +47,28 @@ func jsonEnvelope(content string) (string, error) {
 	b, err := json.Marshal(map[string]any{"choices": []any{map[string]any{"finish_reason": "stop", "message": map[string]string{"content": content}}}})
 	return string(b), err
 }
+
+func TestSensitivityFailsClosedOnMalformedOrRefusal(t *testing.T) {
+	for _, tt := range []struct {
+		name, content string
+		want, wantErr bool
+	}{
+		{"safe", `{"sensitive":false}`, false, false},
+		{"sensitive", `{"sensitive":true}`, true, false},
+		{"missing", `{}`, false, true},
+		{"null", `{"sensitive":null}`, false, true},
+		{"extra", `{"sensitive":false,"other":true}`, false, true},
+		{"malformed", `{`, false, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			client := Client{APIKey: "test", HTTP: &http.Client{Transport: roundTrip(func(*http.Request) (*http.Response, error) {
+				b, _ := jsonEnvelope(tt.content)
+				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(b)), Header: make(http.Header)}, nil
+			})}}
+			got, err := client.Sensitive(context.Background(), "I will play this map.")
+			if got != tt.want || (err != nil) != tt.wantErr {
+				t.Fatalf("sensitive=%v error=%v", got, err)
+			}
+		})
+	}
+}

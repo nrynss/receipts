@@ -134,6 +134,8 @@ type ReceiptInput struct {
 }
 
 type CaptureInput struct {
+	AccountID                                      string
+	Generation                                     uint64
 	CommandID, ChannelID, SessionID, UserID, Login string
 	Claim                                          string
 	ReceivedAt                                     time.Time

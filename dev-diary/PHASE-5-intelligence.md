@@ -2,7 +2,7 @@
 
 **Goal:** Replace recorded model/audio adapters with bounded OpenAI calls and measure the behavior.
 
-**Status:** in-progress (1/4)
+**Status:** in-progress (2/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -25,7 +25,7 @@ Use the selected source and current official OpenAI speech documentation. Choose
 requires: T5.1, T2.1
 fixture-ok: yes
 owns: internal/claims/, internal/retrieval/, testdata/models/
-status: in-progress
+status: complete
 ```
 
 Choose supported OpenAI extraction/judge and embedding models from current official documentation; pin configurable IDs. Extract a normalized claim with exact evidence references and topic/attribution checks. Embed active eligible receipts and retrieve the nearest 3–5 with plain cosine in Go. Store embedding model/version and handle dimension changes through explicit reindexing. Transcript and chat are untrusted data, never model instructions.
@@ -69,7 +69,7 @@ Run the labelled corpus through the same retrieval/judge policy used by the app.
 
 ### What exists now
 
-T5.1 broadcast capture and bounded final transcription are implemented and live verified. Extraction, retrieval, judging and evaluation remain open. See [T5.1 handoff](../docs/t51-audio-handoff.md) and [sanitized live evidence](../docs/evidence/t51-live-transcription.json).
+T5.1 broadcast capture and bounded final transcription are implemented and live verified. Extraction and retrieval are implemented; judging and evaluation remain open. See [T5.1 handoff](../docs/t51-audio-handoff.md) and [sanitized live evidence](../docs/evidence/t51-live-transcription.json).
 
 ### Evidence and decisions
 
@@ -81,6 +81,6 @@ Record unresolved blockers, contract changes and the next unblocked task.
 
 T5.1 passed the offline gate, targeted uncached race checks and a real one-request transcription/shutdown test. The conservative charge estimate was $0.0045 under a $0.02 ceiling. Timing is coarse PCM ingest with unknown HLS delay; sole-speaker attestation is per activation. T5.2 is the next unblocked task. This short test does not prove long-running hosted operation or model accuracy.
 
-### T5.2 partial implementation
+### T5.2 implementation
 
-Conservative extraction and embedding/index seams are implemented but not wired or metered. See [T5.2 partial handoff](../docs/t52-claims-handoff.md). T5.2 remains in progress; no live-model accuracy is claimed.
+Owner-bound capture, conservative extraction and source sensitivity checks, durable budget admission, and explicit embedding reindexing are implemented. See [T5.2 handoff](../docs/t52-claims-handoff.md) for model contracts, operational limits and offline verification. No live-model accuracy or T5.3 judging is claimed.

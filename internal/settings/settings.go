@@ -37,7 +37,10 @@ type Settings struct {
 	AppealDuration        time.Duration `toml:"appeal_duration"`
 	LiveStatusFreshness   time.Duration `toml:"live_status_freshness"`
 	TranscriptionModel    string        `toml:"transcription_model"`
+	ExtractionModel       string        `toml:"extraction_model"`
 	EmbeddingModel        string        `toml:"embedding_model"`
+	EmbeddingVersion      string        `toml:"embedding_version"`
+	EmbeddingDimensions   int           `toml:"embedding_dimensions"`
 	JudgeModel            string        `toml:"judge_model"`
 	TranscriptionSpendUSD float64       `toml:"transcription_spend_usd"`
 	EmbeddingSpendUSD     float64       `toml:"embedding_spend_usd"`
@@ -68,7 +71,10 @@ type configValues struct {
 	AppealDuration        string  `toml:"appeal_duration"`
 	LiveStatusFreshness   string  `toml:"live_status_freshness"`
 	TranscriptionModel    string  `toml:"transcription_model"`
+	ExtractionModel       string  `toml:"extraction_model"`
 	EmbeddingModel        string  `toml:"embedding_model"`
+	EmbeddingVersion      string  `toml:"embedding_version"`
+	EmbeddingDimensions   int     `toml:"embedding_dimensions"`
 	JudgeModel            string  `toml:"judge_model"`
 	TranscriptionSpendUSD float64 `toml:"transcription_spend_usd"`
 	EmbeddingSpendUSD     float64 `toml:"embedding_spend_usd"`
@@ -88,7 +94,7 @@ func configDefaults() configValues {
 		ChannelName: d.ChannelName, TranscriptRetention: d.TranscriptRetention.String(),
 		StampCooldown: d.StampCooldown.String(), AppealDuration: d.AppealDuration.String(),
 		LiveStatusFreshness: d.LiveStatusFreshness.String(), TranscriptionModel: d.TranscriptionModel,
-		EmbeddingModel: d.EmbeddingModel, JudgeModel: d.JudgeModel,
+		ExtractionModel: d.ExtractionModel, EmbeddingModel: d.EmbeddingModel, EmbeddingVersion: d.EmbeddingVersion, EmbeddingDimensions: d.EmbeddingDimensions, JudgeModel: d.JudgeModel,
 		TranscriptionSpendUSD: d.TranscriptionSpendUSD, EmbeddingSpendUSD: d.EmbeddingSpendUSD,
 		JudgeSpendUSD: d.JudgeSpendUSD, HTTPAddress: d.HTTPAddress, DatabasePath: d.DatabasePath, AuthEnabled: d.AuthEnabled, MaxActiveChannels: d.MaxActiveChannels,
 		GlobalSpendLimitUSD: d.GlobalSpendLimitUSD, ChannelSpendLimitUSD: d.ChannelSpendLimitUSD,
@@ -116,7 +122,7 @@ func (c configValues) settings() (Settings, error) {
 		Mode: c.Mode, PublicOrigin: c.PublicOrigin, ChannelID: c.ChannelID,
 		ChannelName: c.ChannelName, TranscriptRetention: retention, StampCooldown: cooldown,
 		AppealDuration: appeal, LiveStatusFreshness: freshness,
-		TranscriptionModel: c.TranscriptionModel, EmbeddingModel: c.EmbeddingModel,
+		TranscriptionModel: c.TranscriptionModel, ExtractionModel: c.ExtractionModel, EmbeddingModel: c.EmbeddingModel, EmbeddingVersion: c.EmbeddingVersion, EmbeddingDimensions: c.EmbeddingDimensions,
 		JudgeModel: c.JudgeModel, TranscriptionSpendUSD: c.TranscriptionSpendUSD,
 		EmbeddingSpendUSD: c.EmbeddingSpendUSD, JudgeSpendUSD: c.JudgeSpendUSD,
 		HTTPAddress: c.HTTPAddress, DatabasePath: c.DatabasePath, AuthEnabled: c.AuthEnabled, MaxActiveChannels: c.MaxActiveChannels,
@@ -136,6 +142,9 @@ func Defaults() Settings {
 		StampCooldown:         30 * time.Second,
 		AppealDuration:        2 * time.Minute,
 		LiveStatusFreshness:   15 * time.Second,
+		ExtractionModel:       "gpt-4o-mini-2024-07-18",
+		EmbeddingVersion:      "claim-v1",
+		EmbeddingDimensions:   1536,
 		TranscriptionSpendUSD: 1,
 		EmbeddingSpendUSD:     0.25,
 		JudgeSpendUSD:         0.25,
@@ -155,8 +164,8 @@ func Load(ctx context.Context, lookup func(string) (string, bool)) (Settings, er
 		field := strings.ToLower(key)
 		if field == "mode" || field == "public_origin" || field == "channel_id" || field == "channel_name" ||
 			field == "transcript_retention" || field == "stamp_cooldown" || field == "appeal_duration" ||
-			field == "live_status_freshness" || field == "transcription_model" || field == "embedding_model" ||
-			field == "judge_model" || field == "transcription_spend_usd" || field == "embedding_spend_usd" ||
+			field == "live_status_freshness" || field == "transcription_model" || field == "extraction_model" || field == "embedding_model" ||
+			field == "embedding_version" || field == "embedding_dimensions" || field == "judge_model" || field == "transcription_spend_usd" || field == "embedding_spend_usd" ||
 			field == "judge_spend_usd" || field == "http_address" || field == "database_path" || field == "auth_enabled" || field == "max_active_channels" ||
 			field == "global_spend_limit_usd" || field == "channel_spend_limit_usd" {
 			return lookup("RECEIPTS_" + key)
@@ -321,6 +330,9 @@ func (s Settings) Validate() error {
 		if u.Scheme != "https" {
 			return errorsf("RECEIPTS_AUTH_ENABLED requires an HTTPS public origin")
 		}
+	}
+	if strings.TrimSpace(s.EmbeddingVersion) == "" || strings.ContainsAny(s.EmbeddingVersion, "\r\n") || s.EmbeddingDimensions < 1 || s.EmbeddingDimensions > 1536 {
+		return errorsf("embedding version and dimensions must be valid")
 	}
 	if s.TranscriptRetention < time.Minute || s.TranscriptRetention > 24*time.Hour {
 		return errorsf("RECEIPTS_TRANSCRIPT_RETENTION must be between 1m and 24h")

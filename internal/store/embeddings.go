@@ -79,9 +79,14 @@ func (s *Store) IndexedReceipts(ctx context.Context, a DetectionAuthority, space
 	if a.AccountID == "" || a.ChannelID == "" || a.LiveSessionID == "" || a.Generation == 0 || space.Model == "" || space.Version == "" || space.Dimensions <= 0 {
 		return nil, ErrInvalid
 	}
+	tx, err := s.db.Reader().BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
 	var model, version string
 	var dim int
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT i.model,i.version,i.dimensions FROM receipt_embedding_spaces i JOIN accounts a ON a.channel_id=i.channel_id JOIN live_sessions l ON l.channel_id=i.channel_id WHERE a.id=? AND a.status='connected' AND i.channel_id=? AND l.id=? AND l.state='live' AND l.ended_at IS NULL AND l.runtime_generation=?`, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation).Scan(&model, &version, &dim)
+	err = tx.QueryRowContext(ctx, `SELECT i.model,i.version,i.dimensions FROM receipt_embedding_spaces i JOIN accounts a ON a.channel_id=i.channel_id JOIN live_sessions l ON l.channel_id=i.channel_id WHERE a.id=? AND a.status='connected' AND i.channel_id=? AND l.id=? AND l.state='live' AND l.ended_at IS NULL AND l.runtime_generation=?`, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation).Scan(&model, &version, &dim)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotEligible
 	}
@@ -91,7 +96,15 @@ func (s *Store) IndexedReceipts(ctx context.Context, a DetectionAuthority, space
 	if model != space.Model || version != space.Version || dim != space.Dimensions {
 		return nil, ErrConflict
 	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT r.id,r.claim,r.version,e.vector FROM receipt_embeddings e JOIN receipts r ON r.id=e.receipt_id AND r.channel_id=e.channel_id WHERE r.channel_id=? AND r.claim=e.claim AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?)`, a.ChannelID, millis(s.now()))
+	var missing int
+	err = tx.QueryRowContext(ctx, `SELECT count(*) FROM receipts r LEFT JOIN receipt_embeddings e ON e.receipt_id=r.id AND e.channel_id=r.channel_id AND e.claim=r.claim WHERE r.channel_id=? AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) AND e.receipt_id IS NULL`, a.ChannelID, millis(s.now())).Scan(&missing)
+	if err != nil {
+		return nil, err
+	}
+	if missing != 0 {
+		return nil, ErrConflict
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT r.id,r.claim,r.version,e.vector FROM receipt_embeddings e JOIN receipts r ON r.id=e.receipt_id AND r.channel_id=e.channel_id WHERE r.channel_id=? AND r.claim=e.claim AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?)`, a.ChannelID, millis(s.now()))
 	if err != nil {
 		return nil, err
 	}
@@ -116,4 +129,49 @@ func (s *Store) IndexedReceipts(ctx context.Context, a DetectionAuthority, space
 		return nil, err
 	}
 	return result, nil
+}
+
+// EmbeddingCandidates returns the exact current eligible set for explicit reindexing.
+func (s *Store) EmbeddingCandidates(ctx context.Context, a DetectionAuthority) ([]receipt.Receipt, error) {
+	if a.AccountID == "" || a.ChannelID == "" || a.LiveSessionID == "" || a.Generation == 0 {
+		return nil, ErrInvalid
+	}
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT r.id,r.claim,r.version FROM receipts r JOIN accounts a ON a.channel_id=r.channel_id JOIN live_sessions l ON l.channel_id=r.channel_id WHERE a.id=? AND a.status='connected' AND r.channel_id=? AND l.id=? AND l.state='live' AND l.ended_at IS NULL AND l.runtime_generation=? AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) ORDER BY r.id`, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation, millis(s.now()))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []receipt.Receipt
+	for rows.Next() {
+		var r receipt.Receipt
+		if err = rows.Scan(&r.ID, &r.Claim, &r.Version); err != nil {
+			return nil, err
+		}
+		r.ChannelID = a.ChannelID
+		result = append(result, r)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	// Distinguish an empty valid index from an invalid authority.
+	if err = s.VerifyLiveGeneration(ctx, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation); err != nil {
+		return nil, ErrNotEligible
+	}
+	return result, nil
+}
+
+// EmbeddingSpace returns the installed contract for this owner and generation.
+func (s *Store) EmbeddingSpace(ctx context.Context, a DetectionAuthority) (retrieval.Space, error) {
+	if a.AccountID == "" || a.ChannelID == "" || a.LiveSessionID == "" || a.Generation == 0 {
+		return retrieval.Space{}, ErrInvalid
+	}
+	var space retrieval.Space
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT i.model,i.version,i.dimensions FROM receipt_embedding_spaces i JOIN accounts a ON a.channel_id=i.channel_id JOIN live_sessions l ON l.channel_id=i.channel_id WHERE a.id=? AND a.status='connected' AND i.channel_id=? AND l.id=? AND l.state='live' AND l.ended_at IS NULL AND l.runtime_generation=?`, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation).Scan(&space.Model, &space.Version, &space.Dimensions)
+	if errors.Is(err, sql.ErrNoRows) {
+		if err = s.VerifyLiveGeneration(ctx, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation); err != nil {
+			return retrieval.Space{}, ErrNotEligible
+		}
+		return retrieval.Space{}, ErrNotFound
+	}
+	return space, err
 }
