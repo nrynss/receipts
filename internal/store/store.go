@@ -297,7 +297,7 @@ func validateSource(ctx context.Context, tx *sql.Tx, sessionID string, e receipt
 }
 
 func (s *Store) Transcript(ctx context.Context, sessionID string) ([]receipt.Segment, error) {
-	query := `SELECT id,session_id,start_ms,end_ms,text,speaker_id,attribution,created_at FROM transcript_segments WHERE session_id=?`
+	query := `SELECT id,session_id,start_ms,end_ms,text,speaker_id,attribution,created_at,timing_basis FROM transcript_segments WHERE session_id=?`
 	args := []any{sessionID}
 	if s.retention.ExpireAfter > 0 {
 		query += ` AND created_at>=?`
@@ -313,7 +313,7 @@ func (s *Store) Transcript(ctx context.Context, sessionID string) ([]receipt.Seg
 	for rows.Next() {
 		var v receipt.Segment
 		var a, b, created int64
-		if err = rows.Scan(&v.ID, &v.SessionID, &a, &b, &v.Text, &v.SpeakerID, &v.Attribution, &created); err != nil {
+		if err = rows.Scan(&v.ID, &v.SessionID, &a, &b, &v.Text, &v.SpeakerID, &v.Attribution, &created, &v.TimingBasis); err != nil {
 			return nil, err
 		}
 		v.Start = time.Duration(a) * time.Millisecond
@@ -484,7 +484,7 @@ func (s *Store) CaptureReceipt(ctx context.Context, in receipt.CaptureInput) (re
 		if eerr != nil {
 			return receipt.Receipt{}, eerr
 		}
-		if _, err = tx.ExecContext(ctx, `INSERT INTO evidence(id,receipt_id,source_id,source_text,start_ms,end_ms,attribution) VALUES(?,?,?,?,?,?,?)`, eid, key, e.SourceID, e.Text, e.Start.Milliseconds(), e.End.Milliseconds(), e.Attribution); err != nil {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO evidence(id,receipt_id,source_id,source_text,start_ms,end_ms,attribution,timing_basis) VALUES(?,?,?,?,?,?,?,COALESCE((SELECT timing_basis FROM transcript_segments WHERE id=?),'unspecified'))`, eid, key, e.SourceID, e.Text, e.Start.Milliseconds(), e.End.Milliseconds(), e.Attribution, e.SourceID); err != nil {
 			return receipt.Receipt{}, err
 		}
 	}
@@ -543,7 +543,7 @@ func (s *Store) CreateReceipt(ctx context.Context, in receipt.ReceiptInput) (rec
 		if eerr != nil {
 			return receipt.Receipt{}, eerr
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO evidence(id,receipt_id,source_id,source_text,start_ms,end_ms,attribution) VALUES(?,?,?,?,?,?,?)`, eid, key, e.SourceID, e.Text, e.Start.Milliseconds(), e.End.Milliseconds(), defaultText(e.Attribution, "uncertain"))
+		_, err = tx.ExecContext(ctx, `INSERT INTO evidence(id,receipt_id,source_id,source_text,start_ms,end_ms,attribution,timing_basis) VALUES(?,?,?,?,?,?,?,COALESCE((SELECT timing_basis FROM transcript_segments WHERE id=?),'unspecified'))`, eid, key, e.SourceID, e.Text, e.Start.Milliseconds(), e.End.Milliseconds(), defaultText(e.Attribution, "uncertain"), e.SourceID)
 		if err != nil {
 			return receipt.Receipt{}, err
 		}
@@ -657,7 +657,7 @@ func (s *Store) CompleteClipJob(ctx context.Context, channelID, commandID, statu
 }
 
 func (s *Store) Evidence(ctx context.Context, receiptID string) ([]receipt.Evidence, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT e.id,e.receipt_id,e.source_id,e.source_text,e.start_ms,e.end_ms,e.attribution FROM evidence e JOIN receipts r ON r.id=e.receipt_id WHERE e.receipt_id=? AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) ORDER BY e.start_ms`, receiptID, millis(s.now()))
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT e.id,e.receipt_id,e.source_id,e.source_text,e.start_ms,e.end_ms,e.attribution,e.timing_basis FROM evidence e JOIN receipts r ON r.id=e.receipt_id WHERE e.receipt_id=? AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) ORDER BY e.start_ms`, receiptID, millis(s.now()))
 	if err != nil {
 		return nil, err
 	}
@@ -666,7 +666,7 @@ func (s *Store) Evidence(ctx context.Context, receiptID string) ([]receipt.Evide
 	for rows.Next() {
 		var e receipt.Evidence
 		var a, b int64
-		if err = rows.Scan(&e.ID, &e.ReceiptID, &e.SourceID, &e.Text, &a, &b, &e.Attribution); err != nil {
+		if err = rows.Scan(&e.ID, &e.ReceiptID, &e.SourceID, &e.Text, &a, &b, &e.Attribution, &e.TimingBasis); err != nil {
 			return nil, err
 		}
 		e.Start = time.Duration(a) * time.Millisecond

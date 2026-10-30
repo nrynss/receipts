@@ -66,12 +66,14 @@ type Segment struct {
 	ID, SessionID                string
 	Start, End                   time.Duration
 	Text, SpeakerID, Attribution string
+	TimingBasis                  string
 	CreatedAt                    time.Time
 }
 type Evidence struct {
 	ID, ReceiptID, SourceID, Text string
 	Start, End                    time.Duration
 	Attribution                   string
+	TimingBasis                   string
 }
 type Receipt struct {
 	ID, ChannelID, SessionID string

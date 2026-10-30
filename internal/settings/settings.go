@@ -343,6 +343,9 @@ func (s Settings) Validate() error {
 		return errorsf("RECEIPTS_LIVE_STATUS_FRESHNESS must be between 1s and 5m")
 	}
 	if s.Mode == ModeLive {
+		if s.TranscriptionModel != "gpt-transcribe" {
+			return errorsf("RECEIPTS_TRANSCRIPTION_MODEL must be gpt-transcribe")
+		}
 		for key, value := range map[string]string{"TRANSCRIPTION_MODEL": s.TranscriptionModel, "EMBEDDING_MODEL": s.EmbeddingModel, "JUDGE_MODEL": s.JudgeModel} {
 			if strings.TrimSpace(value) == "" || strings.ContainsAny(value, "\r\n") {
 				return fmt.Errorf("RECEIPTS_%s must be a non-empty single-line model ID", key)

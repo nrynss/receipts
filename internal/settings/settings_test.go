@@ -52,7 +52,7 @@ func TestLoadLiveReportsMissingNamesWithoutSecretValues(t *testing.T) {
 func TestLoadLiveWithConfiguredSettings(t *testing.T) {
 	s, err := Load(context.Background(), env(map[string]string{
 		"RECEIPTS_MODE": "live", "RECEIPTS_CHANNEL_ID": "channel-id",
-		"RECEIPTS_CHANNEL_NAME": "owner", "RECEIPTS_TRANSCRIPTION_MODEL": "model-stt",
+		"RECEIPTS_CHANNEL_NAME": "owner", "RECEIPTS_TRANSCRIPTION_MODEL": "gpt-transcribe",
 		"RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "model-judge",
 		"TWITCH_CLIENT_ID": "client-secret-sentinel", "TWITCH_ACCESS_TOKEN": "token-secret-sentinel",
 		"OPENAI_API_KEY": "openai-secret-sentinel",
@@ -80,7 +80,7 @@ func TestLoadHostedAuthUsesOperatorKeysWithoutSharedChannelToken(t *testing.T) {
 	s, err := Load(context.Background(), env(map[string]string{
 		"RECEIPTS_MODE": "live", "RECEIPTS_AUTH_ENABLED": "true",
 		"RECEIPTS_PUBLIC_ORIGIN":       "https://receipts.example",
-		"RECEIPTS_TRANSCRIPTION_MODEL": "model-stt", "RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "model-judge",
+		"RECEIPTS_TRANSCRIPTION_MODEL": "gpt-transcribe", "RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "model-judge",
 		"TWITCH_CLIENT_ID": "app-id", "TWITCH_CLIENT_SECRET": "client-secret-value",
 		"RECEIPTS_TOKEN_ENCRYPTION_KEY": encryptionKey, "OPENAI_API_KEY": "openai-key",
 	}))
@@ -105,7 +105,7 @@ func TestHostedAuthRequiresEncryptionKeyAndHTTPS(t *testing.T) {
 	base := map[string]string{
 		"RECEIPTS_MODE": "live", "RECEIPTS_AUTH_ENABLED": "true",
 		"RECEIPTS_PUBLIC_ORIGIN":       "http://receipts.example",
-		"RECEIPTS_TRANSCRIPTION_MODEL": "model-stt", "RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "model-judge",
+		"RECEIPTS_TRANSCRIPTION_MODEL": "gpt-transcribe", "RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "model-judge",
 		"TWITCH_CLIENT_ID": "app-id", "TWITCH_CLIENT_SECRET": "client-secret-value", "OPENAI_API_KEY": "openai-key",
 	}
 	if _, err := Load(context.Background(), env(base)); err == nil || !strings.Contains(err.Error(), "RECEIPTS_TOKEN_ENCRYPTION_KEY") {
