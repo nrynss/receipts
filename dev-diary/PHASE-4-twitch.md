@@ -2,7 +2,7 @@
 
 **Goal:** Replace recorded Twitch adapters while keeping the proven product loop and explicit failure states.
 
-**Status:** in-progress (1/4)
+**Status:** in-progress (2/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -25,7 +25,7 @@ Consume TA.1 OAuth credentials through TA.2 validated channel context and runtim
 requires: T4.1, T2.4
 fixture-ok: yes
 owns: internal/twitch/eventsub/, internal/twitch/chat/, testdata/twitch/
-status: in-progress
+status: done
 ```
 
 Implement verified welcome/subscription, keepalive, reconnect and revocation behavior. Deduplicate message IDs and map chat roles from trusted Twitch events. Route commands into the same services used by replay. Bound retries, bot replies and reconnect backoff; report authorization loss instead of silently looping.
@@ -84,3 +84,5 @@ T4.1 implementation is reviewed and integrated in `2627aea`: scoped Helix/EventS
 The opt-in adapter-bound writer acceptance validates the grant (including the nrynss login) and channel binding, confirms live status, then permits exactly one fixed chat message and one clip creation under an eight-request cap. The live harness uses an in-memory resolver/token provider and does not establish hosted account persistence or live refresh; offline tests cover those paths. EventSub subscription and receive transport remain T4.2 acceptance.
 
 T4.2 transport and T4.3 clip jobs are assigned to separate Luna worktrees from `85c69b8`. The principal thread owns integration and task status. Live acceptance remains distinct from offline implementation, and T4.4 still owns verified listening activation.
+
+T4.2 is reviewed from `b2c2ac8`. The principal ran the offline five-service acceptance and a real bounded EventSub run: the owner typed all five commands, and capture, vote, pause, resume and lore assertions passed. See [live transport evidence](../docs/evidence/t42-live-transport.json). Recorded transcript input and an isolated synthetic ledger avoid claiming live audio/model activation; T4.4 still owns that activation.

@@ -1,0 +1,1 @@
+{"metadata":{"message_id":"revocation-1","message_type":"revocation","message_timestamp":"2026-10-30T00:00:04Z"},"payload":{"subscription":{"type":"channel.chat.message","status":"authorization_revoked"}}}

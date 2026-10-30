@@ -1,0 +1,31 @@
+{
+  "channel": "nrynss",
+  "result": "passed",
+  "transport": "real Twitch EventSub WebSocket with one temporary scoped subscription",
+  "command_actions": [
+    "receipt captured",
+    "one uphold vote persisted",
+    "stamps paused",
+    "stamps resumed",
+    "lore reconciled"
+  ],
+  "typed_commands": [
+    "!receipt",
+    "!uphold",
+    "!receipts off",
+    "!receipts on",
+    "!lore"
+  ],
+  "duration_seconds": 81.18,
+  "provider_effects": {
+    "temporary_chat_subscription": 1,
+    "bot_chat_posts": 0,
+    "clips_created": 0,
+    "model_calls": 0
+  },
+  "boundaries": [
+    "Uses an isolated persisted synthetic runtime and prerecorded transcript; does not prove live transcription or trusted live-session activation.",
+    "Lore response is captured by a recording sender; live bot reply transport is separately adapter-verified in T4.1.",
+    "No raw chat identities, tokens or transcripts were retained."
+  ]
+}
