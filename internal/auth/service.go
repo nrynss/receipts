@@ -102,6 +102,9 @@ type Service struct {
 	sessionMu          sync.Mutex
 	sessionStreams     map[string]map[uint64]context.CancelFunc
 	sessionWatchSeq    uint64
+	pairMu             sync.Mutex
+	pairs              map[string]*pairRequest
+	pairAttempts       map[string]pairLimit
 }
 
 func New(ctx context.Context, cfg Config) (*Service, error) {
@@ -153,7 +156,7 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	svc := &Service{db: cfg.DB, provider: cfg.Provider, clientID: cfg.ClientID, redirect: cfg.RedirectURL,
 		origin: normalizedOrigin, key: append([]byte(nil), cfg.EncryptionKey...), scopes: append([]string(nil), cfg.Scopes...),
 		sessionTTL: cfg.SessionTTL, stateTTL: cfg.StateTTL, validationInterval: cfg.ValidationInterval,
-		startedAt: cfg.Now().UTC(), secure: cfg.SecureCookie, now: cfg.Now, locks: map[string]*sync.Mutex{}, deviceStreams: map[string]map[uint64]context.CancelFunc{}, sessionStreams: map[string]map[uint64]context.CancelFunc{}}
+		startedAt: cfg.Now().UTC(), secure: cfg.SecureCookie, now: cfg.Now, locks: map[string]*sync.Mutex{}, deviceStreams: map[string]map[uint64]context.CancelFunc{}, sessionStreams: map[string]map[uint64]context.CancelFunc{}, pairs: map[string]*pairRequest{}, pairAttempts: map[string]pairLimit{}}
 	if err := svc.ValidateAll(ctx); err != nil {
 		return nil, err
 	}
@@ -165,6 +168,13 @@ func (s *Service) Handler() http.Handler {
 	mux.HandleFunc("GET /auth/twitch", s.startLogin)
 	mux.HandleFunc("GET /auth/twitch/callback", s.callback)
 	mux.HandleFunc("POST /auth/logout", s.logout)
+	mux.HandleFunc("POST /auth/pair/start", s.startPair)
+	mux.HandleFunc("GET /auth/pair/status", s.pairStatus)
+	mux.HandleFunc("POST /auth/pair/confirm", s.confirmPair)
+	mux.HandleFunc("GET /auth/account", s.accountInfo)
+	mux.HandleFunc("GET /auth/device", s.deviceInfo)
+	mux.HandleFunc("GET /auth/devices", s.listDevices)
+	mux.HandleFunc("POST /auth/devices/{id}/revoke", s.revokeDevice)
 	return securityHeaders(mux)
 }
 
@@ -240,7 +250,7 @@ func (s *Service) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, s.cookie(SessionCookie, newSession, s.sessionTTL, true))
 	http.SetCookie(w, s.cookie(CSRFCookie, csrf, s.sessionTTL, false))
-	http.Redirect(w, r, s.origin+"/", http.StatusSeeOther)
+	http.Redirect(w, r, s.origin+"/account", http.StatusSeeOther)
 }
 
 func (s *Service) logout(w http.ResponseWriter, r *http.Request) {

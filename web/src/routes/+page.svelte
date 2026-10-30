@@ -4,8 +4,10 @@
   import { fixture } from '$lib/overlay/fixtures';
   import type { Display, OverlayState } from '$lib/overlay/model';
   let display = $state<Display>({ state: 'idle' });
+  let showSetup = $state(true);
   onMount(() => {
     const selected = new URLSearchParams(window.location.search).get('fixture');
+    showSetup = !selected;
     if (selected === 'sequence') {
       const states: OverlayState[] = ['stamp', 'evidence', 'appeal', 'verdict', 'idle'];
       let index = 0; display = fixture(states[index]);
@@ -16,7 +18,7 @@
   });
 </script>
 <svelte:head><meta name="description" content="The stream remembers what you said." /></svelte:head>
-<main><Overlay {display} /></main>
+<main>{#if showSetup}<button onclick={() => { window.location.href = "/account"; }}>Set up Receipts</button>{/if}<Overlay {display} /></main>
 <style>
   :global(html), :global(body) { margin:0; background:transparent; }
   main { min-height:100vh; display:flex; align-items:flex-end; justify-content:center; padding:3vw; box-sizing:border-box; }
