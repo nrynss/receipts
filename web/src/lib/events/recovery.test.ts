@@ -65,4 +65,29 @@ describe('production overlay recovery composition', () => {
     await recovery.catchUp();
     expect(shown.at(-1)).toMatchObject({ state:'evidence', animate:false });
   });
+
+  it('clears restored content when the next authoritative snapshot fails', async () => {
+    const shown: Array<{ state: string; animate?: boolean }> = [];
+    let reads = 0;
+    const recovery = createOverlayRecovery(async () => {
+      reads++;
+      if (reads > 1) throw new Error('snapshot unavailable');
+      return snapshot(0);
+    }, display => shown.push(display));
+    await recovery.catchUp();
+    expect(shown.at(-1)?.state).toBe('evidence');
+    await recovery.catchUp();
+    expect(shown.at(-1)).toEqual({ state:'idle' });
+  });
+
+  it('does not publish an in-flight snapshot after disposal', async () => {
+    let resolveSnapshot!: (value: ReturnType<typeof snapshot>) => void;
+    const shown: Array<{ state: string; animate?: boolean }> = [];
+    const recovery = createOverlayRecovery(() => new Promise(resolve => { resolveSnapshot = resolve; }), display => shown.push(display));
+    const pending = recovery.catchUp();
+    recovery.dispose();
+    resolveSnapshot(snapshot(0));
+    await pending;
+    expect(shown).toEqual([]);
+  });
 });

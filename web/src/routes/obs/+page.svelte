@@ -15,6 +15,7 @@
     let events: EventSource | undefined;
     let recovery: ReturnType<typeof createOverlayRecovery> | undefined;
     function activate() {
+      if (stopped) return;
       paired = true;
       recovery = createOverlayRecovery(async () => {
         const response = await fetch('/api/overlay');
@@ -22,28 +23,33 @@
         return decodeSnapshot(await response.json());
       }, next => { if (!stopped) display = next; });
       events = new EventSource('/api/events');
-      events.onopen = () => { void recovery?.catchUp(); };
+      events.onopen = () => { if (!stopped) void recovery?.catchUp(); };
       for (const name of ['snapshot','stamp','status','reset']) events.addEventListener(name, event => {
-        recovery?.onFrame({ name, data: (event as MessageEvent<string>).data });
+        if (!stopped) recovery?.onFrame({ name, data: (event as MessageEvent<string>).data });
       });
-      events.onerror = () => { recovery?.disconnect(); };
+      events.onerror = () => { if (!stopped) recovery?.disconnect(); };
     }
     async function check() {
       try {
         const existing = await fetch('/auth/device');
+        if (stopped) return;
         if (existing.ok) { status=''; activate(); return; }
         const start = await fetch('/auth/pair/start',{method:'POST'});
+        if (stopped) return;
         if (!start.ok) throw new Error();
-        code = (await start.json()).code; status='Enter this code in your Receipts setup.';
+        const started = await start.json();
+        if (stopped) return;
+        code = started.code; status='Enter this code in your Receipts setup.';
         async function poll() {
           if (stopped) return;
           const result = await fetch('/auth/pair/status');
+          if (stopped) return;
           if (result.status === 204) { code=''; status=''; activate(); return; }
           if (result.status !== 202) { code=''; status='Code expired. Refresh this source to try again.'; return; }
           timer=setTimeout(poll,2000);
         }
         timer=setTimeout(poll,2000);
-      } catch { status='Pairing unavailable. Refresh this source to try again.'; }
+      } catch { if (!stopped) status='Pairing unavailable. Refresh this source to try again.'; }
     }
     if (import.meta.env.DEV) { const mode = new URLSearchParams(window.location.search).get('fixture'); if (mode === 'pairing') { code='SAMPLE123456'; status='Enter this code in your Receipts setup.'; return; } if (mode === 'paired') { paired=true; display=fixture('evidence'); return; } }
     void check(); return () => { stopped=true; clearTimeout(timer); events?.close(); recovery?.dispose(); };

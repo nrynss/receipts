@@ -41,17 +41,19 @@ export function createOverlayRecovery(
     show(displayFromSnapshot(snapshot));
   }, onError);
 
+  const disconnect = () => {
+    names.clear();
+    current = undefined;
+    rebaser.invalidate();
+    show({ state: 'idle' });
+  };
+
   return {
     catchUp: async () => {
       names.clear();
-      try { await rebaser.rebase(); } catch (error) { onError(error); }
+      try { await rebaser.rebase(); } catch (error) { disconnect(); onError(error); }
     },
-    disconnect: () => {
-      names.clear();
-      current = undefined;
-      rebaser.invalidate();
-      show({ state: 'idle' });
-    },
+    disconnect,
     dispose: () => {
       names.clear();
       current = undefined;
