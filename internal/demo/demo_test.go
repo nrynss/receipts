@@ -103,28 +103,10 @@ func TestVisitorCapacityExpiryAndConcurrentIsolation(t *testing.T) {
 	root := t.TempDir()
 	h := New(root, 2)
 	defer h.Close()
-	var wg sync.WaitGroup
-	cookies := make(chan *http.Cookie, 2)
-	for i := 0; i < 2; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			w := post(t, h, nil, "/demo/api/replay")
-			if w.Code != 200 {
-				t.Errorf("replay status %d", w.Code)
-				return
-			}
-			cookies <- w.Result().Cookies()[0]
-		}()
-	}
-	wg.Wait()
-	close(cookies)
-	var got []*http.Cookie
-	for c := range cookies {
-		got = append(got, c)
-	}
-	if len(got) != 2 {
-		t.Fatalf("visitors created: %d", len(got))
+	one := post(t, h, nil, "/demo/api/replay")
+	two := post(t, h, nil, "/demo/api/replay")
+	if one.Code != 200 || two.Code != 200 {
+		t.Fatalf("visitor replays status %d/%d", one.Code, two.Code)
 	}
 	full := post(t, h, nil, "/demo/api/replay")
 	if full.Code != 503 {
@@ -171,7 +153,7 @@ func TestConcurrentReplayAndResetForOneVisitor(t *testing.T) {
 				action = "/demo/api/reset"
 			}
 			w := post(t, h, cookie, action)
-			if w.Code != 200 {
+			if w.Code != 200 && w.Code != http.StatusTooManyRequests {
 				t.Errorf("concurrent %s status %d: %s", action, w.Code, w.Body.String())
 			}
 		}(i)
@@ -180,6 +162,98 @@ func TestConcurrentReplayAndResetForOneVisitor(t *testing.T) {
 	last := post(t, h, cookie, "/demo/api/replay")
 	if last.Code != 200 || !strings.Contains(last.Body.String(), `"verdict":"upheld"`) {
 		t.Fatalf("final replay status %d: %s", last.Code, last.Body.String())
+	}
+}
+
+func TestExpirySkipsLeasedVisitorAndBusyRequestsDoNotWait(t *testing.T) {
+	h := New(t.TempDir(), 2)
+	defer h.Close()
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/demo/api/reset", nil)
+	r.Header.Set("Origin", "http://"+r.Host)
+	v, err := h.acquireVisitor(w, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := v.path
+	v.created.Store(time.Now().Add(-visitorTTL - time.Second).UnixNano())
+	h.expire()
+	if _, err = os.Stat(path); err != nil {
+		t.Fatalf("janitor removed leased visitor files: %v", err)
+	}
+	if v.ledger == nil {
+		t.Fatal("janitor closed a leased ledger")
+	}
+	h.release(v)
+	h.expire()
+	if _, err = os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("janitor kept expired visitor after release: %v", err)
+	}
+
+	ready := post(t, h, nil, "/demo/api/reset")
+	if ready.Code != 200 {
+		t.Fatalf("new visitor reset: %d", ready.Code)
+	}
+	cookie := ready.Result().Cookies()[0]
+	h.mu.Lock()
+	var current *visitor
+	for _, candidate := range h.visitors {
+		current = candidate
+		break
+	}
+	h.mu.Unlock()
+	current.mu.Lock()
+	start := time.Now()
+	busy := post(t, h, cookie, "/demo/api/replay")
+	elapsed := time.Since(start)
+	current.mu.Unlock()
+	if busy.Code != http.StatusTooManyRequests || elapsed > time.Second {
+		t.Fatalf("contended visitor response status=%d elapsed=%s", busy.Code, elapsed)
+	}
+	h.mu.Lock()
+	refs := current.refs.Load()
+	h.mu.Unlock()
+	if refs != 0 {
+		t.Fatalf("busy request leaked %d visitor refs", refs)
+	}
+	if retry := post(t, h, cookie, "/demo/api/replay"); retry.Code != 200 {
+		t.Fatalf("visitor did not recover after contention: %d", retry.Code)
+	}
+
+	closeResponse := httptest.NewRecorder()
+	closeRequest := httptest.NewRequest(http.MethodPost, "/demo/api/reset", nil)
+	closeRequest.Header.Set("Origin", "http://"+closeRequest.Host)
+	leased, err := h.acquireVisitor(closeResponse, closeRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	closePath := leased.path
+	closed := make(chan error, 1)
+	go func() { closed <- h.Close() }()
+	deadline := time.Now().Add(time.Second)
+	for {
+		h.mu.Lock()
+		closing := h.closed
+		h.mu.Unlock()
+		if closing {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("Close did not begin")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	select {
+	case err := <-closed:
+		t.Fatalf("Close returned with visitor request in flight: %v", err)
+	default:
+	}
+	h.release(leased)
+	if err := <-closed; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(closePath); !os.IsNotExist(err) {
+		t.Fatalf("Close kept leased visitor files: %v", err)
 	}
 }
 

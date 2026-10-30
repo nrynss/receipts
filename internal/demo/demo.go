@@ -37,6 +37,8 @@ var recorded embed.FS
 const cookieName = "receipts_demo"
 const visitorTTL = 20 * time.Minute
 
+var errVisitorBusy = errors.New("demo session is busy; retry shortly")
+
 type Result struct {
 	Stage      string   `json:"stage"`
 	Claim      string   `json:"claim,omitempty"`
@@ -53,7 +55,7 @@ type visitor struct {
 	clock    *replay.Clock
 	result   Result
 	requests int
-	refs     int
+	refs     atomic.Int64
 }
 type Server struct {
 	mu       sync.Mutex
@@ -114,6 +116,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	v, err := s.acquireVisitor(w, r)
 	if err != nil {
+		if errors.Is(err, errVisitorBusy) {
+			w.Header().Set("Retry-After", "1")
+			http.Error(w, err.Error(), http.StatusTooManyRequests)
+			return
+		}
 		http.Error(w, err.Error(), 503)
 		return
 	}
@@ -190,7 +197,7 @@ func (s *Server) expire() {
 	now := s.now()
 	for k, v := range s.visitors {
 		created := time.Unix(0, v.created.Load())
-		if now.Sub(created) > visitorTTL {
+		if v.refs.Load() == 0 && now.Sub(created) > visitorTTL {
 			_ = s.dispose(v)
 			delete(s.visitors, k)
 		}
@@ -208,24 +215,29 @@ func (s *Server) acquireVisitor(w http.ResponseWriter, r *http.Request) (*visito
 			key = sha256.Sum256(raw)
 		}
 	}
-	s.mu.Lock()
+	if !s.mu.TryLock() {
+		return nil, errVisitorBusy
+	}
 	if s.closed {
 		s.mu.Unlock()
 		return nil, errors.New("demo server is shutting down")
 	}
 	now := s.now()
 	for k, v := range s.visitors {
-		if v.refs == 0 && now.Sub(time.Unix(0, v.created.Load())) > visitorTTL {
+		if v.refs.Load() == 0 && now.Sub(time.Unix(0, v.created.Load())) > visitorTTL {
 			_ = s.dispose(v)
 			delete(s.visitors, k)
 		}
 	}
 	if key != ([32]byte{}) {
 		if v := s.visitors[key]; v != nil {
-			v.refs++
+			v.refs.Add(1)
 			s.requests.Add(1)
 			s.mu.Unlock()
-			v.mu.Lock()
+			if !v.mu.TryLock() {
+				s.releaseRef(v)
+				return nil, errVisitorBusy
+			}
 			return v, nil
 		}
 	}
@@ -246,20 +258,22 @@ func (s *Server) acquireVisitor(w http.ResponseWriter, r *http.Request) (*visito
 		s.mu.Unlock()
 		return nil, e
 	}
-	v.refs = 1
+	v.refs.Store(1)
 	s.visitors[key] = v
 	s.requests.Add(1)
-	s.mu.Unlock()
 	v.mu.Lock()
+	s.mu.Unlock()
 	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: token, Path: "/demo", HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode, MaxAge: int(visitorTTL.Seconds())})
 	return v, nil
 }
 
 func (s *Server) release(v *visitor) {
 	v.mu.Unlock()
-	s.mu.Lock()
-	v.refs--
-	s.mu.Unlock()
+	s.releaseRef(v)
+}
+
+func (s *Server) releaseRef(v *visitor) {
+	v.refs.Add(-1)
 	s.requests.Done()
 }
 func (s *Server) recreate(v *visitor) error {
