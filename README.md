@@ -4,7 +4,7 @@
 
 Chat types `!receipt` when a streamer promises something on stream. Receipts clips the moment and keeps the claim. When the streamer later goes back on it, a **RECEIPT** stamp lands on the overlay with the old clip, and chat votes on the appeal. `!lore` gives new viewers the channel's running promises and the ones that broke.
 
-> **Status:** entry for the Codex × TwitchCon Hackathon, in development. P0 feasibility, P1 foundation and the offline receipt loop are complete. Account isolation, onboarding/OBS pairing and owner controls are implemented. Verified live-session lifecycle and Twitch adapter checks pass. The production audio/model pipeline and hosted judge acceptance remain open; see the [development diary](dev-diary/README.md).
+> **Status:** entry for the Codex × TwitchCon Hackathon, in development. P0 feasibility, P1 foundation and the offline receipt loop are complete. Account isolation, onboarding/OBS pairing and owner controls are implemented. Verified live-session lifecycle and Twitch adapter checks pass. Broadcast transcription, extraction/retrieval, and review-only judging are implemented and evaluated. Automatic stamps remain disabled; deployment and hosted acceptance remain open; see the [development diary](dev-diary/README.md).
 
 Implementation phases, task dependencies and acceptance criteria are in the [development diary](dev-diary/README.md).
 Build and run the current server using the [development instructions](docs/development.md).
@@ -19,7 +19,7 @@ Build and run the current server using the [development instructions](docs/devel
 | P2 — Offline receipt loop | 4/4 | Capture, detection, appeals, lore and deterministic full-loop replay verified |
 | P3 — Overlay/controls | 3/3 | Overlay, owner controls and actual local OBS/SSE recovery verified |
 | P4 — Twitch integration | 4/4 | Authorized adapters, chat, local clip fallback and real stream-end capture exit verified |
-| P5 — Intelligence | 3/4 | Transcription and judge adapter live verified; evaluation pending; automatic stamps disabled |
+| P5 — Intelligence | 4/4 | Evaluation and human label review complete; automatic stamps remain disabled by policy |
 | P6 — Release | Planned | Deployment, live proof and judge readiness |
 
 [TA implementation phase and acceptance criteria](dev-diary/PHASE-A-accounts.md), with [account scope](docs/accounts-scope.md). TA.1 identity/sessions and TA.2 channel isolation are implemented, TA.3 joins the overlay work, and TA.4 verifies the deployed judge experience before submission preparation.

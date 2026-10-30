@@ -2,7 +2,7 @@
 
 **Goal:** Replace recorded model/audio adapters with bounded OpenAI calls and measure the behavior.
 
-**Status:** in-progress (3/4)
+**Status:** complete (4/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -51,7 +51,7 @@ Judge retrieved claim/later-line pairs with structured contradicts, does-not-con
 requires: T5.3, T0.4
 fixture-ok: yes
 owns: internal/eval/, testdata/eval/, docs/evaluation.md
-status: in-progress
+status: complete
 ```
 
 Run the labelled corpus through the same retrieval/judge policy used by the app. Tune only on the tuning partition, freeze the policy, then report held-out counts, denominators, false stamps, precision, recall and abstentions. Also report retrieval misses, latency and measured spend. Version prompt, model, policy and dataset identifiers. Sensitive or unattributed cases must never auto-stamp. Any false stamp requires inspection and a documented decision before enabling automatic live stamps.
@@ -79,7 +79,7 @@ Record task IDs, relevant revision, checks and artifact paths when work lands. N
 
 Record unresolved blockers, contract changes and the next unblocked task.
 
-T5.1 passed the offline gate, targeted uncached race checks and a real one-request transcription/shutdown test. The conservative charge estimate was $0.0045 under a $0.02 ceiling. Timing is coarse PCM ingest with unknown HLS delay; sole-speaker attestation is per activation. T5.4 is the next unblocked task. This short test does not prove long-running hosted operation or model accuracy.
+T5.1 passed the offline gate, targeted uncached race checks and a real one-request transcription/shutdown test. The conservative charge estimate was $0.0045 under a $0.02 ceiling. Timing is coarse PCM ingest with unknown HLS delay; sole-speaker attestation is per activation. T6.1 is the next unblocked implementation task. This short test does not prove long-running hosted operation or model accuracy.
 
 ### T5.2 implementation
 
@@ -87,7 +87,7 @@ Owner-bound capture, conservative extraction and source sensitivity checks, dura
 
 ### T5.3 implementation
 
-The structured Judge and durable session/channel/global metering are reviewed and verified. The full offline gate and repeated targeted race checks passed. One live adapter request returned `contradicts`; reported usage priced at $0.00003735 was below the $0.025 ceiling. Automatic live stamps remain disabled until T5.4 calibration. Unresolved paid attempts block spending pending operator reconciliation. See [T5.3 handoff](../docs/t53-judge-handoff.md) and [live evidence](../docs/evidence/t53-live-judge.json).
+The structured Judge and durable session/channel/global metering are reviewed and verified. The full offline gate and repeated targeted race checks passed. One live adapter request returned `contradicts`; reported usage priced at $0.00003735 was below the $0.025 ceiling. Automatic live stamps remain disabled by the T5.4 evaluation decision. Unresolved paid attempts block spending pending operator reconciliation. See [T5.3 handoff](../docs/t53-judge-handoff.md) and [live evidence](../docs/evidence/t53-live-judge.json).
 
 ### T5.4 evaluation checkpoint
 
@@ -96,3 +96,5 @@ The production review-only policy is exposed for replay, with automatic stamps s
 ### T5.4 recorded corpus evidence
 
 The complete development and held-out session recordings replay offline to their recorded reports. Development used 758 calls and $0.01842507; held-out used 210 calls and $0.00522862, with no unmeasured or pending attempts in those successful runs. The separately interrupted collection has one unresolved pending attempt. The frozen production policy routes contradictions to review and makes no automatic stamps. Because the 44 Codex-authored labels have no independent human review assertion, label-derived accuracy is not reported and T5.4 remains in progress. See [evaluation evidence](../docs/evaluation.md), [the review worksheet](../docs/t54-label-review.md) and [the handoff](../docs/t54-evaluation-handoff.md).
+
+T5.4 evaluation is complete with an explicit keep-disabled decision. All 44 labels were reviewed by the owner, with six corrections preserved as an overlay. Reviewed metrics and limitations are in [evaluation](../docs/evaluation.md). Original recordings remain unchanged. No automatic-stamp enablement is claimed; T6.2 must disclose review-only behavior.

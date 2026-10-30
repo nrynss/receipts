@@ -1,0 +1,61 @@
+{
+  "protocol": "Post-collection human label audit; original text/splits, recordings and policy frozen unchanged. Corrected labels are a separate scoring overlay. This is not a new prospectively held-out experiment.",
+  "dataset_sha256": "d8f11499801ed93d96a975069bec8d5ad5bb3a232822820e1bb7b22492f049fa",
+  "review_sha256": "8fcc38d792abfc0c5e5315689dcb2eb8685d8e748c99380b968dbadadf66acdc",
+  "label_corrections": 6,
+  "policy": "review-only-v1",
+  "automatic_stamps_enabled": false,
+  "limitation": "Post-collection audit of small synthetic fixtures; no claim of real-world accuracy. Zero false stamps with zero stamps is not evidence of useful stamp precision.",
+  "partitions": [
+    {
+      "split": "dev",
+      "recording_sha256": "ba526d33f300ba3aa18373424eff4ec897e3d9b411c752550b87a20cfd76a682",
+      "counts": {
+        "cases": 34,
+        "eligible_contradictions": 12,
+        "negative_labels": 22,
+        "target_stamps": 0,
+        "correct_stamps": 0,
+        "false_stamps": 0,
+        "abstentions": 23,
+        "retrieval_attempts": 30,
+        "retrieval_misses": 0,
+        "source_rejections": 3,
+        "calls": 758,
+        "spend_nano_usd": 18425070,
+        "latency_ms": 691070
+      },
+      "precision": null,
+      "recall": 0.0,
+      "false_stamp_rate": 0.0,
+      "abstention_rate": 0.6764705882352942,
+      "retrieval_miss_rate": 0.0,
+      "false_stamp_ids": []
+    },
+    {
+      "split": "heldout",
+      "recording_sha256": "e8ac0d29ccd869b45724e4c694a00587b5f34bc2620bc7601e0f0b9ff410f101",
+      "counts": {
+        "cases": 10,
+        "eligible_contradictions": 4,
+        "negative_labels": 6,
+        "target_stamps": 0,
+        "correct_stamps": 0,
+        "false_stamps": 0,
+        "abstentions": 7,
+        "retrieval_attempts": 8,
+        "retrieval_misses": 0,
+        "source_rejections": 2,
+        "calls": 210,
+        "spend_nano_usd": 5228620,
+        "latency_ms": 189183
+      },
+      "precision": null,
+      "recall": 0.0,
+      "false_stamp_rate": 0.0,
+      "abstention_rate": 0.7,
+      "retrieval_miss_rate": 0.0,
+      "false_stamp_ids": []
+    }
+  ]
+}

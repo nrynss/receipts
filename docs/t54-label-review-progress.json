@@ -1,0 +1,102 @@
+{
+  "dataset_sha256": "d8f11499801ed93d96a975069bec8d5ad5bb3a232822820e1bb7b22492f049fa",
+  "reviewer": "project owner via principal chat",
+  "approved_ids": [
+    "P0-001",
+    "P0-002",
+    "P0-003",
+    "P0-004",
+    "P0-005",
+    "P0-006",
+    "P0-007",
+    "P0-008",
+    "P0-009",
+    "P0-010",
+    "P0-011",
+    "P0-012",
+    "P0-013",
+    "P0-014",
+    "P0-015",
+    "P0-016",
+    "P0-017",
+    "P0-018",
+    "P0-019",
+    "P0-020",
+    "P0-022",
+    "P0-023",
+    "P0-024",
+    "P0-026",
+    "P0-027",
+    "P0-029",
+    "P0-030",
+    "P0-041",
+    "P0-042",
+    "P0-031",
+    "P0-032",
+    "P0-033",
+    "P0-034",
+    "P0-036",
+    "P0-037",
+    "P0-038",
+    "P0-039",
+    "P0-040"
+  ],
+  "disagreements": [
+    {
+      "id": "P0-021",
+      "original_label": "contradiction",
+      "original_expected": "stamp",
+      "reviewed_label": "review",
+      "reviewed_expected": "review",
+      "reason": "The later statement could describe using the ice spell before the promise; event timing is not established.",
+      "reviewer": "project owner via principal chat"
+    },
+    {
+      "id": "P0-025",
+      "original_label": "review",
+      "original_expected": "review",
+      "reviewed_label": "no_contradiction",
+      "reviewed_expected": "quiet",
+      "reason": "A friend\u2019s quoted intention does not contradict the broadcaster\u2019s promise.",
+      "reviewer": "project owner via principal chat"
+    },
+    {
+      "id": "P0-028",
+      "original_label": "review",
+      "original_expected": "review",
+      "reviewed_label": "contradiction",
+      "reviewed_expected": "stamp",
+      "reason": "Skipping the scene contradicts the promise; a stream pause does not provide an exception.",
+      "reviewer": "project owner via principal chat"
+    },
+    {
+      "id": "P0-043",
+      "original_label": "review",
+      "original_expected": "review",
+      "reviewed_label": "no_contradiction",
+      "reviewed_expected": "quiet",
+      "reason": "The promise is not attributed to the broadcaster, so no broadcaster contradiction is established.",
+      "reviewer": "project owner via principal chat"
+    },
+    {
+      "id": "P0-044",
+      "original_label": "review",
+      "original_expected": "review",
+      "reviewed_label": "no_contradiction",
+      "reviewed_expected": "quiet",
+      "reason": "A guest\u2019s action does not contradict the broadcaster\u2019s promise.",
+      "reviewer": "project owner via principal chat"
+    },
+    {
+      "id": "P0-035",
+      "original_label": "review",
+      "original_expected": "review",
+      "reviewed_label": "no_contradiction",
+      "reviewed_expected": "quiet",
+      "reason": "A guest streamer\u2019s action does not contradict the broadcaster\u2019s promise.",
+      "reviewer": "project owner via principal chat"
+    }
+  ],
+  "complete": true,
+  "protocol": "Post-collection human label audit; original text/splits, recordings and policy frozen unchanged. Corrected labels are a separate scoring overlay. This is not a new prospectively held-out experiment."
+}

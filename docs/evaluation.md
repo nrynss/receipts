@@ -42,3 +42,16 @@ cmp /tmp/t54-heldout-report.json docs/evidence/t54-heldout-report.json
 ```
 
 The [development recording](evidence/t54-dev-recording.json), [development report](evidence/t54-dev-report.json), [held-out recording](evidence/t54-heldout-recording.json), and [held-out report](evidence/t54-heldout-report.json) are sanitized, byte-for-byte copies of the recorded artifacts. They contain synthetic source material and local ledger paths, no provider response bodies or credentials.
+
+## Human-reviewed scoring and final policy decision
+
+The project owner reviewed all 44 cases in the principal chat, approving 38 original labels and correcting six: P0-021 to review, P0-025/P0-035/P0-043/P0-044 to no_contradiction, and P0-028 to contradiction. [The decision overlay](t54-label-review-progress.json) records the reasons without modifying original text, splits, recordings or hashes. This audit happened after collection. The separate [reviewed report](evidence/t54-human-reviewed-report.json) is a post-collection rescore, not a new prospective held-out experiment or an approval of the original labels unchanged. Reproduce it with `python3 tools/report_reviewed_eval.py`; original service replay commands remain above.
+
+| Partition | Cases | Eligible contradictions | Other labels | Stamps | False stamps | Recall | Precision | Abstentions | Retrieval misses / attempts |
+|---|---:|---:|---:|---:|---:|---:|---|---:|---|
+| Development | 34 | 12 | 22 | 0 | 0 | 0/12 | undefined (0 stamps) | 23/34 | 0/30 |
+| Held-out | 10 | 4 | 6 | 0 | 0 | 0/4 | undefined (0 stamps) | 7/10 | 0/8 |
+
+False-stamp rates are 0/22 and 0/6. There are no false-stamp cases to inspect because the policy emits no stamps. Retrieval counts exclude uncaptured targets and rejected sources; these small synthetic candidate sets do not establish real-world retrieval recall. Abstentions count review and absence of a target verdict; dismissals count as quiet decisions. Total case latency is 691.070 seconds development and 189.183 seconds held-out. Successful recorded corpus calls cost $0.02365369, separately from earlier diagnostic and failed runs.
+
+**Decision:** retain frozen `review-only-v1` and keep automatic live stamps disabled. The judge exposes discrete verdicts, so no confidence threshold was invented or tuned. Zero false stamps is a consequence of disabling stamps, while automatic-stamp recall is zero. This completes the evaluation and explicit threshold decision without establishing readiness to enable automatic stamps. A future enablement needs a newly specified, independently reviewed prospective evaluation, consistent temporal interpretation, useful recall, and inspection of every false stamp. The owner's differing timing/context judgments remain explicit per-case decisions, not an inferred universal policy. T6.2 must disclose the review-only live behavior and cannot claim an automatic stamp rehearsal unless that future enablement is completed.
