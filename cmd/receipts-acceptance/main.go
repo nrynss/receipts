@@ -22,6 +22,7 @@ import (
 
 	"github.com/nrynss/keel/sqlite"
 	"receipts/internal/api"
+	"receipts/internal/appeal"
 	"receipts/internal/auth"
 	"receipts/internal/receipt"
 	channelruntime "receipts/internal/runtime"
@@ -47,6 +48,7 @@ func main() {
 	staticDir := flag.String("static", "cmd/receipts/static", "built Receipts web asset directory")
 	cert := flag.String("cert", "", "trusted localhost TLS certificate (required)")
 	key := flag.String("key", "", "localhost TLS private key (required)")
+	appealDuration := flag.Duration("appeal-duration", 2*time.Minute, "synthetic owner appeal window")
 	flag.Parse()
 	if *cert == "" || *key == "" {
 		fatal("provide a locally trusted localhost certificate with -cert and -key; pairing cookies require HTTPS")
@@ -75,6 +77,9 @@ func main() {
 	ledger, err := store.New(ctx, db, store.Retention{}, nil)
 	if err != nil {
 		fatal("could not initialize synthetic acceptance database")
+	}
+	if _, err := ledger.RecoverDueAppeals(ctx); err != nil {
+		fatal("could not recover synthetic appeal state")
 	}
 	accountID, err := seedOwner(ctx, db, ledger)
 	if err != nil {
@@ -106,13 +111,18 @@ func main() {
 		fatal("could not create local owner session")
 	}
 	supervisor := channelruntime.New(channelruntime.Config{MaxChannels: 1})
-	if _, err := supervisor.StartVerified(ctx, auth.ChannelContext{AccountID: accountID, ChannelID: channelID, LiveSessionID: liveSessionID, Generation: 1}, ledger); err != nil {
+	authority := auth.ChannelContext{AccountID: accountID, ChannelID: channelID, LiveSessionID: liveSessionID, Generation: 1}
+	if _, err := supervisor.StartVerified(ctx, authority, ledger); err != nil {
 		fatal("could not activate synthetic overlay")
+	}
+	if err := (appeal.Service{Store: ledger, Runtime: supervisor}).StartChannel(ctx, authority); err != nil {
+		fatal("could not recover synthetic runtime state")
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/auth/", sessions.Handler())
 	mux.Handle("/account-api/", api.AccountHandler(sessions, supervisor, nil, nil))
-	mux.Handle("/api/", api.NewForOwner(api.Config{OwnerReader: api.LedgerReader{Store: ledger, Mode: "live"}}, sessions, supervisor))
+	controls := api.LedgerControls{Store: ledger, Runtime: supervisor, AppealDuration: *appealDuration}
+	mux.Handle("/api/", api.NewForOwner(api.Config{OwnerReader: api.LedgerReader{Store: ledger, Mode: "live"}, OwnerControls: controls}, sessions, supervisor))
 	mux.HandleFunc("GET /__acceptance/login", func(w http.ResponseWriter, r *http.Request) {
 		if !remoteLoopback(r.RemoteAddr) || r.Host != *addr {
 			http.Error(w, "Not found", http.StatusNotFound)
@@ -126,7 +136,7 @@ func main() {
 	mux.Handle("/", staticFallback(*staticDir, assets))
 	fmt.Printf("Synthetic TA.3 acceptance server: %s\nOwner setup: %s/__acceptance/login\nOBS Browser Source: %s/obs\n", origin, origin, origin)
 	fmt.Println("Synthetic account; provider calls disabled. Restart this process to check persistent pairing. Do not share browser cookies or pairing codes.")
-	server := &http.Server{Addr: *addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
+	server := &http.Server{Addr: *addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	if err := server.ListenAndServeTLS(*cert, *key); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fatal("acceptance server stopped")
 	}

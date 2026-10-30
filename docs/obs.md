@@ -44,12 +44,15 @@ certificate files from `/tmp` when the rehearsal is complete.
 
 Open the printed owner setup URL, then add the printed `/obs` URL as an OBS
 Browser Source. Enter the short code shown in OBS in setup and confirm it.
-Check that setup lists the paired source. Refresh the Browser Source, restart
-the OBS application, and restart this server while keeping the same SQLite
-file. The source should reconnect without showing a new pairing code and setup
-should still list the device. Revoke it in setup; the source should lose access
-and the device should disappear from the list. Do not share cookies or pairing
-codes. The harness uses loopback HTTPS because pairing cookies are Secure.
+Check that setup lists the paired source and that OBS shows the synthetic
+stamp. In the private control dock at `/control`, click **Appeal**. Restart
+this server while the appeal is open, keeping the same SQLite file. The owner
+snapshot should retain the stored appeal deadline; when it is overdue, startup
+recovery should close it without replaying the stamp. Refresh the Browser
+Source, restart the OBS application, and verify it reconnects without another
+pairing code. Revoke the source in setup; access should be denied and the
+device should disappear from the list. Do not share cookies or pairing codes.
+The harness uses loopback HTTPS because pairing cookies are Secure.
 
 This local rehearsal verifies the real browser/source cookie flow without
 Twitch credentials or provider traffic. It does not establish hosted HTTPS,
