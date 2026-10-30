@@ -320,7 +320,7 @@ func TestFreshnessWatchdogCancelsHungProbeAndRejectsLateConfirmation(t *testing.
 	}
 	var calls atomic.Int32
 	probeStarted, release := make(chan struct{}), make(chan struct{})
-	httpClient, providerURL := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpClient, providerURL := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if calls.Add(1) > 1 {
 			close(probeStarted)
 			<-release
@@ -341,10 +341,27 @@ func TestFreshnessWatchdogCancelsHungProbeAndRejectsLateConfirmation(t *testing.
 		t.Fatal(err)
 	}
 	<-probeStarted
-	if err = manager.WaitChannelStopped(ctx, "owner", channel.ID); err != nil {
+	sessionID, _, _, _, generation, err := ledger.CurrentLiveAuthority(ctx, "owner", channel.ID)
+	if err != nil {
 		t.Fatal(err)
 	}
+	authority := auth.ChannelContext{AccountID: "owner", ChannelID: channel.ID, LiveSessionID: sessionID, Generation: generation}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if _, resolveErr := manager.Resolve(authority); resolveErr != nil {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if _, err = manager.Resolve(authority); err == nil {
+		t.Fatal("watchdog did not invalidate the runtime after freshness expiry")
+	}
 	close(release)
+	waitCtx, cancelWait := context.WithTimeout(ctx, 2*time.Second)
+	defer cancelWait()
+	if err = manager.WaitChannelStopped(waitCtx, "owner", channel.ID); err != nil {
+		t.Fatal(err)
+	}
 	sessionID, broadcastID, checkedAt, mic, generation, err := ledger.CurrentLiveAuthority(ctx, "owner", channel.ID)
 	if err != nil || sessionID == "" || broadcastID != "broadcast-a" || checkedAt.UnixMilli() != 0 || mic || generation != 1 {
 		t.Fatalf("expired authority refreshed by late probe: id=%q broadcast=%q checked=%v mic=%v generation=%d err=%v", sessionID, broadcastID, checkedAt, mic, generation, err)
@@ -391,6 +408,11 @@ func TestFreshnessWatchdogCancelsBlockingAttachment(t *testing.T) {
 	}
 	if err = <-started; err == nil {
 		t.Fatal("activation succeeded after authority freshness expired")
+	}
+	waitCtx, cancelWait := context.WithTimeout(ctx, 2*time.Second)
+	defer cancelWait()
+	if err = manager.WaitChannelStopped(waitCtx, "owner", channel.ID); err != nil {
+		t.Fatal(err)
 	}
 	if manager.Count() != 0 {
 		t.Fatalf("active runtime count=%d", manager.Count())
