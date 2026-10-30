@@ -90,4 +90,19 @@ describe('production overlay recovery composition', () => {
     await pending;
     expect(shown).toEqual([]);
   });
+
+  it('clears restored content when a sequence-gap snapshot fails', async () => {
+    const shown: Array<{ state: string; animate?: boolean }> = [];
+    let reads = 0;
+    const recovery = createOverlayRecovery(async () => {
+      reads++;
+      if (reads > 1) throw new Error('snapshot unavailable');
+      return snapshot(0);
+    }, display => shown.push(display));
+    await recovery.catchUp();
+    recovery.onFrame(frame(3, 'status', 'process-a', { live:true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(reads).toBe(2);
+    expect(shown.at(-1)).toEqual({ state:'idle' });
+  });
 });

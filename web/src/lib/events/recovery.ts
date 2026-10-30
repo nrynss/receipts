@@ -14,6 +14,14 @@ export function createOverlayRecovery(
   const names = new Map<string, OverlayFrameName>();
   const key = (epoch: string, sequence: number) => `${epoch}:${sequence}`;
 
+  function disconnect() {
+    names.clear();
+    current = undefined;
+    rebaser.invalidate();
+    show({ state: 'idle' });
+  }
+  const failed = (error: unknown) => { disconnect(); onError(error); };
+
   const rebaser = createOverlayRebaser(fetchSnapshot, event => {
     const eventKey = key(event.epoch, event.sequence);
     const name = names.get(eventKey);
@@ -39,19 +47,12 @@ export function createOverlayRecovery(
       if (epoch !== snapshot.epoch || sequence <= snapshot.sequence) names.delete(eventKey);
     }
     show(displayFromSnapshot(snapshot));
-  }, onError);
-
-  const disconnect = () => {
-    names.clear();
-    current = undefined;
-    rebaser.invalidate();
-    show({ state: 'idle' });
-  };
+  }, failed);
 
   return {
     catchUp: async () => {
       names.clear();
-      try { await rebaser.rebase(); } catch (error) { disconnect(); onError(error); }
+      try { await rebaser.rebase(); } catch (error) { failed(error); }
     },
     disconnect,
     dispose: () => {
