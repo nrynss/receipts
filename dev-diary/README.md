@@ -14,7 +14,7 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 | P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 4 / 4 | Complete; capture, detection, appeals, lore and full offline replay verified |
 | P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 3 / 3 | Complete; recovery and owner-reported real OBS rehearsal passed |
 | P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 4 / 4 | Complete; authorized adapters, chat, local clip fallback and real stream-end authority/capture exit verified |
-| P5 | [Live transcription and contradiction judging](PHASE-5-intelligence.md) | 0 / 4 | Not started |
+| P5 | [Live transcription and contradiction judging](PHASE-5-intelligence.md) | 0 / 4 | T5.1 audio lifecycle/transcription in progress |
 | P6 | [Live proof, operations and submission](PHASE-6-ship.md) | 0 / 4 | Not started |
 
 ## Dependency map

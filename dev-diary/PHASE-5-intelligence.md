@@ -2,7 +2,7 @@
 
 **Goal:** Replace recorded model/audio adapters with bounded OpenAI calls and measure the behavior.
 
-**Status:** not-started
+**Status:** in-progress (0/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -12,7 +12,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 requires: T0.3, T4.4, T1.1, TA.2
 fixture-ok: yes
 owns: internal/audio/, internal/transcribe/, testdata/audio/, testdata/models/
-status: not-started
+status: in-progress
 ```
 
 Use the selected source and current official OpenAI speech documentation. Choose and record a supported model and audio format. Timestamp chunks on the session clock, bound buffering, deduplicate overlaps and define partial/final segment handling. Only final attributed speech can support claims or stamps. With mixed broadcast audio, use an explicit supported attribution strategy or abstain; transcription alone does not identify the streamer. Stop and discard unsent buffers when the session stops.
@@ -78,3 +78,5 @@ Record task IDs, relevant revision, checks and artifact paths when work lands. N
 ### Notes for the next task
 
 Record unresolved blockers, contract changes and the next unblocked task.
+
+T5.1 is assigned to a Terra worktree from `b0db9d2`. The principal thread tracks source timing, attribution, lifecycle cancellation, durable budget settlement and production composition through review. Recorded/offline verification is separate from the required bounded paid-provider acceptance; no live transcription result is claimed during implementation.
