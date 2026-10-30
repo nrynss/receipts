@@ -21,6 +21,10 @@ type SessionEvent struct {
 	State              string              `json:"state,omitempty"`
 	ReservationNanoUSD int64               `json:"reservation_nano_usd,omitempty"`
 	Kind               string              `json:"kind"`
+	Model              string              `json:"model,omitempty"`
+	Choice             string              `json:"choice,omitempty"`
+	Confidence         *float64            `json:"confidence,omitempty"`
+	Probabilities      map[string]float64  `json:"probabilities,omitempty"`
 	RequestSHA256      string              `json:"request_sha256,omitempty"`
 	InputSHA256        string              `json:"input_sha256"`
 	Extraction         commands.Extraction `json:"extraction,omitempty"`

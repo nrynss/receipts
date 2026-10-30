@@ -13,18 +13,19 @@ type Freeze struct {
 }
 
 type SessionBundle struct {
-	Requested      int                   `json:"requested,omitempty"`
-	BudgetNanoUSD  int64                 `json:"budget_nano_usd,omitempty"`
-	RunStatus      string                `json:"run_status,omitempty"`
-	FreezeSHA256   string                `json:"freeze_sha256,omitempty"`
-	CorpusKind     string                `json:"corpus_kind"`
-	DatasetSHA256  string                `json:"dataset_sha256"`
-	Split          string                `json:"split"`
-	Provenance     string                `json:"provenance"`
-	JudgeModel     string                `json:"judge_model"`
-	EmbeddingModel string                `json:"embedding_model"`
-	SourceHashes   map[string]string     `json:"source_hashes"`
-	Sessions       []SessionRecordedCase `json:"sessions"`
+	Requested        int                   `json:"requested,omitempty"`
+	BudgetNanoUSD    int64                 `json:"budget_nano_usd,omitempty"`
+	RunStatus        string                `json:"run_status,omitempty"`
+	FreezeSHA256     string                `json:"freeze_sha256,omitempty"`
+	CorpusKind       string                `json:"corpus_kind"`
+	DatasetSHA256    string                `json:"dataset_sha256"`
+	Split            string                `json:"split"`
+	Provenance       string                `json:"provenance"`
+	JudgeModel       string                `json:"judge_model"`
+	ComparisonModels map[string]string     `json:"comparison_models,omitempty"`
+	EmbeddingModel   string                `json:"embedding_model"`
+	SourceHashes     map[string]string     `json:"source_hashes"`
+	Sessions         []SessionRecordedCase `json:"sessions"`
 }
 type SessionRecordedCase struct {
 	LedgerDirectories []string      `json:"ledger_directories,omitempty"`

@@ -1,0 +1,1543 @@
+{
+  "protocol": "decisions-choice-threshold-v1",
+  "dataset_sha256": "d8f11499801ed93d96a975069bec8d5ad5bb3a232822820e1bb7b22492f049fa",
+  "review_sha256": "8fcc38d792abfc0c5e5315689dcb2eb8685d8e748c99380b968dbadadf66acdc",
+  "checkpoint_sha256": "079007fe727b3eb60eb5f64dde337da687b32a27db343525a8231ff579aed118",
+  "split": "dev",
+  "run_status": "complete",
+  "models": {
+    "decisions_judge": "gpt-6-luna",
+    "decisions_sensitivity": "gpt-6-luna",
+    "legacy_judge": "gpt-4o-mini-2024-07-18",
+    "legacy_sensitivity": "gpt-4o-mini-2024-07-18"
+  },
+  "source_hashes": {
+    "bundle_schema": "9dec965c26c5aebef10bda883aee51f92a6b1dc392140276810c1bc2bad0bbd1",
+    "checkpoint": "425faf7d17c23475f7522f75b3440b426e3b22786d6aa1edf636e2635afebf53",
+    "comparison": "d939a1d834c4c8836d59781f152d8019d7792bc2b20c2528d34b310d17b17738",
+    "decisions_judge": "65f0060dc2608c47037dedb357bb2e542cf43900197a08eed441b80b27b24ae8",
+    "decisions_sensitivity": "b3b04438f66eb310d03ca9adb97ba53f59bc16fdc67e432f35fa581f70e55069",
+    "legacy_judge": "1866a57ad57c094dfc4ccc2079ce6b56941a8dc771a3db0ea6ab969d44134762",
+    "legacy_sensitivity": "fa58a517e6d0cb445892946e19cc0661886fb7d5d79670c3f4cf11c250499e27",
+    "legacy_sensitivity_impl": "894edb61d9356b2f563eadb44cfb16a94052788b1f55804730163b352ec63424",
+    "live_runner": "a496b854db74564098c6c03b1d253d637ea1c55313129cf7133091c7e4096fc3",
+    "trace_schema": "c45177d456150109c9cf89feaa489fe094746bb564f6971f6116b8e6007fde60",
+    "usage": "8a7514b33edf0a5f8763a89099d31e50d7a2ef260738eb3b794fa643c61c7a4e"
+  },
+  "scorer_source_sha256": "4502eab328366b812c4d2487fb0615408b4cdfaedc31a4afc2cbd5e9ad2df86b",
+  "post_collection_audit": true,
+  "automatic_stamps_enabled": false,
+  "threshold_sweep": [
+    {
+      "threshold": {
+        "min_confidence": 0,
+        "min_probability": 0
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 8,
+      "correct_stamps": 5,
+      "false_stamps": 3,
+      "abstentions": 21,
+      "precision": 0.625,
+      "recall": 0.4166666666666667,
+      "false_stamp_rate": 0.13636363636363635,
+      "abstention_rate": 0.6176470588235294,
+      "false_stamp_ids": [
+        "P0-015",
+        "P0-021",
+        "P0-024"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0,
+        "min_probability": 0.5
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 8,
+      "correct_stamps": 5,
+      "false_stamps": 3,
+      "abstentions": 21,
+      "precision": 0.625,
+      "recall": 0.4166666666666667,
+      "false_stamp_rate": 0.13636363636363635,
+      "abstention_rate": 0.6176470588235294,
+      "false_stamp_ids": [
+        "P0-015",
+        "P0-021",
+        "P0-024"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0,
+        "min_probability": 0.6
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 4,
+      "correct_stamps": 2,
+      "false_stamps": 2,
+      "abstentions": 26,
+      "precision": 0.5,
+      "recall": 0.16666666666666666,
+      "false_stamp_rate": 0.09090909090909091,
+      "abstention_rate": 0.7647058823529411,
+      "false_stamp_ids": [
+        "P0-015",
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0,
+        "min_probability": 0.7
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 3,
+      "correct_stamps": 2,
+      "false_stamps": 1,
+      "abstentions": 29,
+      "precision": 0.6666666666666666,
+      "recall": 0.16666666666666666,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.8529411764705882,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0,
+        "min_probability": 0.8
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 1,
+      "correct_stamps": 0,
+      "false_stamps": 1,
+      "abstentions": 31,
+      "precision": 0,
+      "recall": 0,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.9117647058823529,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0,
+        "min_probability": 0.9
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0,
+        "min_probability": 1
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.5,
+        "min_probability": 0
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 3,
+      "correct_stamps": 2,
+      "false_stamps": 1,
+      "abstentions": 28,
+      "precision": 0.6666666666666666,
+      "recall": 0.16666666666666666,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.8235294117647058,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.5,
+        "min_probability": 0.5
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 3,
+      "correct_stamps": 2,
+      "false_stamps": 1,
+      "abstentions": 28,
+      "precision": 0.6666666666666666,
+      "recall": 0.16666666666666666,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.8235294117647058,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.5,
+        "min_probability": 0.6
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 3,
+      "correct_stamps": 2,
+      "false_stamps": 1,
+      "abstentions": 28,
+      "precision": 0.6666666666666666,
+      "recall": 0.16666666666666666,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.8235294117647058,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.5,
+        "min_probability": 0.7
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 3,
+      "correct_stamps": 2,
+      "false_stamps": 1,
+      "abstentions": 29,
+      "precision": 0.6666666666666666,
+      "recall": 0.16666666666666666,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.8529411764705882,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.5,
+        "min_probability": 0.8
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 1,
+      "correct_stamps": 0,
+      "false_stamps": 1,
+      "abstentions": 31,
+      "precision": 0,
+      "recall": 0,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.9117647058823529,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.5,
+        "min_probability": 0.9
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.5,
+        "min_probability": 1
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.6,
+        "min_probability": 0
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 3,
+      "correct_stamps": 2,
+      "false_stamps": 1,
+      "abstentions": 29,
+      "precision": 0.6666666666666666,
+      "recall": 0.16666666666666666,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.8529411764705882,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.6,
+        "min_probability": 0.5
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 3,
+      "correct_stamps": 2,
+      "false_stamps": 1,
+      "abstentions": 29,
+      "precision": 0.6666666666666666,
+      "recall": 0.16666666666666666,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.8529411764705882,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.6,
+        "min_probability": 0.6
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 3,
+      "correct_stamps": 2,
+      "false_stamps": 1,
+      "abstentions": 29,
+      "precision": 0.6666666666666666,
+      "recall": 0.16666666666666666,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.8529411764705882,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.6,
+        "min_probability": 0.7
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 3,
+      "correct_stamps": 2,
+      "false_stamps": 1,
+      "abstentions": 29,
+      "precision": 0.6666666666666666,
+      "recall": 0.16666666666666666,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.8529411764705882,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.6,
+        "min_probability": 0.8
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 1,
+      "correct_stamps": 0,
+      "false_stamps": 1,
+      "abstentions": 31,
+      "precision": 0,
+      "recall": 0,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.9117647058823529,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.6,
+        "min_probability": 0.9
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.6,
+        "min_probability": 1
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.7,
+        "min_probability": 0
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 1,
+      "correct_stamps": 0,
+      "false_stamps": 1,
+      "abstentions": 31,
+      "precision": 0,
+      "recall": 0,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.9117647058823529,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.7,
+        "min_probability": 0.5
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 1,
+      "correct_stamps": 0,
+      "false_stamps": 1,
+      "abstentions": 31,
+      "precision": 0,
+      "recall": 0,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.9117647058823529,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.7,
+        "min_probability": 0.6
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 1,
+      "correct_stamps": 0,
+      "false_stamps": 1,
+      "abstentions": 31,
+      "precision": 0,
+      "recall": 0,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.9117647058823529,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.7,
+        "min_probability": 0.7
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 1,
+      "correct_stamps": 0,
+      "false_stamps": 1,
+      "abstentions": 31,
+      "precision": 0,
+      "recall": 0,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.9117647058823529,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.7,
+        "min_probability": 0.8
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 1,
+      "correct_stamps": 0,
+      "false_stamps": 1,
+      "abstentions": 31,
+      "precision": 0,
+      "recall": 0,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.9117647058823529,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.7,
+        "min_probability": 0.9
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.7,
+        "min_probability": 1
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.8,
+        "min_probability": 0
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 1,
+      "correct_stamps": 0,
+      "false_stamps": 1,
+      "abstentions": 33,
+      "precision": 0,
+      "recall": 0,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.9705882352941176,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.8,
+        "min_probability": 0.5
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 1,
+      "correct_stamps": 0,
+      "false_stamps": 1,
+      "abstentions": 33,
+      "precision": 0,
+      "recall": 0,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.9705882352941176,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.8,
+        "min_probability": 0.6
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 1,
+      "correct_stamps": 0,
+      "false_stamps": 1,
+      "abstentions": 33,
+      "precision": 0,
+      "recall": 0,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.9705882352941176,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.8,
+        "min_probability": 0.7
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 1,
+      "correct_stamps": 0,
+      "false_stamps": 1,
+      "abstentions": 33,
+      "precision": 0,
+      "recall": 0,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.9705882352941176,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.8,
+        "min_probability": 0.8
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 1,
+      "correct_stamps": 0,
+      "false_stamps": 1,
+      "abstentions": 33,
+      "precision": 0,
+      "recall": 0,
+      "false_stamp_rate": 0.045454545454545456,
+      "abstention_rate": 0.9705882352941176,
+      "false_stamp_ids": [
+        "P0-021"
+      ]
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.8,
+        "min_probability": 0.9
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.8,
+        "min_probability": 1
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.9,
+        "min_probability": 0
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.9,
+        "min_probability": 0.5
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.9,
+        "min_probability": 0.6
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.9,
+        "min_probability": 0.7
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.9,
+        "min_probability": 0.8
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.9,
+        "min_probability": 0.9
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 0.9,
+        "min_probability": 1
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 1,
+        "min_probability": 0
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 1,
+        "min_probability": 0.5
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 1,
+        "min_probability": 0.6
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 1,
+        "min_probability": 0.7
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 1,
+        "min_probability": 0.8
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 1,
+        "min_probability": 0.9
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    },
+    {
+      "threshold": {
+        "min_confidence": 1,
+        "min_probability": 1
+      },
+      "total": 34,
+      "eligible_positive": 12,
+      "negative_labels": 22,
+      "stamps": 0,
+      "correct_stamps": 0,
+      "false_stamps": 0,
+      "abstentions": 34,
+      "precision": null,
+      "recall": 0,
+      "false_stamp_rate": 0,
+      "abstention_rate": 1,
+      "false_stamp_ids": []
+    }
+  ],
+  "selected": {
+    "threshold": {
+      "min_confidence": 0.6,
+      "min_probability": 0.6
+    },
+    "total": 34,
+    "eligible_positive": 12,
+    "negative_labels": 22,
+    "stamps": 3,
+    "correct_stamps": 2,
+    "false_stamps": 1,
+    "abstentions": 29,
+    "precision": 0.6666666666666666,
+    "recall": 0.16666666666666666,
+    "false_stamp_rate": 0.045454545454545456,
+    "abstention_rate": 0.8529411764705882,
+    "false_stamp_ids": [
+      "P0-021"
+    ]
+  },
+  "inspections": [
+    {
+      "id": "P0-001",
+      "claim": "I promise I will never pick the blue map again.",
+      "later": "Fine, I will pick the blue map again.",
+      "label": "contradiction",
+      "expected": "stamp",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "unsure",
+      "sensitivity_later_choice": "unsure",
+      "sensitivity_confidence": [
+        0.51,
+        0.34
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-002",
+      "claim": "I will use the shield before entering the cave.",
+      "later": "I used the shield before entering the cave.",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "quiet",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.76,
+        0.77
+      ],
+      "verdict": "does_not_contradict",
+      "confidence": 0.97,
+      "probabilities": {
+        "contradicts": 0.01,
+        "does_not_contradict": 0.98,
+        "unsure": 0.01
+      },
+      "false_stamp": false
+    },
+    {
+      "id": "P0-003",
+      "claim": "I will never play this level again.",
+      "later": "This level is cursed.",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "unsure",
+      "sensitivity_later_choice": "unsure",
+      "sensitivity_confidence": [
+        0.28,
+        0.43
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-004",
+      "claim": "I promise I will finish one more round.",
+      "later": "I am not finishing another round tonight.",
+      "label": "review",
+      "expected": "review",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "unsure",
+      "sensitivity_later_choice": "sensitive",
+      "sensitivity_confidence": [
+        0.48,
+        0.4
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-005",
+      "claim": "I will never use the red door.",
+      "later": "I did not use the red door.",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "unsure",
+      "sensitivity_confidence": [
+        0.28,
+        0.31
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-006",
+      "claim": "I will play the final round.",
+      "later": "I might play the final round.",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "unsure",
+      "sensitivity_confidence": [
+        0.73,
+        0.38
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-007",
+      "claim": "I promise I will keep this save file.",
+      "later": "I deleted that save file.",
+      "label": "contradiction",
+      "expected": "stamp",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "unsure",
+      "sensitivity_confidence": [
+        0.31,
+        0.76
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-008",
+      "claim": "I will never buy another potion.",
+      "later": "I bought a potion for my teammate.",
+      "label": "contradiction",
+      "expected": "stamp",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "unsure",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.51,
+        0.82
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-009",
+      "claim": "I will finish this quest tonight.",
+      "later": "I finished this quest tonight.",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "unsure",
+      "sensitivity_confidence": [
+        0.33,
+        0.38
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-010",
+      "claim": "I promise I will not skip the tutorial.",
+      "later": "I skipped the tutorial.",
+      "label": "contradiction",
+      "expected": "stamp",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.85,
+        0.3
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-011",
+      "claim": "I will never equip the heavy boots.",
+      "later": "I equipped the light boots.",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "quiet",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.77,
+        1
+      ],
+      "verdict": "does_not_contradict",
+      "confidence": 0.97,
+      "probabilities": {
+        "contradicts": 0.01,
+        "does_not_contradict": 0.98,
+        "unsure": 0.01
+      },
+      "false_stamp": false
+    },
+    {
+      "id": "P0-012",
+      "claim": "I will always open the chest first.",
+      "later": "I opened the chest last this time.",
+      "label": "contradiction",
+      "expected": "stamp",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.49,
+        0.34
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-013",
+      "claim": "I promise I will keep the volume low.",
+      "later": "I will not keep the volume low.",
+      "label": "contradiction",
+      "expected": "stamp",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "unsure",
+      "sensitivity_confidence": [
+        0.28,
+        0.19
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-014",
+      "claim": "I will never choose the forest route.",
+      "later": "I chose the forest route in that dream I had.",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "unsure",
+      "sensitivity_later_choice": "unsure",
+      "sensitivity_confidence": [
+        0.24,
+        0.42
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-015",
+      "claim": "I will sell the old lantern.",
+      "later": "I kept the old lantern.",
+      "label": "review",
+      "expected": "review",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.94,
+        0.49
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-016",
+      "claim": "I will not restart this run.",
+      "later": "I did not restart this run.",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "unsure",
+      "sensitivity_confidence": [
+        0.13,
+        0.56
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-017",
+      "claim": "I promise I will never craft a silver key.",
+      "later": "I crafted a silver key.",
+      "label": "contradiction",
+      "expected": "stamp",
+      "outcome": "stamp",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.63,
+        0.97
+      ],
+      "verdict": "contradicts",
+      "confidence": 0.91,
+      "probabilities": {
+        "contradicts": 0.94,
+        "does_not_contradict": 0.04,
+        "unsure": 0.02
+      },
+      "false_stamp": false
+    },
+    {
+      "id": "P0-018",
+      "claim": "I will use the north path.",
+      "later": "I used the east path instead.",
+      "label": "contradiction",
+      "expected": "stamp",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "unsure",
+      "sensitivity_confidence": [
+        0.82,
+        0.35
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-019",
+      "claim": "I will never pick the blue map again.",
+      "later": "I picked the blue map because the event changed the rules.",
+      "label": "review",
+      "expected": "review",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "unsure",
+      "sensitivity_later_choice": "unsure",
+      "sensitivity_confidence": [
+        0.7,
+        0.79
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-020",
+      "claim": "I promise I will not mention the ending.",
+      "later": "I will not mention the ending.",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.51,
+        0.58
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-021",
+      "claim": "I will never use the ice spell.",
+      "later": "I used the ice spell once to escape a trap.",
+      "label": "review",
+      "expected": "review",
+      "outcome": "stamp",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.97,
+        0.83
+      ],
+      "verdict": "contradicts",
+      "confidence": 1,
+      "probabilities": {
+        "contradicts": 1,
+        "does_not_contradict": 0,
+        "unsure": 0
+      },
+      "false_stamp": true
+    },
+    {
+      "id": "P0-022",
+      "claim": "I will keep every item I find.",
+      "later": "I dropped one item to make room.",
+      "label": "contradiction",
+      "expected": "stamp",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "unsure",
+      "sensitivity_later_choice": "unsure",
+      "sensitivity_confidence": [
+        0.4,
+        0.07
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-023",
+      "claim": "I will not take the shortcut.",
+      "later": "I did not take the shortcut.",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.34,
+        0.45
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-024",
+      "claim": "I promise I will play another round.",
+      "later": "I am done playing for tonight.",
+      "label": "review",
+      "expected": "review",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.48,
+        0.6
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-025",
+      "claim": "I will never use the blue map.",
+      "later": "My friend said, ‘I will use the blue map.’",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "review",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.72,
+        0.99
+      ],
+      "verdict": "unsure",
+      "confidence": 0.45,
+      "probabilities": {
+        "contradicts": 0.04,
+        "does_not_contradict": 0.33,
+        "unsure": 0.63
+      },
+      "false_stamp": false
+    },
+    {
+      "id": "P0-026",
+      "claim": "I will always wait for the team.",
+      "later": "I waited for the team.",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "unsure",
+      "sensitivity_later_choice": "unsure",
+      "sensitivity_confidence": [
+        0.28,
+        0.66
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-027",
+      "claim": "I will never spend my tokens.",
+      "later": "I spent ten tokens on a cosmetic.",
+      "label": "contradiction",
+      "expected": "stamp",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.76,
+        0.27
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-028",
+      "claim": "I promise I will not skip this scene.",
+      "later": "I skipped this scene after the stream paused.",
+      "label": "contradiction",
+      "expected": "stamp",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "unsure",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.69,
+        0.76
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-029",
+      "claim": "I will never pick the blue map again.",
+      "later": "I will never pick the blue map again.",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "unsure",
+      "sensitivity_later_choice": "unsure",
+      "sensitivity_confidence": [
+        0.7,
+        0.7
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-030",
+      "claim": "I will always bring a lantern.",
+      "later": "I forgot my lantern today.",
+      "label": "contradiction",
+      "expected": "stamp",
+      "outcome": "stamp",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.83,
+        0.96
+      ],
+      "verdict": "contradicts",
+      "confidence": 0.67,
+      "probabilities": {
+        "contradicts": 0.78,
+        "does_not_contradict": 0.16,
+        "unsure": 0.06
+      },
+      "false_stamp": false
+    },
+    {
+      "id": "P0-041",
+      "claim": "I promise I will never discuss my diagnosis on stream.",
+      "later": "I am going to discuss my diagnosis now.",
+      "label": "suppress",
+      "expected": "quiet",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "sensitive",
+      "sensitivity_later_choice": "sensitive",
+      "sensitivity_confidence": [
+        0.97,
+        0.93
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-042",
+      "claim": "I promise I will never talk about my family argument here.",
+      "later": "I am going to explain that family argument.",
+      "label": "suppress",
+      "expected": "quiet",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "sensitive",
+      "sensitivity_later_choice": "sensitive",
+      "sensitivity_confidence": [
+        0.93,
+        0.85
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-043",
+      "claim": "An unidentified voice says: I promise I will never choose the stone bridge.",
+      "later": "I chose the stone bridge.",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.66,
+        0.46
+      ],
+      "false_stamp": false
+    },
+    {
+      "id": "P0-044",
+      "claim": "I promise I will never open the wooden chest.",
+      "later": "A guest says: I opened the wooden chest.",
+      "label": "no_contradiction",
+      "expected": "quiet",
+      "outcome": "suppressed",
+      "sensitivity_claim_choice": "not_sensitive",
+      "sensitivity_later_choice": "not_sensitive",
+      "sensitivity_confidence": [
+        0.45,
+        0.94
+      ],
+      "false_stamp": false
+    }
+  ]
+}

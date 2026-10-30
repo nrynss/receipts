@@ -123,3 +123,35 @@ func TestExtractionRequestSpecifiesEligibleTopic(t *testing.T) {
 		t.Fatalf("claim=%+v err=%v", got, err)
 	}
 }
+
+func TestLunaExtractionUsesExistingStructuredSchemaAndUsageMeter(t *testing.T) {
+	var gotUsage cost.Usage
+	ctx := providerusage.WithCollector(context.Background(), func(u cost.Usage) { gotUsage = u })
+	client := Client{APIKey: "test", Model: LunaModel, HTTP: &http.Client{Transport: roundTrip(func(r *http.Request) (*http.Response, error) {
+		var request struct {
+			Model          string `json:"model"`
+			ResponseFormat struct {
+				Type       string `json:"type"`
+				JSONSchema struct {
+					Strict bool           `json:"strict"`
+					Schema map[string]any `json:"schema"`
+				} `json:"json_schema"`
+			} `json:"response_format"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		if request.Model != LunaModel || request.ResponseFormat.Type != "json_schema" || !request.ResponseFormat.JSONSchema.Strict || request.ResponseFormat.JSONSchema.Schema["additionalProperties"] != false {
+			t.Fatalf("request model/schema mismatch: %+v", request)
+		}
+		body := `{"model":"gpt-6-luna","service_tier":"default","usage":{"prompt_tokens":100,"completion_tokens":10,"total_tokens":110},"choices":[{"finish_reason":"stop","message":{"content":"{\"eligible\":true,\"claim\":\"I will keep this route.\",\"source_id\":\"s\",\"topic\":\"promise\",\"sensitive\":false}"}}]}`
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})}}
+	got, err := client.Extract(ctx, []receipt.Segment{{ID: "s", Text: "I will keep this route.", Attribution: "broadcaster", End: time.Second}})
+	if err != nil || got.Claim != "I will keep this route." {
+		t.Fatalf("claim=%+v err=%v", got, err)
+	}
+	if !gotUsage.Measured || gotUsage.Price != 15000 {
+		t.Fatalf("usage=%+v", gotUsage)
+	}
+}

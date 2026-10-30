@@ -28,14 +28,39 @@ func Chat(ctx context.Context, raw []byte) {
 			Total      *int64 `json:"total_tokens"`
 		} `json:"usage"`
 	}
-	if json.Unmarshal(raw, &e) != nil || e.Model != "gpt-4o-mini-2024-07-18" || e.ServiceTier != "default" || e.Usage == nil || e.Usage.Prompt == nil || e.Usage.Completion == nil || e.Usage.Total == nil {
+	if json.Unmarshal(raw, &e) != nil || (e.Model != "gpt-4o-mini-2024-07-18" && e.Model != "gpt-6-luna") || e.ServiceTier != "default" || e.Usage == nil || e.Usage.Prompt == nil || e.Usage.Completion == nil || e.Usage.Total == nil {
 		return
 	}
 	p, c, t := *e.Usage.Prompt, *e.Usage.Completion, *e.Usage.Total
-	if p <= 0 || c < 0 || p > 128000 || c > 512 || t != p+c || p > math.MaxInt64/150 || c > math.MaxInt64/600 {
+	inputRate, outputRate := int64(150), int64(600)
+	if e.Model == "gpt-6-luna" {
+		inputRate, outputRate = 100, 500
+	}
+	if p <= 0 || c < 0 || p > 128000 || c > 512 || t != p+c || p > math.MaxInt64/inputRate || c > math.MaxInt64/outputRate {
 		return
 	}
-	report(ctx, cost.Price(p*150+c*600))
+	report(ctx, cost.Price(p*inputRate+c*outputRate))
+}
+
+// Decisions reports measured GPT-6 Luna decision usage. This endpoint bills
+// input tokens only; output tokens are exposed for diagnostics but uncharged.
+func Decisions(ctx context.Context, raw []byte) {
+	var e struct {
+		Model string `json:"model"`
+		Usage *struct {
+			Input  *int64 `json:"input_tokens"`
+			Output *int64 `json:"output_tokens"`
+			Total  *int64 `json:"total_tokens"`
+		} `json:"usage"`
+	}
+	if json.Unmarshal(raw, &e) != nil || e.Model != "gpt-6-luna" || e.Usage == nil || e.Usage.Input == nil || e.Usage.Output == nil || e.Usage.Total == nil {
+		return
+	}
+	i, o, t := *e.Usage.Input, *e.Usage.Output, *e.Usage.Total
+	if i <= 0 || o < 0 || i > 128000 || o > 128000 || i > math.MaxInt64-o || t != i+o || i > math.MaxInt64/100 {
+		return
+	}
+	report(ctx, cost.Price(i*100))
 }
 func Embedding(ctx context.Context, raw []byte) {
 	var e struct {
