@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
   import { getControl, createActions } from '$lib/control/client';
+  import { fixtureFetch } from '$lib/control/fixture';
+  let request: typeof fetch = fetch;
   import type { OverlaySnapshot, ReviewItem, Health } from '$lib/api/contracts';
   let statusValue = $state('unavailable');
   let canStart = $state(false);
@@ -13,11 +15,12 @@
   let message = $state('');
   let reason = $state('');
   let voidID = $state('');
-  const actions = createActions(fetch, () => document.cookie);
+  let actions: ReturnType<typeof createActions>;
   let listening = $derived(statusValue === 'listening' || statusValue === 'paused');
   async function load() {
     try {
-      const data = await getControl(fetch);
+      const data = await getControl(request);
+      actions.setScope(data.owner.id, data.owner.channel_id);
       statusValue = data.state.state; canStart = data.state.can_start === true;
       snapshot = data.snapshot; reviews = data.reviews; health = data.health; available = data.runtimeAvailable;
     } catch (error) { message = error instanceof Error ? error.message : 'Controls unavailable.'; }
@@ -34,10 +37,11 @@
     if (decision === 'context_changed' && !reason.trim()) { message = 'Enter a reason for the change in context.'; return; }
     void act('/api/control/decision', { receipt_id: snapshot.current_stamp.id, receipt_decision: decision, ...(decision === 'context_changed' ? { note: reason.trim() } : {}) }, true);
   }
-  onMount(() => { void load(); });
+  onMount(() => { if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('fixture') === 'dock') request = fixtureFetch(); actions = createActions(request, () => document.cookie, undefined, sessionStorage); void load(); });
 </script>
 <svelte:head><title>Receipts control dock</title></svelte:head>
 <main>
+  {#if import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('fixture') === 'dock'}<p>Fixture rehearsal · no live actions</p>{/if}
   <header><div><p class="eyebrow">PRIVATE DOCK</p><h1>Receipts</h1></div><button onclick={() => load()} disabled={busy}>Refresh</button></header>
   <section aria-labelledby="status-heading"><h2 id="status-heading">Stream status</h2>
     <div class="status"><p><span>Live</span><strong>{health ? (health.live_confirmed ? 'Confirmed' : 'Not confirmed') : 'Unknown'}</strong></p><p><span>Audio</span><strong>{listening ? 'Listening' : statusValue === 'not_listening' ? 'Not listening' : statusValue.replaceAll('_', ' ')}</strong></p><p><span>Stamps</span><strong>{listening ? (statusValue === 'paused' ? 'Paused' : 'On') : 'Unavailable'}</strong></p></div>
@@ -56,6 +60,7 @@
     {#each reviews as item (item.id)}<article><p class="claim">{item.claim}</p><p>{item.reason}</p><div class="actions"><button disabled={busy} onclick={() => act('/api/control/review', { review_id: item.id, decision: 'approve' }, true)}>Approve</button><button disabled={busy} onclick={() => act('/api/control/review', { review_id: item.id, decision: 'reject' }, true)}>Reject</button></div></article>{:else}<p class="muted">{available ? 'No items to review.' : 'Review is unavailable while the runtime is inactive.'}</p>{/each}
   </section>
   <section aria-labelledby="void-heading"><h2 id="void-heading">Void a receipt</h2><form onsubmit={(event) => { event.preventDefault(); void act('/api/control/void', { receipt_id: voidID.trim() }); }}><label for="void-id">Receipt ID</label><input id="void-id" bind:value={voidID} required disabled={busy} /><button disabled={busy || !voidID.trim()}>Void receipt</button></form></section>
+  <p class="muted">If an answer fails, retry the same choice and reason. The retry identity survives a refresh in this tab.</p>
   <p role="status" aria-live="polite">{busy ? 'Applying action…' : message}</p><p><a href={resolve("/account")}>Account setup</a></p>
 </main>
 <style>
