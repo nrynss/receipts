@@ -15,7 +15,15 @@
 - `GOCACHE=/tmp/receipts-go-cache go test -race -count=1 ./internal/twitch/clips ./internal/store ./internal/commands` passes.
 - Read-only live readiness evidence for the existing authorized test clip is recorded in `docs/evidence/t43-live-readiness.json`. No clip was created during this work.
 
-## Acceptance still open
+## Local OBS playback acceptance
 
-- Playback from a deployed origin, OBS scene routing and end-to-end audio routing remain unverified. No deployed-origin proof is claimed. T4.4 activation remains disabled pending its own verification.
+- The current production `/obs` page uses the paired-device routes and the overlay displays a saved claim alongside any clip iframe. A clip embed is click-to-play (`autoplay=false`); its status says only that the frame loaded and asks the OBS operator to verify playback, since cross-origin state cannot prove video or audio.
+- Pending, unavailable, invalid URL, iframe error and iframe timeout keep the exact saved claim visible. The copy says the clip may omit words and transcript evidence remains authoritative.
+- `web/src/lib/overlay/testing/overlay-checks.ts` covers fallback text, iframe error/timeout, retained claim, click-to-play configuration and the distinction between iframe load and playback.
+- Historical owner-confirmed OBS video/audio/autoplay checks for the earlier P0 probe are recorded in `docs/evidence/p0-twitch.json`. Those do not prove this current overlay path. Record the current production-overlay OBS rehearsal separately in `docs/evidence/t43-obs.json` after the owner checks the current synthetic source.
+
+## Remaining acceptance
+
+- Current `/obs` playback, routing to the intended OBS scene, and audio behavior require owner confirmation in actual OBS. Do not record a successful playback/audio result from an iframe load or a browser-only check.
+- Deployed-origin embed behavior remains T6.1/TA.4. Production feedback with capture remains T6.2 after T5.1. Do not infer transcript completeness from a clip that becomes ready later.
 - `attempts` is create-attempt count; `polls` is readiness-poll count. Consumers should not treat the former as a combined request count.

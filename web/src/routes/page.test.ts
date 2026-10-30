@@ -12,6 +12,6 @@ describe('overlay', () => {
       expect(body).toContain('long way around'); expect(body).toContain('@river');
       expect(body).not.toContain('review');
     }
-    expect(render(Overlay, { props: { display: fixture('evidence') } }).body).toContain('CLIP UNAVAILABLE');
+    expect(render(Overlay, { props: { display: fixture('evidence') } }).body).toContain('CLIP EMBED UNAVAILABLE');
   });
 });

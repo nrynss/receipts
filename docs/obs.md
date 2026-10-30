@@ -56,6 +56,27 @@ This local rehearsal verifies the real browser/source cookie flow without
 Twitch credentials or provider traffic. It does not establish hosted HTTPS,
 real-account onboarding or deployed OBS persistence; record those separately.
 
+## Current T4.3 clip playback check
+
+The T4.3 build also exercises the production `/obs` overlay with a synthetic
+saved claim and the existing authorized clip reference. The iframe uses
+`autoplay=false`; click Play in the embedded player. A loaded iframe means
+only that the embed document loaded, not that video or audio played. The
+overlay keeps the saved claim visible and says that the clip may omit words;
+transcript evidence remains authoritative.
+
+When the owner confirms the synthetic source is paired, add the printed
+`https://127.0.0.1:18082/obs` URL as the OBS Browser Source. Open the source
+properties and use **Refresh current page** if the embed has not appeared.
+Click Play and confirm video movement and audio in OBS. To avoid feedback,
+monitor through headphones at low volume and do not route the OBS monitor back
+into the capture device. Check the source is in the intended scene and that
+its audio meter moves; do not enable any microphone/capture feedback in this
+acceptance harness. If either player or audio is unavailable, the saved claim
+remains on screen. Record only what the owner actually observes in
+`docs/evidence/t43-obs.json`; this does not establish deployed-origin behavior
+or production audio capture.
+
 Account deletion removes active channel data and revokes local sessions. Backups may retain historical copies until the operator's configured
 backup retention expires; deletion does not rewrite existing backups. Operators
 must document their retention and restoration procedures before hosting.

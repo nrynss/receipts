@@ -1,0 +1,17 @@
+{
+  "environment": "loopback HTTPS, fresh synthetic account, production-built /obs route",
+  "origin": "https://127.0.0.1:18082",
+  "source_path": "/obs",
+  "provider_calls": 0,
+  "clip_creation_attempted": false,
+  "fresh_synthetic_database": true,
+  "saved_claim_visible_in_database": true,
+  "existing_clip_reference_attached": true,
+  "obs_pairing": "pending owner rehearsal",
+  "obs_video_verified": false,
+  "obs_audio_verified": false,
+  "obs_scene_routing_verified": false,
+  "playback_verified": false,
+  "deployed_origin_verified": false,
+  "result": "Production /obs route served successfully; actual OBS playback and audio remain pending owner confirmation"
+}
