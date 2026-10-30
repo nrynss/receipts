@@ -17,7 +17,7 @@ func (s *Store) ValidateDetectionSource(ctx context.Context, a DetectionAuthorit
 		return ErrNotEligible
 	}
 	var count int
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM transcript_segments t JOIN live_sessions l ON l.id=t.session_id JOIN accounts a ON a.channel_id=l.channel_id WHERE a.id=? AND a.status='connected' AND l.channel_id=? AND l.id=? AND l.state='live' AND l.ended_at IS NULL AND t.id=? AND t.start_ms=? AND t.end_ms=? AND t.text=? AND t.attribution='broadcaster' AND t.speaker_id=? AND l.started_at+t.end_ms<=?`, a.AccountID, a.ChannelID, a.LiveSessionID, source.ID, source.Start.Milliseconds(), source.End.Milliseconds(), source.Text, source.SpeakerID, millis(s.now())).Scan(&count)
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM transcript_segments t JOIN live_sessions l ON l.id=t.session_id JOIN accounts a ON a.channel_id=l.channel_id WHERE a.id=? AND a.status='connected' AND l.channel_id=? AND l.id=? AND l.state='live' AND l.ended_at IS NULL AND (l.runtime_generation=? OR (l.runtime_generation=0 AND l.broadcast_id='')) AND t.id=? AND t.start_ms=? AND t.end_ms=? AND t.text=? AND t.attribution='broadcaster' AND t.speaker_id=? AND l.started_at+t.end_ms<=?`, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation, source.ID, source.Start.Milliseconds(), source.End.Milliseconds(), source.Text, source.SpeakerID, millis(s.now())).Scan(&count)
 	if err != nil {
 		return err
 	}
