@@ -1,0 +1,6 @@
+{"version":1,"inputs":[
+ {"at":"2026-01-01T00:00:17Z","kind":"clip","clip":{"request_id":"event-chat-1","status":"failed","created_at":"2026-01-01T00:00:17Z"}},
+ {"at":"2026-01-01T00:00:20Z","kind":"transcript","transcript":{"id":"contradiction","session_id":"00000000000000000000000000000002","speaker_id":"broadcaster-1","attribution":"broadcaster","start_ns":17000000000,"end_ns":18000000000,"text":"Fine, I'll take the shortcut."}},
+ {"at":"2026-01-01T00:00:21Z","kind":"chat","chat":{"id":"vote-1","channel_id":"00000000000000000000000000000001","session_id":"00000000000000000000000000000002","user_id":"voter-1","login":"voter","role":"viewer","command":"!uphold","received_at":"2026-01-01T00:00:21Z"}},
+ {"at":"2026-01-01T00:01:21Z","kind":"chat","chat":{"id":"lore-1","channel_id":"00000000000000000000000000000001","session_id":"00000000000000000000000000000002","user_id":"viewer-2","login":"viewer","role":"viewer","command":"!lore","received_at":"2026-01-01T00:01:21Z"}}
+]}

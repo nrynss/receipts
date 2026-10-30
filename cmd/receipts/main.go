@@ -10,12 +10,14 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/nrynss/keel/cost"
 	"github.com/nrynss/keel/sqlite"
 	"receipts/internal/api"
 	"receipts/internal/auth"
+	"receipts/internal/demo"
 	channelruntime "receipts/internal/runtime"
 	"receipts/internal/settings"
 	"receipts/internal/store"
@@ -63,7 +65,13 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 	if _, err := fs.Stat(static, "index.html"); err != nil {
 		return fmt.Errorf("overlay is not built; run ./tools/build-web.sh before building receipts")
 	}
-	var handler http.Handler = http.FileServer(http.FS(static))
+	demoServer := demo.New("", 64)
+	defer demoServer.Close()
+	mux := http.NewServeMux()
+	mux.Handle("/demo/api/", demoServer)
+	assets := http.FileServer(http.FS(static))
+	mux.Handle("/", staticFallback(static, assets))
+	var handler http.Handler = mux
 	if cfg.AuthEnabled {
 		clientSecret, err := cfg.TwitchClientSecret.Reveal()
 		if err != nil {
@@ -122,6 +130,7 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 			<-maintenanceDone
 		}()
 		mux := http.NewServeMux()
+		mux.Handle("/demo/api/", demoServer)
 		mux.Handle("/auth/", authService.Handler())
 		adapter := &connection.Adapter{Runtime: supervisor, Resolver: connection.ServiceResolverFunc{Service: authService}, Tokens: authService, LossHandler: authService}
 		mux.Handle("/account-api/", api.AccountHandlerWithBackend(authService, supervisor, authService.DisconnectProviderAuthorization, budgets, listeningObservation{adapter: adapter}))
@@ -129,10 +138,30 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 			OwnerReader:   api.LedgerReader{Store: ledger, Mode: string(cfg.Mode)},
 			OwnerControls: api.LedgerControls{Store: ledger, Runtime: supervisor, AppealDuration: cfg.AppealDuration, StampCooldown: cfg.StampCooldown},
 		}, authService, supervisor))
-		mux.Handle("/", http.FileServer(http.FS(static)))
+		assets := http.FileServer(http.FS(static))
+		mux.Handle("/", staticFallback(static, assets))
 		handler = mux
 	}
 	return serve(cfg.HTTPAddress, handler)
+}
+
+// staticFallback serves generated Svelte assets directly and uses adapter-static's
+// SPA fallback page for app routes such as /demo/ that have no emitted file.
+func staticFallback(static fs.FS, assets http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := path.Clean(strings.TrimPrefix(r.URL.Path, "/"))
+		if name != "" {
+			if _, err := fs.Stat(static, name); err == nil {
+				assets.ServeHTTP(w, r)
+				return
+			}
+		}
+		fallback := r.Clone(r.Context())
+		urlCopy := *r.URL
+		urlCopy.Path = "/"
+		fallback.URL = &urlCopy
+		assets.ServeHTTP(w, fallback)
+	})
 }
 
 func usdPrice(value float64) (cost.Price, error) {

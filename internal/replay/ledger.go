@@ -47,6 +47,14 @@ func OpenLedger(ctx context.Context, path string, clock *Clock) (*Ledger, error)
 
 func (l *Ledger) Close() error { return l.db.Close() }
 
+// SeedOwnerAccount creates the inert account row required by recorded
+// detection acceptance. It stores no provider credential and cannot activate
+// a provider adapter.
+func (l *Ledger) SeedOwnerAccount(ctx context.Context) error {
+	_, err := l.db.Writer().ExecContext(ctx, `INSERT INTO accounts(id,provider,provider_subject,login,channel_id,token_ciphertext,token_expires_at,scopes,status,updated_at) VALUES('fixture-owner','twitch','fixture-subject','fixture',?,X'00',0,'','connected',0)`, l.Channel.ID)
+	return err
+}
+
 // TranscriptSink adapts recorded transcript inputs to the actual durable
 // ledger. Session IDs are validated, never rewritten or inferred.
 type TranscriptSink struct{ Ledger *Ledger }

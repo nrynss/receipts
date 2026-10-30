@@ -77,6 +77,18 @@ func TestFixtureStartupNeedsNoCredentials(t *testing.T) {
 		if response.Code != http.StatusOK {
 			t.Errorf("fixture server root status = %d", response.Code)
 		}
+		demoPage := httptest.NewRecorder()
+		handler.ServeHTTP(demoPage, httptest.NewRequest(http.MethodGet, "/demo/", nil))
+		if demoPage.Code != http.StatusOK || !strings.Contains(demoPage.Body.String(), "RECORDED DEMO") {
+			t.Errorf("anonymous demo page = %d", demoPage.Code)
+		}
+		demoReplay := httptest.NewRecorder()
+		demoRequest := httptest.NewRequest(http.MethodPost, "/demo/api/replay", nil)
+		demoRequest.Header.Set("Origin", "http://"+demoRequest.Host)
+		handler.ServeHTTP(demoReplay, demoRequest)
+		if demoReplay.Code != http.StatusOK || !strings.Contains(demoReplay.Body.String(), `"verdict":"upheld"`) {
+			t.Errorf("anonymous demo replay = %d: %s", demoReplay.Code, demoReplay.Body.String())
+		}
 		return want
 	})
 	if !errors.Is(err, want) {

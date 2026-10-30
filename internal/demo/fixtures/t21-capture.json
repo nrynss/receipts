@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "inputs": [
+    {
+      "at": "2026-01-01T00:00:10Z",
+      "kind": "transcript",
+      "transcript": {
+        "id": "segment-receipt-1",
+        "session_id": "00000000000000000000000000000002",
+        "speaker_id": "broadcaster-1",
+        "attribution": "broadcaster",
+        "start_ns": 4000000000,
+        "end_ns": 7000000000,
+        "text": "I will never take that shortcut again."
+      }
+    },
+    {
+      "at": "2026-01-01T00:00:16Z",
+      "kind": "chat",
+      "chat": {
+        "id": "event-chat-1",
+        "channel_id": "untrusted-channel-1",
+        "session_id": "untrusted-session-1",
+        "user_id": "viewer-7",
+        "login": "regular",
+        "role": "viewer",
+        "command": "!receipt",
+        "arguments": "",
+        "received_at": "2026-01-01T00:00:16Z"
+      }
+    }
+  ]
+}
