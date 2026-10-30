@@ -1,0 +1,16 @@
+{
+  "channel": "nrynss",
+  "probe": "TestLiveClipReadiness",
+  "token_validation": true,
+  "client_and_broadcaster_match": true,
+  "clip_id": "FairMagnificentTofuAsianGlow-AuW2QKA-Y7u4bdL_",
+  "clip_source_url": "https://www.twitch.tv/nrynss/clip/FairMagnificentTofuAsianGlow-AuW2QKA-Y7u4bdL_",
+  "clip_broadcaster_id_match": true,
+  "clip_ready": true,
+  "canonical_embed_url": "https://clips.twitch.tv/FairMagnificentTofuAsianGlow-AuW2QKA-Y7u4bdL_",
+  "twitch_requests": 2,
+  "clip_creation_attempted": false,
+  "chat_sent": false,
+  "playback_verified": false,
+  "result": "Read-only Helix readiness passed; OBS/deployed-origin playback remains unverified"
+}

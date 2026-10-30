@@ -45,7 +45,7 @@
               {#if url && !clipFailed}
                 <iframe src={url} title="Receipt clip" allow="autoplay; fullscreen" onload={() => { clipLoaded = true; }} onerror={() => { clipFailed = true; }}></iframe>
               {/if}
-              <div class="fallback"><span>{display.receipt.clip_status === 'pending' ? 'CLIP PENDING' : url && !clipFailed ? (clipLoaded ? 'SAVED CLAIM' : 'LOADING CLIP') : 'CLIP UNAVAILABLE'}</span><p>“{display.receipt.claim}”</p><small>Saved claim</small></div>
+              <div class="fallback"><span>{display.receipt.clip_status === 'pending' ? 'CLIP PENDING' : url && !clipFailed ? (clipLoaded ? 'SAVED CLAIM' : 'LOADING CLIP') : 'CLIP UNAVAILABLE'}</span><p>“{display.receipt.claim}”</p><small>Saved claim · transcript timing may not include every word.</small></div>
             </div>
           {/if}
         </div>

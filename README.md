@@ -15,10 +15,10 @@ Build and run the current server using the [development instructions](docs/devel
 |---|---|---|
 | P0 — Feasibility | 4/4 | Twitch, audio and OBS probes |
 | P1 — Foundation | 4/4 | Settings, ledger, contracts and deterministic replay driver |
-| TA — Accounts and onboarding | 3/4 | Identity, isolation and OBS pairing verified; hosted judge demo acceptance pending |
+| TA — Accounts and onboarding | 3/4 | Identity, isolation and OBS pairing verified; anonymous recorded demo implemented; hosted judge acceptance pending |
 | P2 — Offline receipt loop | 4/4 | Capture, detection, appeals, lore and deterministic full-loop replay verified |
 | P3 — Overlay/controls | 3/3 | Overlay, owner controls and actual local OBS/SSE recovery verified |
-| P4 — Twitch integration | 1/4 | Authorized adapter live proof complete; EventSub, clip readiness and session authority pending |
+| P4 — Twitch integration | 2/4 | Authorized adapters and real chat commands verified; clip acceptance and session authority pending |
 | P5 — Intelligence | 0/4 | Live transcription, extraction, judging and evaluation pending |
 | P6 — Release | Planned | Deployment, live proof and judge readiness |
 
@@ -35,7 +35,7 @@ The replay database path must be new. The CLI replay persists transcript fixture
 
 ## Planned streamer experience
 
-Twitch sign-in and OBS pairing for the owner’s channel are implemented. Owners reach the private control dock at `/control` from account setup. Local OBS pairing/recovery acceptance passed. Live-session activation and the anonymous recorded demo remain open.
+Twitch sign-in and OBS pairing for the owner’s channel are implemented. Owners reach the private control dock at `/control` from account setup. Local OBS pairing/recovery acceptance passed. The anonymous recorded demo is available at `/demo/`. Live-session activation and hosted judge acceptance remain open.
 
 Add the overlay to OBS as a browser source. Chat commands: `!receipt`, `!lore`, `!uphold`, `!overturn`; the streamer and mods also have `!receipts off` and `!void`.
 

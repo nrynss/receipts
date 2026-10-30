@@ -1,0 +1,10 @@
+ALTER TABLE clip_jobs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE clip_jobs ADD COLUMN next_attempt_at INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE clip_jobs ADD COLUMN clip_requested_at INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE clip_jobs ADD COLUMN lease_until INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE clip_jobs ADD COLUMN claim_generation INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE clip_jobs ADD COLUMN polls INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE clip_jobs ADD COLUMN lease_token TEXT NOT NULL DEFAULT '';
+ALTER TABLE clip_jobs ADD COLUMN create_started INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE clip_jobs ADD COLUMN capture_lag_ms INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX clip_jobs_pending_due ON clip_jobs(channel_id, status, next_attempt_at);
