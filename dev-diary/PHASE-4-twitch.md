@@ -12,7 +12,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 requires: T0.2, T1.3, TA.2
 fixture-ok: yes
 owns: internal/twitch/connection/, internal/api/, testdata/twitch/, docs/setup.md
-status: complete
+status: done
 ```
 
 Consume TA.1 OAuth credentials through TA.2 validated channel context and runtime supervision. Do not implement a second login/token store. Bind each EventSub/Helix adapter to the verified broadcaster, use the shared refresh/validation lifecycle and report connection health and authorization loss. The owner uses their own broadcaster identity in the initial release; a shared bot is deferred. TA.3 owns setup and OBS pairing.
@@ -25,7 +25,7 @@ Consume TA.1 OAuth credentials through TA.2 validated channel context and runtim
 requires: T4.1, T2.4
 fixture-ok: yes
 owns: internal/twitch/eventsub/, internal/twitch/chat/, testdata/twitch/
-status: not-started
+status: in-progress
 ```
 
 Implement verified welcome/subscription, keepalive, reconnect and revocation behavior. Deduplicate message IDs and map chat roles from trusted Twitch events. Route commands into the same services used by replay. Bound retries, bot replies and reconnect backoff; report authorization loss instead of silently looping.
@@ -38,7 +38,7 @@ Implement verified welcome/subscription, keepalive, reconnect and revocation beh
 requires: T4.1, T2.1, T3.1
 fixture-ok: yes
 owns: internal/twitch/clips/, internal/receipt/, testdata/twitch/
-status: not-started
+status: in-progress
 ```
 
 Use the proven clip API contract. Persist pending work, poll with bounded retries and represent ready, unavailable and failed separately. Correlate clip timing with transcript evidence; never imply a late clip contains words it missed. Recheck the embed on the deployed origin in OBS and verify audio does not create a feedback loop into listening.
@@ -82,3 +82,5 @@ T4.1 consumes TA.2 through `internal/auth` token access and unauthorized-refresh
 T4.1 implementation is reviewed and integrated in `2627aea`: scoped Helix/EventSub requests, bounded owner status observation, one refresh retry and generation/token-safe authorization loss pass offline and race checks. The authorized live adapter writer probe also passed: validation matched nrynss and required scopes, the channel was live, one chat message was accepted, and one clip ID was returned in four Twitch requests. Sanitized success evidence is in `docs/evidence/t41-adapter-live-write.json`; clip readiness was not polled. The preceding offline attempt is retained in `docs/evidence/t41-adapter-live.json`.
 
 The opt-in adapter-bound writer acceptance validates the grant (including the nrynss login) and channel binding, confirms live status, then permits exactly one fixed chat message and one clip creation under an eight-request cap. The live harness uses an in-memory resolver/token provider and does not establish hosted account persistence or live refresh; offline tests cover those paths. EventSub subscription and receive transport remain T4.2 acceptance.
+
+T4.2 transport and T4.3 clip jobs are assigned to separate Luna worktrees from `85c69b8`. The principal thread owns integration and task status. Live acceptance remains distinct from offline implementation, and T4.4 still owns verified listening activation.

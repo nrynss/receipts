@@ -51,12 +51,14 @@ Build connection/setup dashboard with offline, live, listening, paused, missing-
 requires: TA.2, TA.3, T1.4, T2.4, T3.3, T6.1
 fixture-ok: yes
 owns: internal/replay/, web/src/lib/demo/, web/src/routes/, docs/evidence/, docs/operations.md
-status: not-started
+status: in-progress
 ```
 
 Offer a clearly labelled recorded demo without login. Run the real application services in bounded disposable visitor-isolated state with no provider calls. Verify the deployed HTTPS candidate, fresh Twitch onboarding, two-owner isolation and lifecycle behavior. Record limitations and evidence separately from offline fixtures.
 
 **Done when:** Two anonymous demo visitors cannot affect each other or live channels. Demo provider calls remain zero even when host credentials exist. Fresh-account onboarding, two-owner isolation, revocation and OBS acceptance pass on the deployed origin; evidence is available before T6.3.
+
+The anonymous recorded-demo implementation may proceed now using completed T1.4/T2.4 services and TA.2 isolation. T6.1 remains a binding prerequisite for deployed-origin acceptance and full TA.4 completion. A separate Luna worktree owns this independent demo portion; no hosted acceptance is claimed.
 
 ## Phase integration
 
