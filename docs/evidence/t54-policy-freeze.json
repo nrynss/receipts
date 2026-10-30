@@ -1,0 +1,7 @@
+{
+  "dataset_sha256": "d8f11499801ed93d96a975069bec8d5ad5bb3a232822820e1bb7b22492f049fa",
+  "policy": "review-only-v1",
+  "dev_report_sha256": "19f892b95635afc3f92e717810e4b4eb50452b5963fbdeeca9ed25d3a4db9733",
+  "judge_source_sha256": "e444df7a8d94d5ef0117107e58ddac0c8271ca619cc7a67ef87cb6b48dcb8022",
+  "policy_source_sha256": "26cd2090e77c7e3bdbd4ec86af0485db026ed6ab065c6c72c8d9cadadd35a09b"
+}

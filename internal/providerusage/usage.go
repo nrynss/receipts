@@ -59,3 +59,21 @@ func report(ctx context.Context, p cost.Price) {
 		f(cost.Usage{Price: p, Measured: true})
 	}
 }
+
+// WithObserver adds an observer without hiding the caller's metering collector.
+func WithObserver(ctx context.Context, observer func(cost.Usage)) context.Context {
+	previous, _ := ctx.Value(key{}).(func(cost.Usage))
+	return WithCollector(ctx, func(u cost.Usage) {
+		if previous != nil {
+			previous(u)
+		}
+		observer(u)
+	})
+}
+
+// Report forwards a previously measured usage during an offline replay.
+func Report(ctx context.Context, usage cost.Usage) {
+	if f, ok := ctx.Value(key{}).(func(cost.Usage)); ok {
+		f(usage)
+	}
+}

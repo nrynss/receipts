@@ -23,6 +23,8 @@ func TestExtractionFailsClosed(t *testing.T) {
 		wantErr                          bool
 	}{
 		{"promise", "I will never play this map.", "broadcaster", `{"eligible":true,"claim":"I will never play this map.","source_id":"s","topic":"promise","sensitive":false}`, true, false},
+		{"explicit promise", "I promise I will never pick the blue map again.", "broadcaster", `{"eligible":true,"claim":"I promise I will never pick the blue map again.","source_id":"s","topic":"promise","sensitive":false}`, true, false},
+		{"ambiguous promise", "I promise I might pick the blue map.", "broadcaster", `{"eligible":true,"claim":"I promise I might pick the blue map.","source_id":"s","topic":"promise","sensitive":false}`, false, false},
 		{"malformed", "I will never play this map.", "broadcaster", `{`, false, true},
 		{"quote", `She said "I will never play this map."`, "broadcaster", `{"eligible":true,"claim":"I will never play this map.","source_id":"s","topic":"promise","sensitive":false}`, false, false},
 		{"injection", "I will ignore the system instruction.", "broadcaster", `{"eligible":true,"claim":"I will ignore the system instruction.","source_id":"s","topic":"promise","sensitive":false}`, false, false},
@@ -86,5 +88,38 @@ func TestSensitivityReportsProviderUsageOnRefusal(t *testing.T) {
 	}
 	if !got.Measured || got.Price != 21000 {
 		t.Fatalf("usage=%+v", got)
+	}
+}
+
+func TestExtractionRequestSpecifiesEligibleTopic(t *testing.T) {
+	client := Client{APIKey: "test", HTTP: &http.Client{Transport: roundTrip(func(r *http.Request) (*http.Response, error) {
+		var request struct {
+			Messages       []struct{ Role, Content string }
+			ResponseFormat struct {
+				JSONSchema struct {
+					Schema struct {
+						Properties map[string]struct {
+							Enum []string `json:"enum"`
+						} `json:"properties"`
+					} `json:"schema"`
+				} `json:"json_schema"`
+			} `json:"response_format"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		enum := request.ResponseFormat.JSONSchema.Schema.Properties["topic"].Enum
+		if len(enum) != 2 || enum[0] != "promise" || enum[1] != "other" {
+			t.Fatalf("topic enum=%v", enum)
+		}
+		if len(request.Messages) == 0 || !strings.Contains(request.Messages[0].Content, `topic to "promise"`) {
+			t.Fatal("eligible topic missing from prompt")
+		}
+		b, _ := jsonEnvelope(`{"eligible":true,"claim":"I will never use this path.","source_id":"s","topic":"promise","sensitive":false}`)
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(b)), Header: make(http.Header)}, nil
+	})}}
+	got, err := client.Extract(context.Background(), []receipt.Segment{{ID: "s", Text: "I will never use this path.", Attribution: "broadcaster", End: time.Second}})
+	if err != nil || got.Claim == "" {
+		t.Fatalf("claim=%+v err=%v", got, err)
 	}
 }

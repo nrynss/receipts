@@ -1,0 +1,1489 @@
+{
+  "DatasetSHA256": "d8f11499801ed93d96a975069bec8d5ad5bb3a232822820e1bb7b22492f049fa",
+  "Split": "dev",
+  "Policy": "review-only-v1",
+  "RunStatus": "complete",
+  "BudgetNanoUSD": 1000000000,
+  "Attempts": 758,
+  "PendingAttempts": 0,
+  "UnresolvedReservationNanoUSD": 0,
+  "AccuracyReviewed": false,
+  "Complete": true,
+  "DiagnosticOnly": false,
+  "Expected": 34,
+  "Missing": 0,
+  "Cases": [
+    {
+      "id": "P0-001",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "7b04cc56c9e13230e34fbf2865ba8d37",
+            "source_id": "P0-001"
+          },
+          {
+            "receipt_id": "6001219b8e2744abfba7ff8b6aa30f4f",
+            "source_id": "P0-002"
+          },
+          {
+            "receipt_id": "4666d60306ce1d3551e5b1ddd3555d08",
+            "source_id": "P0-003"
+          },
+          {
+            "receipt_id": "cac7abe8492c5cde48fc061930333724",
+            "source_id": "P0-004"
+          }
+        ],
+        "captured": [
+          "P0-001",
+          "P0-002",
+          "P0-003",
+          "P0-004"
+        ],
+        "judged": [
+          "P0-001",
+          "P0-003",
+          "P0-004"
+        ],
+        "outcomes": {
+          "P0-001": "review",
+          "P0-003": "review",
+          "P0-004": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 25886,
+      "spend_nano_usd": 573660,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-002",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "67ff16ddf104fbc0c0ab5f1ae42eaafa",
+            "source_id": "P0-002"
+          },
+          {
+            "receipt_id": "85883abcc2176f76f21dba0a54822365",
+            "source_id": "P0-003"
+          },
+          {
+            "receipt_id": "ff07c6f0733555180647a1a80bf6958c",
+            "source_id": "P0-004"
+          },
+          {
+            "receipt_id": "4f5a1f883d5399ac4a967b92c5a95e48",
+            "source_id": "P0-005"
+          }
+        ],
+        "captured": [
+          "P0-002",
+          "P0-003",
+          "P0-004",
+          "P0-005"
+        ],
+        "judged": [
+          "P0-002",
+          "P0-005",
+          "P0-003"
+        ],
+        "outcomes": {
+          "P0-002": "dismissed",
+          "P0-003": "dismissed",
+          "P0-005": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 22346,
+      "spend_nano_usd": 574630,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-003",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "f8e2855af31f783d6f79f6f721fccbae",
+            "source_id": "P0-003"
+          },
+          {
+            "receipt_id": "57d9d168c53989b3d378e4520ebb149d",
+            "source_id": "P0-004"
+          },
+          {
+            "receipt_id": "89ae734e80b702b2c3b6ac6f2e5923d7",
+            "source_id": "P0-005"
+          },
+          {
+            "receipt_id": "e37c6bfb3440b2816b392bcb80bc478a",
+            "source_id": "P0-006"
+          }
+        ],
+        "captured": [
+          "P0-003",
+          "P0-004",
+          "P0-005",
+          "P0-006"
+        ],
+        "judged": [
+          "P0-003",
+          "P0-006",
+          "P0-004"
+        ],
+        "outcomes": {
+          "P0-003": "dismissed",
+          "P0-004": "review",
+          "P0-006": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 19923,
+      "spend_nano_usd": 566540,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-004",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "8ce9e141f11d6a76c498db218b0ce411",
+            "source_id": "P0-004"
+          },
+          {
+            "receipt_id": "2b60c50922baf80e1371674a0f06d48f",
+            "source_id": "P0-005"
+          },
+          {
+            "receipt_id": "b1c09416c897f8e2e7cf1f63b1e33096",
+            "source_id": "P0-006"
+          },
+          {
+            "receipt_id": "3b5942931e939ce71b4e246a409240f7",
+            "source_id": "P0-007"
+          }
+        ],
+        "captured": [
+          "P0-004",
+          "P0-005",
+          "P0-006",
+          "P0-007"
+        ],
+        "judged": null,
+        "outcomes": {},
+        "source_rejected": true,
+        "target_retrieved": false
+      },
+      "latency_ms": 13313,
+      "spend_nano_usd": 388410,
+      "events": 17,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-005",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "747c0cc035f00e3584e86a6587cf41ac",
+            "source_id": "P0-005"
+          },
+          {
+            "receipt_id": "b720451ec394e248f97333e1b4922fa6",
+            "source_id": "P0-006"
+          },
+          {
+            "receipt_id": "355de4a694332e767f2d74d8d7f28dc3",
+            "source_id": "P0-007"
+          },
+          {
+            "receipt_id": "f7af38ab561dfe08a96a1a01f50a1ddb",
+            "source_id": "P0-008"
+          }
+        ],
+        "captured": [
+          "P0-005",
+          "P0-006",
+          "P0-007",
+          "P0-008"
+        ],
+        "judged": [
+          "P0-005",
+          "P0-008",
+          "P0-007"
+        ],
+        "outcomes": {
+          "P0-005": "dismissed",
+          "P0-007": "review",
+          "P0-008": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 21799,
+      "spend_nano_usd": 566730,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-006",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "37873ea39b25063b2a7fff9f06573fa2",
+            "source_id": "P0-006"
+          },
+          {
+            "receipt_id": "74f34b4e0dcec99c14156d4becc3a3e0",
+            "source_id": "P0-007"
+          },
+          {
+            "receipt_id": "411b02536b3e3267dd4ae5b8b58b5be0",
+            "source_id": "P0-009"
+          }
+        ],
+        "captured": [
+          "P0-006",
+          "P0-007",
+          "P0-009"
+        ],
+        "judged": [
+          "P0-006",
+          "P0-009",
+          "P0-007"
+        ],
+        "outcomes": {
+          "P0-006": "review",
+          "P0-007": "review",
+          "P0-009": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 20509,
+      "spend_nano_usd": 565200,
+      "events": 23,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-007",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "d0c431ce3dcb19c22e2ea4e1dc631bcc",
+            "source_id": "P0-007"
+          },
+          {
+            "receipt_id": "58f18a85dbf1ef076f0e2f3b888c9e44",
+            "source_id": "P0-009"
+          },
+          {
+            "receipt_id": "452047c43e20b4f66570f8448aca6752",
+            "source_id": "P0-010"
+          }
+        ],
+        "captured": [
+          "P0-007",
+          "P0-009",
+          "P0-010"
+        ],
+        "judged": [
+          "P0-007",
+          "P0-009",
+          "P0-010"
+        ],
+        "outcomes": {
+          "P0-007": "review",
+          "P0-009": "review",
+          "P0-010": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 18616,
+      "spend_nano_usd": 553370,
+      "events": 22,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-008",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "d625ec2c2deb02b6331447d30b42eb67",
+            "source_id": "P0-008"
+          },
+          {
+            "receipt_id": "77d711d4ee18af22643bbfc99b5b7247",
+            "source_id": "P0-009"
+          },
+          {
+            "receipt_id": "52ccf4d88bda6dc318d684feedcc2e59",
+            "source_id": "P0-010"
+          },
+          {
+            "receipt_id": "73a2e8de7d8f6e50c29c5687f415797f",
+            "source_id": "P0-011"
+          }
+        ],
+        "captured": [
+          "P0-008",
+          "P0-009",
+          "P0-010",
+          "P0-011"
+        ],
+        "judged": [
+          "P0-008",
+          "P0-009",
+          "P0-011"
+        ],
+        "outcomes": {
+          "P0-008": "review",
+          "P0-009": "dismissed",
+          "P0-011": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 20357,
+      "spend_nano_usd": 566730,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-009",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "a6aefb6ba9e693a4386d1fdafdca74f0",
+            "source_id": "P0-009"
+          },
+          {
+            "receipt_id": "442508014ee4fdc1bea4cdcec1629543",
+            "source_id": "P0-010"
+          },
+          {
+            "receipt_id": "ad8dec622846382f83c1a1638bafa396",
+            "source_id": "P0-011"
+          },
+          {
+            "receipt_id": "9db951788a825a2151dae8ff66113d3a",
+            "source_id": "P0-012"
+          }
+        ],
+        "captured": [
+          "P0-009",
+          "P0-010",
+          "P0-011",
+          "P0-012"
+        ],
+        "judged": [
+          "P0-009",
+          "P0-011",
+          "P0-010"
+        ],
+        "outcomes": {
+          "P0-009": "dismissed",
+          "P0-010": "review",
+          "P0-011": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 20305,
+      "spend_nano_usd": 566560,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-010",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "8cd28f681e19f101ef83ed5402fd0892",
+            "source_id": "P0-010"
+          },
+          {
+            "receipt_id": "8310f07caaa3bb58ac05b9732da14152",
+            "source_id": "P0-011"
+          },
+          {
+            "receipt_id": "dad097afd8f355276dbf2873924dcaea",
+            "source_id": "P0-012"
+          },
+          {
+            "receipt_id": "29069e561a815f41ae30794fb8495add",
+            "source_id": "P0-013"
+          }
+        ],
+        "captured": [
+          "P0-010",
+          "P0-011",
+          "P0-012",
+          "P0-013"
+        ],
+        "judged": [
+          "P0-010",
+          "P0-011",
+          "P0-012"
+        ],
+        "outcomes": {
+          "P0-010": "review",
+          "P0-011": "dismissed",
+          "P0-012": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 20867,
+      "spend_nano_usd": 568980,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-011",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "625b41d1974c959e977228cab0e4ed51",
+            "source_id": "P0-011"
+          },
+          {
+            "receipt_id": "d3122bd78faac0ff6a80fc017cba7bcc",
+            "source_id": "P0-012"
+          },
+          {
+            "receipt_id": "a56d8d76c6b1625e28c940692645b973",
+            "source_id": "P0-013"
+          },
+          {
+            "receipt_id": "2e75be40fc98d7487334bc32d4da14fd",
+            "source_id": "P0-014"
+          }
+        ],
+        "captured": [
+          "P0-011",
+          "P0-012",
+          "P0-013",
+          "P0-014"
+        ],
+        "judged": [
+          "P0-011",
+          "P0-012",
+          "P0-014"
+        ],
+        "outcomes": {
+          "P0-011": "dismissed",
+          "P0-012": "dismissed",
+          "P0-014": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 20205,
+      "spend_nano_usd": 572430,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-012",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "f1cae36ada202c5429b080fc1186de3d",
+            "source_id": "P0-012"
+          },
+          {
+            "receipt_id": "b0c172f2cee4fa738f53dc577ec1fbaa",
+            "source_id": "P0-013"
+          },
+          {
+            "receipt_id": "7dd0f160f2de9e206aa62a92749b0f26",
+            "source_id": "P0-014"
+          },
+          {
+            "receipt_id": "bd5bdf7ac01c361def48c6de97dde09e",
+            "source_id": "P0-015"
+          }
+        ],
+        "captured": [
+          "P0-012",
+          "P0-013",
+          "P0-014",
+          "P0-015"
+        ],
+        "judged": [
+          "P0-012",
+          "P0-015",
+          "P0-014"
+        ],
+        "outcomes": {
+          "P0-012": "review",
+          "P0-014": "dismissed",
+          "P0-015": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 21166,
+      "spend_nano_usd": 568700,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-013",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "9c085bea535c5a70e30b10b78a9ccde5",
+            "source_id": "P0-013"
+          },
+          {
+            "receipt_id": "f605429b85faba1bc6549dc8bfab6dd0",
+            "source_id": "P0-014"
+          },
+          {
+            "receipt_id": "c4624334656efdea06f602e53529d090",
+            "source_id": "P0-015"
+          },
+          {
+            "receipt_id": "e945d57c5f9886f5b8a57e86efb27123",
+            "source_id": "P0-016"
+          }
+        ],
+        "captured": [
+          "P0-013",
+          "P0-014",
+          "P0-015",
+          "P0-016"
+        ],
+        "judged": [
+          "P0-013",
+          "P0-016",
+          "P0-014"
+        ],
+        "outcomes": {
+          "P0-013": "review",
+          "P0-014": "dismissed",
+          "P0-016": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 21983,
+      "spend_nano_usd": 569130,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-014",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "c6ef03cabfbec42c95aa704968b7f5e3",
+            "source_id": "P0-014"
+          },
+          {
+            "receipt_id": "e25b5d5786225e0b03668e81b20eb7cd",
+            "source_id": "P0-015"
+          },
+          {
+            "receipt_id": "ae483fe2627c32203c55440a6a69fba6",
+            "source_id": "P0-016"
+          },
+          {
+            "receipt_id": "67db3e0a3c2d4a2a8cacab14b0c40343",
+            "source_id": "P0-017"
+          }
+        ],
+        "captured": [
+          "P0-014",
+          "P0-015",
+          "P0-016",
+          "P0-017"
+        ],
+        "judged": [
+          "P0-014",
+          "P0-016",
+          "P0-015"
+        ],
+        "outcomes": {
+          "P0-014": "review",
+          "P0-015": "dismissed",
+          "P0-016": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 21384,
+      "spend_nano_usd": 573860,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-015",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "e40b5297412783aea9dc24aee2c57e03",
+            "source_id": "P0-015"
+          },
+          {
+            "receipt_id": "44cbbef353b0e989107a569d853f0b14",
+            "source_id": "P0-016"
+          },
+          {
+            "receipt_id": "791154d905d7f657c18fb76a4828278c",
+            "source_id": "P0-017"
+          },
+          {
+            "receipt_id": "295ed62348720dbdfc7e49163b63036d",
+            "source_id": "P0-018"
+          }
+        ],
+        "captured": [
+          "P0-015",
+          "P0-016",
+          "P0-017",
+          "P0-018"
+        ],
+        "judged": [
+          "P0-015",
+          "P0-018",
+          "P0-016"
+        ],
+        "outcomes": {
+          "P0-015": "review",
+          "P0-016": "dismissed",
+          "P0-018": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 20985,
+      "spend_nano_usd": 568190,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-016",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "0b7317fbf0eed15b40bca54116db4d22",
+            "source_id": "P0-016"
+          },
+          {
+            "receipt_id": "c4a745dc12f5b37a3562412a22ccf272",
+            "source_id": "P0-017"
+          },
+          {
+            "receipt_id": "a9cbd3478b96b65d63c024ef170d10e0",
+            "source_id": "P0-018"
+          },
+          {
+            "receipt_id": "054bf6ecfb89f8445ebfc6dfd2ec4eb4",
+            "source_id": "P0-019"
+          }
+        ],
+        "captured": [
+          "P0-016",
+          "P0-017",
+          "P0-018",
+          "P0-019"
+        ],
+        "judged": [
+          "P0-016",
+          "P0-019",
+          "P0-018"
+        ],
+        "outcomes": {
+          "P0-016": "dismissed",
+          "P0-018": "review",
+          "P0-019": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 23869,
+      "spend_nano_usd": 569750,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-017",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "0408bf7b51c4ff9bcc071b66d8730273",
+            "source_id": "P0-017"
+          },
+          {
+            "receipt_id": "5e36a9e6520a5252817063bc51f49267",
+            "source_id": "P0-018"
+          },
+          {
+            "receipt_id": "f3cb830f1ad0175f019e6c69628cac24",
+            "source_id": "P0-019"
+          },
+          {
+            "receipt_id": "9532d2cb126c75d9f851c6fd463f3a13",
+            "source_id": "P0-020"
+          }
+        ],
+        "captured": [
+          "P0-017",
+          "P0-018",
+          "P0-019",
+          "P0-020"
+        ],
+        "judged": [
+          "P0-017",
+          "P0-018",
+          "P0-019"
+        ],
+        "outcomes": {
+          "P0-017": "review",
+          "P0-018": "dismissed",
+          "P0-019": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 22427,
+      "spend_nano_usd": 570370,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-018",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "26b7c11ac90a7b7d0948da95f02c52fb",
+            "source_id": "P0-018"
+          },
+          {
+            "receipt_id": "5719593c5f2c976c2d4ba4e08a0c7f6d",
+            "source_id": "P0-019"
+          },
+          {
+            "receipt_id": "46e0764ecc3512b7fbfc670488096878",
+            "source_id": "P0-020"
+          },
+          {
+            "receipt_id": "261b8c933aef8d6b9b242fdd3ac6a648",
+            "source_id": "P0-021"
+          }
+        ],
+        "captured": [
+          "P0-018",
+          "P0-019",
+          "P0-020",
+          "P0-021"
+        ],
+        "judged": [
+          "P0-018",
+          "P0-019",
+          "P0-021"
+        ],
+        "outcomes": {
+          "P0-018": "review",
+          "P0-019": "dismissed",
+          "P0-021": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 22039,
+      "spend_nano_usd": 572450,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-019",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "48bd042c81aa20ee9cdfbc00d8acd5d9",
+            "source_id": "P0-019"
+          },
+          {
+            "receipt_id": "7de832b4842e4af891de380d51c604bc",
+            "source_id": "P0-020"
+          },
+          {
+            "receipt_id": "921da0373756065b8e95c84e2ff95c7d",
+            "source_id": "P0-021"
+          },
+          {
+            "receipt_id": "90a2d28e704331094fdf7c8dc7d5d279",
+            "source_id": "P0-022"
+          }
+        ],
+        "captured": [
+          "P0-019",
+          "P0-020",
+          "P0-021",
+          "P0-022"
+        ],
+        "judged": [
+          "P0-019",
+          "P0-021",
+          "P0-022"
+        ],
+        "outcomes": {
+          "P0-019": "review",
+          "P0-021": "review",
+          "P0-022": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 21747,
+      "spend_nano_usd": 569720,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-020",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "c7553ab53d6f257c5032837eb37b4ee7",
+            "source_id": "P0-020"
+          },
+          {
+            "receipt_id": "fae0d5a6090ec74c073f3f2c8f4457aa",
+            "source_id": "P0-021"
+          },
+          {
+            "receipt_id": "0a0d484b798000c441cff2a7ea45d2fa",
+            "source_id": "P0-022"
+          },
+          {
+            "receipt_id": "aefa911b87e3f2fb3db1c0ceaaec7dd6",
+            "source_id": "P0-023"
+          }
+        ],
+        "captured": [
+          "P0-020",
+          "P0-021",
+          "P0-022",
+          "P0-023"
+        ],
+        "judged": [
+          "P0-020",
+          "P0-023",
+          "P0-021"
+        ],
+        "outcomes": {
+          "P0-020": "dismissed",
+          "P0-021": "dismissed",
+          "P0-023": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 21489,
+      "spend_nano_usd": 571980,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-021",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "72cba679dc764c9309d1afc7799679a3",
+            "source_id": "P0-021"
+          },
+          {
+            "receipt_id": "b9ceb6b988bc34bd77847eb054c7bb92",
+            "source_id": "P0-022"
+          },
+          {
+            "receipt_id": "0d82d786206757358c3fff72eb8d06b6",
+            "source_id": "P0-023"
+          },
+          {
+            "receipt_id": "3a1a9754c5052535e6570645878e6d98",
+            "source_id": "P0-024"
+          }
+        ],
+        "captured": [
+          "P0-021",
+          "P0-022",
+          "P0-023",
+          "P0-024"
+        ],
+        "judged": [
+          "P0-021",
+          "P0-024",
+          "P0-022"
+        ],
+        "outcomes": {
+          "P0-021": "review",
+          "P0-022": "dismissed",
+          "P0-024": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 21262,
+      "spend_nano_usd": 572790,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-022",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "80706d98dd00cca957defa31348a2e4c",
+            "source_id": "P0-022"
+          },
+          {
+            "receipt_id": "d4434cc2126055019044011d38f08a44",
+            "source_id": "P0-023"
+          },
+          {
+            "receipt_id": "93a51fb04c140f9e566b3662bed4617b",
+            "source_id": "P0-024"
+          },
+          {
+            "receipt_id": "7580cedfc1fe836b7ab01c62e1eda7fb",
+            "source_id": "P0-025"
+          }
+        ],
+        "captured": [
+          "P0-022",
+          "P0-023",
+          "P0-024",
+          "P0-025"
+        ],
+        "judged": [
+          "P0-022",
+          "P0-024",
+          "P0-023"
+        ],
+        "outcomes": {
+          "P0-022": "review",
+          "P0-023": "review",
+          "P0-024": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 23079,
+      "spend_nano_usd": 565830,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-023",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "0e9dc39364f5b5c24d8614c00128233d",
+            "source_id": "P0-023"
+          },
+          {
+            "receipt_id": "da53c16569bc3b4402ddbeb438c47287",
+            "source_id": "P0-024"
+          },
+          {
+            "receipt_id": "f807e9982a5f3b303d739439f2150b45",
+            "source_id": "P0-025"
+          },
+          {
+            "receipt_id": "820938eb4152f06cc2168802428cb4a1",
+            "source_id": "P0-026"
+          }
+        ],
+        "captured": [
+          "P0-023",
+          "P0-024",
+          "P0-025",
+          "P0-026"
+        ],
+        "judged": [
+          "P0-023",
+          "P0-025",
+          "P0-024"
+        ],
+        "outcomes": {
+          "P0-023": "dismissed",
+          "P0-024": "review",
+          "P0-025": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 20831,
+      "spend_nano_usd": 566410,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-024",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "e9d993cbf81b864d225d47116b0a892e",
+            "source_id": "P0-024"
+          },
+          {
+            "receipt_id": "f9e02e08061af842d40e788cd6c90654",
+            "source_id": "P0-025"
+          },
+          {
+            "receipt_id": "732852a2c355fdbd4b10383d8238862a",
+            "source_id": "P0-026"
+          },
+          {
+            "receipt_id": "527250960cf97e10c0279b1cbf66447f",
+            "source_id": "P0-027"
+          }
+        ],
+        "captured": [
+          "P0-024",
+          "P0-025",
+          "P0-026",
+          "P0-027"
+        ],
+        "judged": [
+          "P0-024",
+          "P0-027",
+          "P0-026"
+        ],
+        "outcomes": {
+          "P0-024": "review",
+          "P0-026": "review",
+          "P0-027": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 21560,
+      "spend_nano_usd": 565810,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-025",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "c349f46e398e9f52659843ae6a317caf",
+            "source_id": "P0-025"
+          },
+          {
+            "receipt_id": "b613c888c1c0218d09a095bc104176c3",
+            "source_id": "P0-026"
+          },
+          {
+            "receipt_id": "5a1900142e4555b0c4b26494e1f945c3",
+            "source_id": "P0-027"
+          },
+          {
+            "receipt_id": "4b1674bb0bb9658ca03d05834661afa0",
+            "source_id": "P0-028"
+          }
+        ],
+        "captured": [
+          "P0-025",
+          "P0-026",
+          "P0-027",
+          "P0-028"
+        ],
+        "judged": [
+          "P0-025",
+          "P0-028",
+          "P0-026"
+        ],
+        "outcomes": {
+          "P0-025": "dismissed",
+          "P0-026": "dismissed",
+          "P0-028": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 22118,
+      "spend_nano_usd": 574630,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-026",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "c83503101421b640456acc3142929244",
+            "source_id": "P0-026"
+          },
+          {
+            "receipt_id": "1a3a08306ec9bba6d13430babb70fe53",
+            "source_id": "P0-027"
+          },
+          {
+            "receipt_id": "613de5057015d4f11eb634896bb93b48",
+            "source_id": "P0-028"
+          },
+          {
+            "receipt_id": "46678276f95b025d3957c2de3756ccc6",
+            "source_id": "P0-029"
+          }
+        ],
+        "captured": [
+          "P0-026",
+          "P0-027",
+          "P0-028",
+          "P0-029"
+        ],
+        "judged": [
+          "P0-026",
+          "P0-027",
+          "P0-028"
+        ],
+        "outcomes": {
+          "P0-026": "dismissed",
+          "P0-027": "dismissed",
+          "P0-028": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 22280,
+      "spend_nano_usd": 570030,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-027",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "99cbf47d5bba62a5fb33379fc2992df8",
+            "source_id": "P0-027"
+          },
+          {
+            "receipt_id": "be4d12340943f1546c7d61f62a5fd848",
+            "source_id": "P0-028"
+          },
+          {
+            "receipt_id": "95fc852f7835539ceba3387995d7e4d9",
+            "source_id": "P0-029"
+          },
+          {
+            "receipt_id": "99b893b688fae93d7bc736b037977d8f",
+            "source_id": "P0-030"
+          }
+        ],
+        "captured": [
+          "P0-027",
+          "P0-028",
+          "P0-029",
+          "P0-030"
+        ],
+        "judged": [
+          "P0-027",
+          "P0-029",
+          "P0-030"
+        ],
+        "outcomes": {
+          "P0-027": "review",
+          "P0-029": "dismissed",
+          "P0-030": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 22508,
+      "spend_nano_usd": 568700,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-028",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "ff70485c379ed0f3d72e5fcd9674988a",
+            "source_id": "P0-028"
+          },
+          {
+            "receipt_id": "657d753eb5d6d19d5219fb3c368bc520",
+            "source_id": "P0-029"
+          },
+          {
+            "receipt_id": "bf51edb7e29fb5f2ba40f11274de96fe",
+            "source_id": "P0-030"
+          }
+        ],
+        "captured": [
+          "P0-028",
+          "P0-029",
+          "P0-030"
+        ],
+        "judged": [
+          "P0-028",
+          "P0-029",
+          "P0-030"
+        ],
+        "outcomes": {
+          "P0-028": "review",
+          "P0-029": "review",
+          "P0-030": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 20183,
+      "spend_nano_usd": 554030,
+      "events": 22,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-029",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "ee4f6d28730ec5f77ff212c2dcfe3b74",
+            "source_id": "P0-029"
+          },
+          {
+            "receipt_id": "4f96bfa88d998b130f494ce4cf51799b",
+            "source_id": "P0-030"
+          }
+        ],
+        "captured": [
+          "P0-029",
+          "P0-030"
+        ],
+        "judged": [
+          "P0-029",
+          "P0-030"
+        ],
+        "outcomes": {
+          "P0-029": "dismissed",
+          "P0-030": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 17705,
+      "spend_nano_usd": 486950,
+      "events": 18,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-030",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "62af64de91c83bcbb832144776163562",
+            "source_id": "P0-030"
+          }
+        ],
+        "captured": [
+          "P0-030"
+        ],
+        "judged": [
+          "P0-030"
+        ],
+        "outcomes": {
+          "P0-030": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 14275,
+      "spend_nano_usd": 389660,
+      "events": 13,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-041",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "105b8628c1b553a93245b7bce439b490",
+            "source_id": "P0-044"
+          }
+        ],
+        "captured": [
+          "P0-044"
+        ],
+        "judged": null,
+        "outcomes": {},
+        "source_rejected": true,
+        "target_retrieved": false
+      },
+      "latency_ms": 10451,
+      "spend_nano_usd": 334100,
+      "events": 10,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-042",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "c82942ed64e308c4ddbce517a6e9d172",
+            "source_id": "P0-044"
+          },
+          {
+            "receipt_id": "9daed52960ef9e1a8a8e7d1f34e54070",
+            "source_id": "P0-001"
+          }
+        ],
+        "captured": [
+          "P0-044",
+          "P0-001"
+        ],
+        "judged": null,
+        "outcomes": {},
+        "source_rejected": true,
+        "target_retrieved": false
+      },
+      "latency_ms": 11352,
+      "spend_nano_usd": 351870,
+      "events": 12,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-043",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "4582cf9bbb5d05848ef0e659a523d390",
+            "source_id": "P0-044"
+          },
+          {
+            "receipt_id": "82472ae08d8892c9e8db400b632603a1",
+            "source_id": "P0-001"
+          },
+          {
+            "receipt_id": "cfd7f795c37cfb54ed815012733e60b3",
+            "source_id": "P0-002"
+          }
+        ],
+        "captured": [
+          "P0-044",
+          "P0-001",
+          "P0-002"
+        ],
+        "judged": [
+          "P0-002",
+          "P0-001",
+          "P0-044"
+        ],
+        "outcomes": {
+          "P0-001": "dismissed",
+          "P0-002": "review",
+          "P0-044": "dismissed"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 20165,
+      "spend_nano_usd": 546440,
+      "events": 21,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    },
+    {
+      "id": "P0-044",
+      "result": {
+        "captured_receipts": [
+          {
+            "receipt_id": "ec4ef4d48aa3efefb834a525d7c23d39",
+            "source_id": "P0-044"
+          },
+          {
+            "receipt_id": "431b73bf63f47156e2ea4e6670780472",
+            "source_id": "P0-001"
+          },
+          {
+            "receipt_id": "2ac3da5ef7b03a4162aeafd4ddb60ddb",
+            "source_id": "P0-002"
+          },
+          {
+            "receipt_id": "6e38e482fab3730e748673ca0390eeff",
+            "source_id": "P0-003"
+          }
+        ],
+        "captured": [
+          "P0-044",
+          "P0-001",
+          "P0-002",
+          "P0-003"
+        ],
+        "judged": [
+          "P0-044",
+          "P0-002",
+          "P0-001"
+        ],
+        "outcomes": {
+          "P0-001": "dismissed",
+          "P0-002": "review",
+          "P0-044": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 22086,
+      "spend_nano_usd": 580430,
+      "events": 24,
+      "pending_attempts": 0,
+      "unresolved_reservation_nano_usd": 0
+    }
+  ],
+  "Total": 34,
+  "SourceRejected": 3,
+  "Stamps": 0,
+  "Errors": 0,
+  "RetrievalAttempts": null,
+  "RetrievalMisses": null,
+  "LatencyMS": 691070,
+  "SpendNanoUSD": 18425070
+}

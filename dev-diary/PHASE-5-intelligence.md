@@ -51,7 +51,7 @@ Judge retrieved claim/later-line pairs with structured contradicts, does-not-con
 requires: T5.3, T0.4
 fixture-ok: yes
 owns: internal/eval/, testdata/eval/, docs/evaluation.md
-status: not-started
+status: in-progress
 ```
 
 Run the labelled corpus through the same retrieval/judge policy used by the app. Tune only on the tuning partition, freeze the policy, then report held-out counts, denominators, false stamps, precision, recall and abstentions. Also report retrieval misses, latency and measured spend. Version prompt, model, policy and dataset identifiers. Sensitive or unattributed cases must never auto-stamp. Any false stamp requires inspection and a documented decision before enabling automatic live stamps.
@@ -69,7 +69,7 @@ Run the labelled corpus through the same retrieval/judge policy used by the app.
 
 ### What exists now
 
-T5.1 broadcast capture and bounded final transcription are implemented and live verified. Extraction and retrieval are implemented; judging and evaluation remain open. See [T5.1 handoff](../docs/t51-audio-handoff.md) and [sanitized live evidence](../docs/evidence/t51-live-transcription.json).
+T5.1 broadcast capture and bounded final transcription are implemented and live verified. Extraction, retrieval and judging are implemented; evaluation remains in progress pending independent label review. See [T5.1 handoff](../docs/t51-audio-handoff.md) and [sanitized live evidence](../docs/evidence/t51-live-transcription.json).
 
 ### Evidence and decisions
 
@@ -88,3 +88,11 @@ Owner-bound capture, conservative extraction and source sensitivity checks, dura
 ### T5.3 implementation
 
 The structured Judge and durable session/channel/global metering are reviewed and verified. The full offline gate and repeated targeted race checks passed. One live adapter request returned `contradicts`; reported usage priced at $0.00003735 was below the $0.025 ceiling. Automatic live stamps remain disabled until T5.4 calibration. Unresolved paid attempts block spending pending operator reconciliation. See [T5.3 handoff](../docs/t53-judge-handoff.md) and [live evidence](../docs/evidence/t53-live-judge.json).
+
+### T5.4 evaluation checkpoint
+
+The production review-only policy is exposed for replay, with automatic stamps still disabled. Corpus model and embedding recordings are not yet available; no corpus scores or calibration are claimed. See [T5.4 handoff](../docs/t54-evaluation-handoff.md).
+
+### T5.4 recorded corpus evidence
+
+The complete development and held-out session recordings replay offline to their recorded reports. Development used 758 calls and $0.01842507; held-out used 210 calls and $0.00522862, with no unmeasured or pending attempts in those successful runs. The separately interrupted collection has one unresolved pending attempt. The frozen production policy routes contradictions to review and makes no automatic stamps. Because the 44 Codex-authored labels have no independent human review assertion, label-derived accuracy is not reported and T5.4 remains in progress. See [evaluation evidence](../docs/evaluation.md), [the review worksheet](../docs/t54-label-review.md) and [the handoff](../docs/t54-evaluation-handoff.md).

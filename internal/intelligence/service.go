@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/nrynss/keel/cost"
 	"github.com/nrynss/keel/id"
 	"receipts/internal/auth"
 	"receipts/internal/commands"
-	"receipts/internal/detect"
 	"receipts/internal/judge"
 	"receipts/internal/ports"
 	"receipts/internal/providerusage"
@@ -49,6 +49,8 @@ type Judge interface {
 	Judge(context.Context, receipt.Receipt, receipt.Evidence, receipt.Segment) (judge.Result, error)
 }
 type Service struct {
+	OnCandidates    func([]retrieval.Match)
+	Now             func() time.Time
 	Authority       auth.ChannelContext
 	Judge           Judge
 	DetectionStore  *store.Store
@@ -167,7 +169,7 @@ func (s *Service) Handle(ctx context.Context, a commands.Authority, cmd ports.Ch
 		return commands.Result{}, err
 	}
 	defer cancel()
-	service := commands.Service{Ledger: ownedLedger{s.Ledger, s}, Extractor: extracted{s}, Sensitive: classified{s}}
+	service := commands.Service{Ledger: ownedLedger{s.Ledger, s}, Extractor: extracted{s}, Sensitive: classified{s}, Now: s.Now}
 	result, err := service.Handle(bound, a, cmd)
 	if err == nil && result.Code == commands.ReplyCaptured && s.Index != nil && s.Embedder != nil {
 		if ch, e := s.Meter.Resolve(s.Authority); e == nil {
@@ -310,6 +312,10 @@ func (s *Service) JudgeSource(ctx context.Context, source receipt.Segment) error
 	if err != nil {
 		return err
 	}
+	if s.OnCandidates != nil {
+		snapshot := append([]retrieval.Match(nil), matches...)
+		s.OnCandidates(snapshot)
+	}
 	for _, match := range matches {
 		candidate := match.Receipt
 		evidence, err := s.DetectionStore.Evidence(ctx, candidate.ID)
@@ -344,13 +350,9 @@ func (s *Service) JudgeSource(ctx context.Context, source receipt.Segment) error
 		if result.ClaimSourceID != evidence[0].SourceID || result.LaterSourceID != source.ID {
 			return errors.New("intelligence: invalid judgment evidence")
 		}
-		outcome := receipt.Dismissed
-		switch result.Verdict {
-		case detect.Contradicts, detect.Unsure:
-			outcome = receipt.NeedsReview
-		case detect.DoesNot:
-		default:
-			return errors.New("intelligence: invalid judgment")
+		outcome, err := JudgmentOutcome(result.Verdict)
+		if err != nil {
+			return err
 		}
 		if err = ctx.Err(); err != nil {
 			return err

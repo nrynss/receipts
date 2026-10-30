@@ -1,0 +1,44 @@
+{
+  "DatasetSHA256": "d8f11499801ed93d96a975069bec8d5ad5bb3a232822820e1bb7b22492f049fa",
+  "Split": "dev",
+  "Policy": "review-only-v1",
+  "AccuracyReviewed": false,
+  "Complete": false,
+  "DiagnosticOnly": true,
+  "Expected": 34,
+  "Missing": 33,
+  "Cases": [
+    {
+      "id": "P0-001",
+      "result": {
+        "captured": [
+          "P0-001",
+          "P0-001",
+          "P0-001",
+          "P0-001"
+        ],
+        "judged": [
+          "P0-001",
+          "P0-001",
+          "P0-001"
+        ],
+        "outcomes": {
+          "P0-001": "review"
+        },
+        "source_rejected": false,
+        "target_retrieved": false
+      },
+      "latency_ms": 24963,
+      "spend_nano_usd": 683130,
+      "events": 24
+    }
+  ],
+  "Total": 1,
+  "SourceRejected": 0,
+  "Stamps": 0,
+  "Errors": 0,
+  "RetrievalAttempts": null,
+  "RetrievalMisses": null,
+  "LatencyMS": 24963,
+  "SpendNanoUSD": 683130
+}
