@@ -15,8 +15,10 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -30,6 +32,11 @@ import (
 )
 
 type noNetworkProvider struct{}
+
+var (
+	clipIDPattern    = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+	clipLoginPattern = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
+)
 
 func (noNetworkProvider) AuthorizeURL(string, string, []string) string { return "" }
 func (noNetworkProvider) ExchangeCode(context.Context, string, string) (auth.Tokens, error) {
@@ -49,6 +56,8 @@ func main() {
 	cert := flag.String("cert", "", "trusted localhost TLS certificate (required)")
 	key := flag.String("key", "", "localhost TLS private key (required)")
 	appealDuration := flag.Duration("appeal-duration", 2*time.Minute, "synthetic owner appeal window")
+	clipID := flag.String("clip-id", "", "optional existing public Twitch clip ID to render for local playback acceptance")
+	clipURL := flag.String("clip-url", "", "public URL for the existing Twitch clip (no clip is created)")
 	flag.Parse()
 	if *cert == "" || *key == "" {
 		fatal("provide a locally trusted localhost certificate with -cert and -key; pairing cookies require HTTPS")
@@ -98,6 +107,9 @@ func main() {
 	if _, err := db.Writer().ExecContext(ctx, `UPDATE accounts SET status='connected' WHERE id=?`, accountID); err != nil {
 		fatal("could not activate synthetic owner")
 	}
+	if (*clipID == "") != (*clipURL == "") {
+		fatal("provide both -clip-id and -clip-url, or neither")
+	}
 	var channelID string
 	if err := db.Reader().QueryRowContext(ctx, `SELECT channel_id FROM accounts WHERE id=?`, accountID).Scan(&channelID); err != nil {
 		fatal("could not load synthetic channel")
@@ -105,6 +117,18 @@ func main() {
 	liveSessionID, err := seedOverlay(ctx, db, ledger, channelID)
 	if err != nil {
 		fatal("could not prepare synthetic overlay")
+	}
+	if *clipID != "" {
+		if !validPublicClip(*clipID, *clipURL) {
+			fatal("clip reference must be an existing HTTPS Twitch clip URL and matching ID")
+		}
+		var receiptID string
+		if err := db.Reader().QueryRowContext(ctx, `SELECT id FROM receipts WHERE channel_id=? ORDER BY created_at DESC LIMIT 1`, channelID).Scan(&receiptID); err != nil {
+			fatal("could not load synthetic receipt")
+		}
+		if err := ledger.SetClip(ctx, channelID, receiptID, receipt.ClipReady, *clipID, *clipURL); err != nil {
+			fatal("could not attach existing clip reference")
+		}
 	}
 	ownerToken, csrfToken, err := seedBrowserSession(ctx, db, accountID)
 	if err != nil {
@@ -140,6 +164,24 @@ func main() {
 	if err := server.ListenAndServeTLS(*cert, *key); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fatal("acceptance server stopped")
 	}
+}
+
+func validPublicClip(id, rawURL string) bool {
+	if !clipIDPattern.MatchString(id) {
+		return false
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Scheme != "https" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Port() != "" {
+		return false
+	}
+	if parsed.Host == "clips.twitch.tv" {
+		return strings.Trim(parsed.Path, "/") == id
+	}
+	if parsed.Host == "www.twitch.tv" {
+		parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+		return len(parts) == 3 && clipLoginPattern.MatchString(parts[0]) && parts[1] == "clip" && parts[2] == id
+	}
+	return false
 }
 
 func seedOverlay(ctx context.Context, db *sqlite.DB, ledger *store.Store, channelID string) (string, error) {
