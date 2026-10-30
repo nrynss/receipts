@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { statusRefresh } from '$lib/account/status-refresh';
   import { resolve } from '$app/paths';
   import { getControl, createActions } from '$lib/control/client';
   import { fixtureFetch } from '$lib/control/fixture';
@@ -7,6 +8,11 @@
   import type { OverlaySnapshot, ReviewItem, Health } from '$lib/api/contracts';
   let statusValue = $state('unavailable');
   let canStart = $state(false);
+  let transcriptionEnabled = $state(false);
+  let uncertainSession = $state(false);
+  let poll: ReturnType<typeof statusRefresh> | undefined;
+  let statusVersion=0;
+  let disposed=false;
   let snapshot = $state<OverlaySnapshot | null>(null);
   let reviews = $state<ReviewItem[]>([]);
   let health = $state<Health | null>(null);
@@ -17,19 +23,23 @@
   let voidID = $state('');
   let actions: ReturnType<typeof createActions>;
   let listening = $state(false);
-  let sessionActive = $derived(listening || statusValue === 'session_active');
+  let sessionActive = $derived(listening || statusValue === 'session_active' || uncertainSession);
   async function load() {
+    const version=++statusVersion; poll?.cancel();
     try {
       const data = await getControl(request);
+      if (disposed || version!==statusVersion) return;
       actions.setScope(data.owner.id, data.owner.channel_id);
       statusValue = data.state.state; canStart = data.state.can_start === true;
+      transcriptionEnabled = data.state.transcription_enabled === true; uncertainSession=false;
       listening = data.state.audio_capture_active === true || statusValue === 'listening' || statusValue === 'paused';
       snapshot = data.snapshot; reviews = data.reviews; health = data.health; available = data.runtimeAvailable;
-    } catch (error) { message = error instanceof Error ? error.message : 'Controls unavailable.'; }
+    } catch (error) { if (disposed || version!==statusVersion) return; uncertainSession=sessionActive;statusValue='unknown';listening=false;transcriptionEnabled=false;message = error instanceof Error ? error.message : 'Controls unavailable.'; }
   }
+  function refreshStatus() { if (!busy) { statusVersion++; void poll?.run(); } }
   async function act(path: string, body: Record<string, unknown> = {}, keyed = false) {
     if (busy) return;
-    busy = true; message = '';
+    poll?.cancel(); statusVersion++; busy = true; message = '';
     try { await actions.send(path, body, keyed); message = 'Action applied.'; await load(); }
     catch (error) { message = error instanceof Error ? error.message : 'Action failed. Try again.'; }
     finally { busy = false; }
@@ -39,15 +49,15 @@
     if (decision === 'context_changed' && !reason.trim()) { message = 'Enter a reason for the change in context.'; return; }
     void act('/api/control/decision', { receipt_id: snapshot.current_stamp.id, receipt_decision: decision, ...(decision === 'context_changed' ? { note: reason.trim() } : {}) }, true);
   }
-  onMount(() => { if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('fixture') === 'dock') request = fixtureFetch(); actions = createActions(request, () => document.cookie, undefined, sessionStorage); void load(); });
+  onMount(() => { if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('fixture') === 'dock') request = fixtureFetch(); actions = createActions(request, () => document.cookie, undefined, sessionStorage); poll=statusRefresh(request, (state) => { if (typeof state.state === 'string') statusValue=state.state;canStart=state.can_start===true;listening=state.audio_capture_active===true;transcriptionEnabled=state.transcription_enabled===true;uncertainSession=false; }, () => { uncertainSession=sessionActive;statusValue='unknown';listening=false;transcriptionEnabled=false; }); void load(); const timer=window.setInterval(() => { void refreshStatus(); },5000); return () => { disposed=true;statusVersion++;poll?.dispose();window.clearInterval(timer); }; });
 </script>
 <svelte:head><title>Receipts control dock</title></svelte:head>
 <main>
   {#if import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('fixture') === 'dock'}<p>Fixture rehearsal · no live actions</p>{/if}
   <header><div><p class="eyebrow">PRIVATE DOCK</p><h1>Receipts</h1></div><button onclick={() => load()} disabled={busy}>Refresh</button></header>
   <section aria-labelledby="status-heading"><h2 id="status-heading">Stream status</h2>
-    <div class="status"><p><span>Live</span><strong>{health ? (health.live_confirmed ? 'Confirmed' : 'Not confirmed') : 'Unknown'}</strong></p><p><span>Audio</span><strong>{listening ? 'Listening' : sessionActive ? 'Capture not attached' : statusValue === 'not_listening' ? 'Not listening' : statusValue.replaceAll('_', ' ')}</strong></p><p><span>Stamps</span><strong>{listening ? (statusValue === 'paused' ? 'Paused' : 'On') : 'Unavailable'}</strong></p></div>
-    {#if listening}<div class="actions"><button disabled={busy} onclick={() => act('/api/control/pause', { paused: statusValue !== 'paused' })}>{statusValue === 'paused' ? 'Resume stamps' : 'Pause stamps'}</button><button disabled={busy} onclick={() => act('/account-api/stop')}>Stop listening</button></div>
+    <div class="status"><p><span>Live</span><strong>{health ? (health.live_confirmed ? 'Confirmed' : 'Not confirmed') : 'Unknown'}</strong></p><p><span>Audio</span><strong>{listening ? 'Listening' : uncertainSession ? 'Unknown' : sessionActive ? 'Capture not attached' : statusValue === 'not_listening' ? 'Not listening' : statusValue.replaceAll('_', ' ')}</strong></p><p><span>Stamps</span><strong>{listening ? (statusValue === 'paused' ? 'Paused' : 'On') : 'Unavailable'}</strong></p></div>
+    {#if listening}<p>{transcriptionEnabled ? 'Transcription enabled for your sole voice.' : 'Audio is being monitored; transcription is off because sole-speaker confirmation was not given.'}</p><div class="actions"><button disabled={busy} onclick={() => act('/api/control/pause', { paused: statusValue !== 'paused' })}>{statusValue === 'paused' ? 'Resume stamps' : 'Pause stamps'}</button><button disabled={busy} onclick={() => act('/account-api/stop')}>Stop listening</button></div>
     {:else if sessionActive}<button disabled={busy} onclick={() => act('/account-api/stop')}>Stop session</button>
     {:else if statusValue === 'not_listening' && canStart}<button disabled={busy} onclick={() => act('/account-api/start')}>Start session</button>
     {:else}<p class="muted">Starting a session is currently unavailable. Check setup and live status.</p>{/if}

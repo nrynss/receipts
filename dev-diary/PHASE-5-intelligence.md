@@ -2,7 +2,7 @@
 
 **Goal:** Replace recorded model/audio adapters with bounded OpenAI calls and measure the behavior.
 
-**Status:** in-progress (0/4)
+**Status:** in-progress (1/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -12,7 +12,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 requires: T0.3, T4.4, T1.1, TA.2
 fixture-ok: yes
 owns: internal/audio/, internal/transcribe/, testdata/audio/, testdata/models/
-status: in-progress
+status: complete
 ```
 
 Use the selected source and current official OpenAI speech documentation. Choose and record a supported model and audio format. Timestamp chunks on the session clock, bound buffering, deduplicate overlaps and define partial/final segment handling. Only final attributed speech can support claims or stamps. With mixed broadcast audio, use an explicit supported attribution strategy or abstain; transcription alone does not identify the streamer. Stop and discard unsent buffers when the session stops.
@@ -69,7 +69,7 @@ Run the labelled corpus through the same retrieval/judge policy used by the app.
 
 ### What exists now
 
-P5 model/transcription integration has not started. P0 audio feasibility and the v0.9.0 Keel compatibility review exist; neither proves model accuracy or long-running hosted transcription.
+T5.1 broadcast capture and bounded final transcription are implemented and live verified. Extraction, retrieval, judging and evaluation remain open. See [T5.1 handoff](../docs/t51-audio-handoff.md) and [sanitized live evidence](../docs/evidence/t51-live-transcription.json).
 
 ### Evidence and decisions
 
@@ -79,4 +79,4 @@ Record task IDs, relevant revision, checks and artifact paths when work lands. N
 
 Record unresolved blockers, contract changes and the next unblocked task.
 
-T5.1 is assigned to a Terra worktree from `b0db9d2`. The principal thread tracks source timing, attribution, lifecycle cancellation, durable budget settlement and production composition through review. Recorded/offline verification is separate from the required bounded paid-provider acceptance; no live transcription result is claimed during implementation.
+T5.1 passed the offline gate, targeted uncached race checks and a real one-request transcription/shutdown test. The conservative charge estimate was $0.0045 under a $0.02 ceiling. Timing is coarse PCM ingest with unknown HLS delay; sole-speaker attestation is per activation. T5.2 is the next unblocked task. This short test does not prove long-running hosted operation or model accuracy.

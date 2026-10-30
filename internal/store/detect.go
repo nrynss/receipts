@@ -87,7 +87,7 @@ func (s *Store) ApplyDetection(ctx context.Context, a DetectionAuthority, candid
 	if err != nil {
 		return nil, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO detections(id,channel_id,receipt_id,session_id,source_id,start_ms,end_ms,evidence_text,attribution,outcome,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, key, a.ChannelID, candidate.ID, a.LiveSessionID, source.ID, source.Start.Milliseconds(), source.End.Milliseconds(), source.Text, source.Attribution, outcome, millis(now))
+	_, err = tx.ExecContext(ctx, `INSERT INTO detections(id,channel_id,receipt_id,session_id,source_id,start_ms,end_ms,evidence_text,attribution,outcome,created_at,timing_basis) VALUES(?,?,?,?,?,?,?,?,?,?,?,COALESCE((SELECT timing_basis FROM transcript_segments WHERE id=?),'unspecified'))`, key, a.ChannelID, candidate.ID, a.LiveSessionID, source.ID, source.Start.Milliseconds(), source.End.Milliseconds(), source.Text, source.Attribution, outcome, millis(now), source.ID)
 	if err != nil {
 		return nil, err
 	}

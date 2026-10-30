@@ -17,17 +17,20 @@ import (
 
 // Authority activates runtime lifecycle only; it does not imply audio capture.
 type Authority struct {
-	Adapter      *connection.Adapter
-	Ledger       *store.Store
-	Runtime      *runtime.Manager
-	Freshness    time.Duration
-	PollInterval time.Duration
-	Root         context.Context
-	Attach       func(context.Context, auth.ChannelContext) (func(), error)
-	mu           sync.Mutex
-	locks        map[string]*sync.Mutex
-	activations  map[string]uint64
-	active       map[string]runtimeActivation
+	Adapter             *connection.Adapter
+	Ledger              *store.Store
+	Runtime             *runtime.Manager
+	Freshness           time.Duration
+	PollInterval        time.Duration
+	Root                context.Context
+	Attach              func(context.Context, auth.ChannelContext) (func(), error)
+	AttachAudio         func(context.Context, auth.ChannelContext, bool) (func(), error)
+	AudioActive         func(auth.ChannelContext) bool
+	TranscriptionActive func(auth.ChannelContext) bool
+	mu                  sync.Mutex
+	locks               map[string]*sync.Mutex
+	activations         map[string]uint64
+	active              map[string]runtimeActivation
 }
 
 type runtimeActivation struct {
@@ -39,6 +42,12 @@ func (a *Authority) CanStart() bool {
 	return a != nil && a.Adapter != nil && a.Ledger != nil && a.Runtime != nil
 }
 func (a *Authority) AudioCaptureActive() bool { return false }
+func (a *Authority) TranscriptionFor(identity auth.ChannelContext) bool {
+	return a.TranscriptionActive != nil && a.TranscriptionActive(identity)
+}
+func (a *Authority) AudioCaptureFor(identity auth.ChannelContext) bool {
+	return a.AudioActive != nil && a.AudioActive(identity)
+}
 
 func (a *Authority) freshness() time.Duration {
 	if a.Freshness > 0 {
@@ -146,11 +155,16 @@ func isMissingGrant(err error) bool {
 }
 
 func (a *Authority) Start(ctx context.Context, identity auth.ChannelContext) error {
-	return a.StartWithMicrophone(ctx, identity, false)
+	return a.StartWithOptions(ctx, identity, false, false)
 }
 
 // StartWithMicrophone records consent for this confirmed session only.
 func (a *Authority) StartWithMicrophone(ctx context.Context, identity auth.ChannelContext, microphoneAllowed bool) error {
+	return a.StartWithOptions(ctx, identity, microphoneAllowed, false)
+}
+
+// StartWithOptions requires a fresh explicit sole-voice attestation for this activation.
+func (a *Authority) StartWithOptions(ctx context.Context, identity auth.ChannelContext, microphoneAllowed, soleBroadcaster bool) error {
 	if !a.CanStart() || identity.Device || identity.AccountID == "" || identity.ChannelID == "" {
 		return errors.New("session: owner authority unavailable")
 	}
@@ -207,29 +221,40 @@ func (a *Authority) StartWithMicrophone(ctx context.Context, identity auth.Chann
 		_ = a.Ledger.ClearLivePermission(context.Background(), identity.ChannelID, sess.ID, authority.Generation)
 		return errors.New("session: runtime stopped during activation")
 	}
-	if a.Attach != nil {
-		detach, attachErr := a.Attach(channel.Context, authority)
-		if attachErr != nil {
-			if detach != nil {
-				detach()
+	if a.Attach != nil || a.AttachAudio != nil {
+		var cleanups []func()
+		cleanup := func() {
+			for i := len(cleanups) - 1; i >= 0; i-- {
+				cleanups[i]()
 			}
+		}
+		attach := func(fn func() (func(), error)) error {
+			detach, err := fn()
+			if detach != nil {
+				cleanups = append(cleanups, detach)
+			}
+			return err
+		}
+		var attachErr error
+		if a.Attach != nil {
+			attachErr = attach(func() (func(), error) { return a.Attach(channel.Context, authority) })
+		}
+		if attachErr == nil && a.AttachAudio != nil {
+			attachErr = attach(func() (func(), error) { return a.AttachAudio(channel.Context, authority, soleBroadcaster) })
+		}
+		if attachErr == nil && !a.activationCurrent(identity.ChannelID, activation) {
+			attachErr = context.Canceled
+		}
+		if attachErr != nil {
 			_ = a.Runtime.Cancel(authority)
+			cleanup()
 			a.clearRuntime(authority)
 			_ = a.Ledger.ClearLivePermission(context.Background(), identity.ChannelID, sess.ID, authority.Generation)
 			return attachErr
 		}
-		if !a.activationCurrent(identity.ChannelID, activation) {
-			if detach != nil {
-				detach()
-			}
+		if len(cleanups) > 0 && !channel.Go(func(runCtx context.Context) { <-runCtx.Done(); cleanup() }) {
 			_ = a.Runtime.Cancel(authority)
-			a.clearRuntime(authority)
-			_ = a.Ledger.ClearLivePermission(context.Background(), identity.ChannelID, sess.ID, authority.Generation)
-			return context.Canceled
-		}
-		if detach != nil && !channel.Go(func(runCtx context.Context) { <-runCtx.Done(); detach() }) {
-			detach()
-			_ = a.Runtime.Cancel(authority)
+			cleanup()
 			a.clearRuntime(authority)
 			_ = a.Ledger.ClearLivePermission(context.Background(), identity.ChannelID, sess.ID, authority.Generation)
 			return errors.New("session: runtime stopped while attaching worker")

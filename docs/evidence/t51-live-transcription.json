@@ -1,0 +1,16 @@
+{
+  "task": "T5.1",
+  "result": "passed",
+  "test": "TestLiveBroadcastTranscription",
+  "duration_seconds": 39.15,
+  "paid_attempts": 1,
+  "budget_ceiling_usd": 0.02,
+  "charged_estimate_usd": 0.0045,
+  "estimate_is_provider_invoice": false,
+  "twitch_requests": 9,
+  "expected_phrase_matched": true,
+  "attribution": "broadcaster via fresh sole-speaker attestation",
+  "timing_basis": "coarse_pcm_ingest_hls_delay_unknown",
+  "shutdown": "offline or source-failure stopped capture",
+  "raw_audio_and_transcript_retained": false
+}

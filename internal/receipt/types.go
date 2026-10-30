@@ -66,12 +66,14 @@ type Segment struct {
 	ID, SessionID                string
 	Start, End                   time.Duration
 	Text, SpeakerID, Attribution string
+	TimingBasis                  string
 	CreatedAt                    time.Time
 }
 type Evidence struct {
 	ID, ReceiptID, SourceID, Text string
 	Start, End                    time.Duration
 	Attribution                   string
+	TimingBasis                   string
 }
 type Receipt struct {
 	ID, ChannelID, SessionID string
@@ -86,10 +88,10 @@ type Receipt struct {
 	Version                  int
 }
 type Detection struct {
-	ID, ChannelID, ReceiptID, SessionID, SourceID, EvidenceText, Attribution string
-	Start, End                                                               time.Duration
-	Outcome                                                                  DetectionOutcome
-	CreatedAt                                                                time.Time
+	ID, ChannelID, ReceiptID, SessionID, SourceID, EvidenceText, Attribution, TimingBasis string
+	Start, End                                                                            time.Duration
+	Outcome                                                                               DetectionOutcome
+	CreatedAt                                                                             time.Time
 }
 type Review struct {
 	ID, DetectionID, State string

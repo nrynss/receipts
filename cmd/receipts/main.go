@@ -137,7 +137,13 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 		mux.Handle("/demo/api/", demoServer)
 		mux.Handle("/auth/", authService.Handler())
 		adapter := &connection.Adapter{Runtime: supervisor, Resolver: connection.ServiceResolverFunc{Service: authService}, Tokens: authService, LossHandler: authService}
-		liveAuthority := &session.Authority{Adapter: adapter, Ledger: ledger, Runtime: supervisor, Freshness: cfg.LiveStatusFreshness, Root: ctx}
+		openAIKey, err := cfg.OpenAIAPIKey.Reveal()
+		if err != nil {
+			return fmt.Errorf("initialize transcription configuration")
+		}
+		streamlink, _ := lookup("RECEIPTS_STREAMLINK_BIN")
+		capture := &audioAttachment{ledger: ledger, runtime: supervisor, apiKey: openAIKey, streamlink: streamlink}
+		liveAuthority := &session.Authority{Adapter: adapter, Ledger: ledger, Runtime: supervisor, Freshness: cfg.LiveStatusFreshness, Root: ctx, AttachAudio: capture.attach, AudioActive: capture.activeFor, TranscriptionActive: capture.transcriptionFor}
 		mux.Handle("/account-api/", api.AccountHandlerWithBackend(authService, supervisor, authService.DisconnectProviderAuthorization, budgets, liveAuthority))
 		mux.Handle("/api/", api.NewForOwner(api.Config{
 			OwnerReader:   api.LedgerReader{Store: ledger, Mode: string(cfg.Mode)},

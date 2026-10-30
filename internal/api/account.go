@@ -37,7 +37,17 @@ type SessionMicBackend interface {
 	StartWithMicrophone(context.Context, auth.ChannelContext, bool) error
 }
 
+type SessionOptionsBackend interface {
+	StartWithOptions(context.Context, auth.ChannelContext, bool, bool) error
+}
+
 type AudioReadiness interface{ AudioCaptureActive() bool }
+type TranscriptionReadiness interface {
+	TranscriptionFor(auth.ChannelContext) bool
+}
+type ScopedAudioReadiness interface {
+	AudioCaptureFor(auth.ChannelContext) bool
+}
 type ListeningStopper interface {
 	Stop(context.Context, auth.ChannelContext) error
 }
@@ -73,9 +83,7 @@ func AccountHandlerWithBackend(sessions *auth.Service, supervisor *channelruntim
 					}
 				}
 			}
-			if state == StateSessionActive && channel.Paused() {
-				state = StatePaused
-			}
+			_ = channel
 		} else if backend != nil {
 			observed, statusErr := backend.Status(r.Context(), identity)
 			if statusErr != nil {
@@ -92,10 +100,25 @@ func AccountHandlerWithBackend(sessions *auth.Service, supervisor *channelruntim
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store")
 		audioActive := false
-		if readiness, ok := backend.(AudioReadiness); ok {
+		if readiness, ok := backend.(ScopedAudioReadiness); ok {
+			audioActive = readiness.AudioCaptureFor(identity)
+		} else if readiness, ok := backend.(AudioReadiness); ok {
 			audioActive = readiness.AudioCaptureActive()
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"state": state, "can_start": backend != nil && backend.CanStart(), "audio_capture_active": audioActive})
+		if state == StateSessionActive && audioActive {
+			state = StateListening
+			if _, channel, release, err := supervisor.BindRequest(r.Context(), identity); err == nil {
+				if channel.Paused() {
+					state = StatePaused
+				}
+				release()
+			}
+		}
+		transcriptionEnabled := false
+		if readiness, ok := backend.(TranscriptionReadiness); ok && audioActive {
+			transcriptionEnabled = readiness.TranscriptionFor(identity)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"state": state, "can_start": backend != nil && backend.CanStart(), "audio_capture_active": audioActive, "transcription_enabled": transcriptionEnabled})
 	})
 	mux.HandleFunc("POST /account-api/start", func(w http.ResponseWriter, r *http.Request) {
 		identity, err := auth.ChannelFromContext(r.Context())
@@ -109,6 +132,7 @@ func AccountHandlerWithBackend(sessions *auth.Service, supervisor *channelruntim
 		}
 		var request struct {
 			MicrophonePermission bool `json:"microphone_permission"`
+			SoleBroadcaster      bool `json:"sole_broadcaster"`
 		}
 		if r.Body != nil {
 			decoder := json.NewDecoder(io.LimitReader(r.Body, 4096))
@@ -117,7 +141,9 @@ func AccountHandlerWithBackend(sessions *auth.Service, supervisor *channelruntim
 				return
 			}
 		}
-		if mic, ok := backend.(SessionMicBackend); ok {
+		if options, ok := backend.(SessionOptionsBackend); ok {
+			err = options.StartWithOptions(r.Context(), identity, request.MicrophonePermission, request.SoleBroadcaster)
+		} else if mic, ok := backend.(SessionMicBackend); ok {
 			err = mic.StartWithMicrophone(r.Context(), identity, request.MicrophonePermission)
 		} else {
 			err = backend.Start(r.Context(), identity)

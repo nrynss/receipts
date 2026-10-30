@@ -395,3 +395,13 @@ func (m *Manager) StopAccount(accountID string) {
 		_ = m.Stop(a)
 	}
 }
+
+func (m *Manager) ResolveByIdentity(identity auth.ChannelContext) (*Channel, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	c := m.active[identity.ChannelID]
+	if c == nil || c.Context.Err() != nil || identity.Device || c.Authority.AccountID != identity.AccountID {
+		return nil, ErrStale
+	}
+	return c, nil
+}

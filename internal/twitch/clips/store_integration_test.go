@@ -385,3 +385,22 @@ func TestSQLiteRateLimitRetryIsBoundedAndDurable(t *testing.T) {
 		t.Fatalf("429 retry budget allowed %d create calls", c)
 	}
 }
+
+func TestCoarseAudioDoesNotInferClipEvidenceClock(t *testing.T) {
+	f := newIntegrationFixture(t)
+	f.setWorker(&integrationTwitch{id: "clip"})
+	r := f.capture("coarse-clock", "viewer")
+	if _, err := f.db.Writer().Exec(`UPDATE evidence SET timing_basis='coarse_pcm_ingest_hls_delay_unknown' WHERE receipt_id=?`, r.ID); err != nil {
+		t.Fatal(err)
+	}
+	jobs, err := f.ledger.ClaimDueClipJobs(f.ctx, authority(f.authority), 1, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 1 {
+		t.Fatalf("got %d jobs", len(jobs))
+	}
+	if !jobs[0].EvidenceEndsAt.IsZero() {
+		t.Fatal("coarse ingest timing became a broadcast evidence clock")
+	}
+}

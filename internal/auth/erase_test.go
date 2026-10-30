@@ -22,6 +22,14 @@ func TestEraseDisconnectedAccountKeepsOtherOwner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	_, err = f.db.Writer().ExecContext(ctx, `INSERT INTO audio_chunks(session_id,start_ms,end_ms,generation) VALUES('live',0,1000,1)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.db.Writer().ExecContext(ctx, `INSERT INTO transcript_segments(id,session_id,start_ms,end_ms,text,timing_basis,created_at) VALUES('audio-segment','live',0,1000,'words','coarse_pcm_ingest_hls_delay_unknown',1)`)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = f.db.Writer().ExecContext(ctx, `INSERT INTO receipts(id,channel_id,session_id,created_at,claim,clipped_by,validity) VALUES('receipt',?,'live',1,'claim','viewer','valid')`, a.ChannelID)
 	if err != nil {
 		t.Fatal(err)
@@ -56,6 +64,12 @@ func TestEraseDisconnectedAccountKeepsOtherOwner(t *testing.T) {
 	var count int
 	if err = f.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM accounts WHERE id=?`, a.ID).Scan(&count); err != nil || count != 0 {
 		t.Fatalf("account remains: %d %v", count, err)
+	}
+	if err = f.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM audio_chunks WHERE session_id='live'`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("audio chunks remain: %d %v", count, err)
+	}
+	if err = f.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM transcript_segments WHERE session_id='live'`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("audio transcript remains: %d %v", count, err)
 	}
 	if _, err = f.service.Current(requestWithCookie(second)); err != nil {
 		t.Fatalf("other owner lost: %v", err)
