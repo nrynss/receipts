@@ -294,7 +294,7 @@ func (r rowsLedger) LoreReceipts(context.Context, string) ([]receipt.Receipt, er
 func TestScoreAndBound(t *testing.T) {
 	rows := rowsLedger{}
 	for _, v := range []receipt.Verdict{receipt.Undecided, receipt.Admitted, receipt.Upheld, receipt.Overturned, receipt.ContextChanged, receipt.Inconclusive} {
-		rows = append(rows, receipt.Receipt{Verdict: v, Claim: strings.Repeat("界", 300)})
+		rows = append(rows, receipt.Receipt{Verdict: v, Claim: "a promise"})
 	}
 	text, err := (lore.Service{Ledger: rows}).Render(context.Background(), "channel")
 	if err != nil {
@@ -302,5 +302,14 @@ func TestScoreAndBound(t *testing.T) {
 	}
 	if len(text) > 450 || !utf8.ValidString(text) || !strings.Contains(text, "6 total | 1 open, 2 broken, 1 overturned, 1 context changed, 1 inconclusive") {
 		t.Fatal(text)
+	}
+	for _, tag := range []string{"(open)", "(broken)", "(overturned)", "(context changed)", "(inconclusive)"} {
+		if !strings.Contains(text, tag) {
+			t.Fatalf("missing %s in %q", tag, text)
+		}
+	}
+	long, err := (lore.Service{Ledger: rowsLedger{{Verdict: receipt.Undecided, Claim: strings.Repeat("界", 300)}}}).Render(context.Background(), "channel")
+	if err != nil || len(long) > 450 || !utf8.ValidString(long) || !strings.Contains(long, "(open)") {
+		t.Fatalf("bounded output %q, err=%v", long, err)
 	}
 }

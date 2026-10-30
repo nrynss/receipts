@@ -4,25 +4,29 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"receipts/internal/auth"
 	"receipts/internal/commands"
 	"receipts/internal/ports"
+	"receipts/internal/receipt"
 )
 
 type captureFake struct {
 	calls     int
 	authority commands.Authority
 	command   ports.ChatCommand
+	result    commands.Result
 }
 
 func (f *captureFake) Handle(_ context.Context, a commands.Authority, c ports.ChatCommand) (commands.Result, error) {
 	f.calls++
 	f.authority = a
 	f.command = c
-	return commands.Result{}, nil
+	return f.result, nil
 }
 
 type appealFake struct {
@@ -98,6 +102,46 @@ func TestRoutesSameReceiptAppealAndLoreServicePortsOnce(t *testing.T) {
 	if l.calls != 1 || s.calls != 1 || s.text != "Lore: fine 🏆" {
 		t.Fatalf("lore=%d sender=%+v", l.calls, s)
 	}
+}
+
+func TestReceiptConfirmationOnlyForCapturedAndIsBoundedAndRateLimited(t *testing.T) {
+	r, c, _, _, s := router()
+	c.result = commands.Result{Code: commands.ReplyCaptured, Receipt: &receipt.Receipt{Claim: strings.Repeat("界", 300)}}
+	at := time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC)
+	if err := r.HandleEvent(context.Background(), msg("broadcaster", "viewer", "m1", "!receipt"), at); err != nil {
+		t.Fatal(err)
+	}
+	if s.calls != 1 || len(s.text) > MaxReplyBytes || !utf8.ValidString(s.text) || !strings.HasPrefix(s.text, "🧾 Receipt taken (@viewer): \"") || !strings.HasSuffix(s.text, "\"") {
+		t.Fatalf("confirmation %q (%d bytes)", s.text, len(s.text))
+	}
+	if err := r.HandleEvent(context.Background(), msg("broadcaster", "viewer", "m2", "!receipt"), at); err != nil {
+		t.Fatal(err)
+	}
+	if s.calls != 1 || c.calls != 2 {
+		t.Fatalf("sender=%d capture=%d", s.calls, c.calls)
+	}
+}
+
+func TestReceiptCaptureOutcomesStaySilent(t *testing.T) {
+	for _, code := range []commands.ReplyCode{commands.ReplyDuplicate, commands.ReplyThrottled, commands.ReplyNoClaim, commands.ReplySuppressed, commands.ReplyTranscriptUnavailable} {
+		t.Run(string(code), func(t *testing.T) {
+			r, c, _, _, s := router()
+			c.result = commands.Result{Code: code, Receipt: &receipt.Receipt{Claim: "claim"}}
+			if err := r.HandleEvent(context.Background(), msg("broadcaster", "viewer", "m1", "!receipt"), time.Now()); err != nil {
+				t.Fatal(err)
+			}
+			if s.calls != 0 {
+				t.Fatalf("sent %d messages", s.calls)
+			}
+		})
+	}
+	t.Run("missing receipt", func(t *testing.T) {
+		r, c, _, _, s := router()
+		c.result = commands.Result{Code: commands.ReplyCaptured}
+		if err := r.HandleEvent(context.Background(), msg("broadcaster", "viewer", "m1", "!receipt"), time.Now()); err != nil || s.calls != 0 {
+			t.Fatalf("err=%v sends=%d", err, s.calls)
+		}
+	})
 }
 
 func TestRolesFromBroadcasterIdentityAndModeratorBadgeOnly(t *testing.T) {

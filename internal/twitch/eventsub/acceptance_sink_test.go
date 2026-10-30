@@ -35,13 +35,15 @@ type safeClassifier struct{}
 func (safeClassifier) Sensitive(context.Context, string) (bool, error) { return false, nil }
 
 type recordSender struct {
-	text string
-	sent bool
+	text     string
+	sent     bool
+	messages []string
 }
 
 func (s *recordSender) SendChatMessage(_ context.Context, _ auth.ChannelContext, text string) (bool, error) {
 	s.text = text
 	s.sent = true
+	s.messages = append(s.messages, text)
 	return true, nil
 }
 
@@ -184,6 +186,10 @@ func (s *liveSink) HandleEvent(ctx context.Context, raw json.RawMessage, at time
 		rows, err := s.ledger.PublicReceipts(ctx, s.authority.ChannelID, 10)
 		if err != nil || len(rows) < 2 {
 			s.fail <- errors.New("receipt service did not persist the chat request")
+			return nil
+		}
+		if !s.sender.sent || len(s.sender.messages) != 1 || !strings.Contains(s.sender.text, "Receipt taken (@") || !strings.Contains(s.sender.text, "I will never take the shortcut again.") {
+			s.fail <- errors.New("receipt capture did not send its bounded chat confirmation")
 			return nil
 		}
 	case "!uphold":

@@ -9,10 +9,12 @@ import (
 	"sync"
 	"time"
 
+	"receipts/internal/appeal"
 	"receipts/internal/auth"
 	"receipts/internal/claims"
 	"receipts/internal/intelligence"
 	"receipts/internal/judge"
+	"receipts/internal/lore"
 	"receipts/internal/receipt"
 	"receipts/internal/retrieval"
 	runtime "receipts/internal/runtime"
@@ -119,7 +121,11 @@ func (a *intelligenceAttachment) attach(ctx context.Context, authority auth.Chan
 	a.services.Store(authority.ChannelID, svc)
 	queue := newJudgeQueue(run, authority, 16, svc.JudgeSource)
 	a.judgeQueues.Store(authority.ChannelID, queue)
-	router := &chat.Router{Authority: authority, ChannelPlatformID: grant.ChannelPlatformID, Capture: svc}
+	router := &chat.Router{
+		Authority: authority, ChannelPlatformID: grant.ChannelPlatformID,
+		Capture: svc, Appeals: appeal.Service{Store: a.ledger, Runtime: a.runtime},
+		Lore: lore.Service{Ledger: a.ledger}, Sender: a.adapter,
+	}
 	sink := newCaptureSink(run, router, captureQueueSize)
 	client := &eventsub.Client{Helix: eventsub.Adapter{Connection: a.adapter}, Sink: sink, OnAuthorizationLost: func(error) { _ = a.runtime.Cancel(authority) }}
 	done := make(chan struct{})
