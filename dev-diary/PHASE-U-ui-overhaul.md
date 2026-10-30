@@ -16,7 +16,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 requires: T3.1, TA.3
 fixture-ok: yes
 owns: web/src/lib/brand/, web/src/app.html, web/static/
-status: not-started
+status: complete
 ```
 
 Introduce the unified **Dark Forest & Parchment Ledger** design system, the original **"Knife-Edge Chop"** SVG brand mark (`ReceiptMark.svelte` and `web/static/favicon.svg`), tactile button primitives, status pills and a shared top navigation bar for human-facing routes (`/`, `/demo/`, `/account`, `/control`). Keep `/obs` and `/?fixture=...` harness views free of navigation chrome and transparent when idle.
@@ -168,7 +168,7 @@ Use this exact vector artwork in `web/src/lib/brand/ReceiptMark.svelte` (accepti
 | **Lead paragraph** | *(None)* | `Streamers make promises on air all the time. Chat types !receipt to lock in the claim. When the streamer goes back on their word, the receipt lands on stream, and chat is the jury.` |
 | **Primary CTA** | `Try the recorded demo` | `Try the recorded demo` (`No login · instant replay`) |
 | **Secondary CTA** | `Set up Receipts` | `Set up Receipts` (`Streamer sign-in & OBS setup`) |
-| **3-Step Strip** | *(None)* | **1. Chat Takes the Receipt**: `!receipt` clips the stream and extracts the spoken promise.<br>**2. The Contradiction Lands**: Live speech-to-text catches the walkback and slams the stamp onto the overlay.<br>**3. Chat Is the Jury**: Streamer Admits, Appeals to `!uphold` / `!overturn`, or logs Context Changed; `!lore` keeps the permanent score. |
+| **3-Step Strip** | *(None)* | **1. Chat Takes the Receipt**: `!receipt` clips the stream and extracts the spoken promise.<br>**2. The Contradiction Lands**: Live speech-to-text flags a possible walkback privately. The streamer reviews the evidence and approves the stamp before it appears on the overlay.<br>**3. Chat Is the Jury**: Streamer Admits, Appeals to `!uphold` / `!overturn`, or logs Context Changed; `!lore` keeps the permanent score. |
 | **Interactive Preview Switcher** | *(None)* | Stage buttons: `Stamp` · `Evidence` · `Appeal` · `Verdict` driving an embedded `<Overlay />` preview |
 
 ### 3. Recorded Judge Demo (`/demo/`)
@@ -244,8 +244,10 @@ Planning complete; Option 1 ("The Knife-Edge Chop") SVG and full before/after UI
 
 ### Evidence and decisions
 
-Record task IDs, relevant revision, checks and artifact paths when work lands. Never record secrets.
+- **TU.1:** `codex/tu1-brand-shell`; added the exact Knife-Edge Chop SVG component and favicon, shared dark-ledger tokens, accessible tactile button/status classes, and a responsive human-route shell. `GOCACHE=/tmp/receipts-go-cache ./tools/check.sh` passed. Browser UI verification was unavailable in the subagent session; SvelteKit diagnostics, the production build, and all 29 overlay tests passed. `/obs` and fixture routes are excluded from the shell by the root layout.
 
 ### Notes for the next task
 
 `TU.1` is unblocked immediately. `TU.2` and `TU.3` depend on `TU.1`, and `TU.4` closes the phase before `T6.1`.
+
+Parent TU.1 review confirmed the shared home navigation in the mounted browser, transparent body/html and absent navigation on the root fixture route, and absent navigation on OBS. Full combined offline gate passed. Detailed responsive route verification continues with TU.2/TU.3.
