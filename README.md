@@ -16,7 +16,7 @@ Build and run the current server using the [development instructions](docs/devel
 | P0 — Feasibility | 4/4 | Twitch, audio and OBS probes |
 | P1 — Foundation | 4/4 | Settings, ledger, contracts and deterministic replay driver |
 | TA — Accounts and onboarding | 2/4 | Identity and isolation implemented; OBS pairing and judge demo pending |
-| P2 — Offline receipt loop | 1/4 | Receipt capture implemented; detection, appeal and lore pending |
+| P2 — Offline receipt loop | 2/4 | Capture/detection implemented; appeal and lore pending |
 | P3–P5 — Live experience | Planned | Overlay, Twitch and intelligence |
 | P6 — Release | Planned | Deployment, live proof and judge readiness |
 

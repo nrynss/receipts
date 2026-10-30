@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "inputs": [
+    {
+      "at": "2026-01-01T00:00:00Z",
+      "kind": "transcript",
+      "transcript": {
+        "id": "replayed",
+        "session_id": "00000000000000000000000000000002",
+        "speaker_id": "streamer",
+        "attribution": "broadcaster",
+        "start_ns": 0,
+        "end_ns": 0,
+        "text": "Fine, I'll take the shortcut."
+      }
+    }
+  ]
+}

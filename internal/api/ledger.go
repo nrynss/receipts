@@ -36,7 +36,11 @@ func (l LedgerReader) OverlaySnapshotFor(r *http.Request, a auth.ChannelContext)
 	if err != nil {
 		return events.OverlaySnapshot{}, err
 	}
-	value := events.OverlaySnapshot{Channel: a.ChannelID, Live: session.State == "live", Receipts: make([]events.PublicReceipt, 0, len(receipts))}
+	stamp, err := l.Store.CurrentStamp(r.Context(), a.ChannelID, a.LiveSessionID)
+	if err != nil {
+		return events.OverlaySnapshot{}, err
+	}
+	value := events.OverlaySnapshot{Channel: a.ChannelID, Live: session.State == "live", CurrentStamp: stamp, Receipts: make([]events.PublicReceipt, 0, len(receipts))}
 	for _, v := range receipts {
 		value.Receipts = append(value.Receipts, events.PublicReceipt{ID: v.ID, Claim: v.Claim, ClippedBy: v.ClippedBy, ClipURL: v.ClipURL, ClipStatus: string(v.ClipStatus), Verdict: string(v.Verdict), CreatedAt: v.CreatedAt})
 	}

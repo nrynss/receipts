@@ -2,7 +2,7 @@
 
 **Goal:** Complete the promise-to-stamp-to-verdict experience using recorded inputs before wiring live services.
 
-**Status:** in-progress (1/4)
+**Status:** in-progress (2/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -25,7 +25,7 @@ Handle !receipt with channel-scoped deduplication, per-user/channel throttling a
 requires: T2.1
 fixture-ok: yes
 owns: internal/detect/, testdata/models/, testdata/replay/
-status: in-progress
+status: done
 ```
 
 Use a judge port backed initially by recorded responses. Separate contradicts, does-not-contradict and unsure from the application decision to stamp. Apply attribution, sensitive-topic, void, cooldown and duplicate checks before emission. Uncertain eligible detections enter an authenticated quiet review queue. Recheck current state before a delayed result is published.
@@ -69,7 +69,7 @@ Render !lore from stored claims and verdicts with a bounded response and a defin
 
 ### What exists now
 
-T2.1 receipt capture is implemented and reviewed from `e0bdbec`. The other P2 services are not implemented. The T1.4 driver and real-ledger replay boundary landed in `ced2280`, and TA.1 in `ed2c7d6`; these are prerequisites, not evidence of a working receipt loop.
+T2.1 receipt capture is implemented and reviewed from `e0bdbec`. T2.2 detection and quiet review are implemented from reviewed candidate `492f6c1`. Appeals and lore remain unimplemented. The T1.4 driver and real-ledger replay boundary landed in `ced2280`, and TA.1 in `ed2c7d6`; these are prerequisites, not evidence of a working receipt loop.
 
 ### Evidence and decisions
 
@@ -77,8 +77,12 @@ Record task IDs, relevant revision, checks and artifact paths when work lands. N
 
 ### Notes for the next task
 
-T2.2 is ready from the landed capture service. Reuse `internal/replay` clock/ID and typed sink boundaries. Preserve explicit channel context for TA.2. T2.4 owns the original full demo event/verdict acceptance; do not recreate decisions inside replay.
+T2.3 answer/appeal is ready from the landed detection service. Reuse `internal/replay` clock/ID and typed sink boundaries. Preserve explicit channel context for TA.2. T2.4 owns the original full demo event/verdict acceptance; do not recreate decisions inside replay.
 
 ### T2.1 acceptance
 
 The principal thread independently ran the full offline gate and uncached commands/store/replay race tests on `e0bdbec`. The recorded input uses the real command service and ledger. Capture persists exact broadcaster evidence and viewer credit, durable channel-scoped dedup/throttles and independent clip work. Review fixed stale/future speech, command/session/time binding, failure/suppression throttle bypass and sensitive source text hidden by normalization. Restart dedup, channel isolation, delayed session rollover and clip failure are covered. Live extraction, real Twitch dispatch and runtime mounting remain later integration work; no full receipt-to-verdict loop is claimed. See [capture handoff](../docs/t21-capture-handoff.md).
+
+### T2.2 acceptance
+
+Reviewed `492f6c1` adds recorded judge responses, exact persisted-source preflight, post-judge authority/version/source checks and a serialized runtime/database/event commit. Durable stamp history keeps cooldown through restart and void. Eligible uncertainty enters the channel-scoped quiet review queue; public snapshots project the current valid stamp with viewer credit. Principal full-gate and uncached detect/store/runtime/API race checks passed. Tests cover delayed void/expiry/pause/rollover/revocation/cancellation, concurrent candidates, channel isolation, deterministic replay through SSE and a nonanimated reconnect snapshot. Live retrieval/judge adapters remain P5; P4 still owns live session activation.
