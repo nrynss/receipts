@@ -1,0 +1,20 @@
+{
+  "implementation_revision": "17a2a74",
+  "offline_gate": "passed",
+  "uncached_all_go_race_suite": "passed",
+  "live_harness_compiled": true,
+  "live_end_of_stream_rehearsal": "pending owner live-stream confirmation",
+  "production_audio_capture_connected": false,
+  "production_chat_clip_attachment_connected": false,
+  "browser_fixture_checks": [
+    "Session active is distinct from audio capture",
+    "Keyboard Stop session restores inactive state"
+  ],
+  "live_harness_limits": {
+    "duration_seconds": 120,
+    "twitch_http_requests": 20,
+    "model_spend_usd": 0,
+    "temporary_audio": "discarded by test cleanup"
+  },
+  "acceptance_boundary": "No live capture-stop result is claimed. The opt-in harness attaches the existing real capture probe to the production authority lifecycle using isolated synthetic account state."
+}
