@@ -9,7 +9,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 ### T6.1: Deploy and recover
 
 ```yaml
-requires: T3.3, T4.3, T5.4, TA.3
+requires: T3.3, T4.3, T5.4, TA.3, TU.4
 fixture-ok: yes
 owns: deploy/, docs/operations.md, cmd/receipts/
 status: not-started
