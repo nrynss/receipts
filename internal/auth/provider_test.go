@@ -83,6 +83,25 @@ func TestTwitchProviderDoesNotExposeProviderErrorBodies(t *testing.T) {
 	}
 }
 
+func TestTwitchProviderRevokesWithFormBodyWithoutEchoingSecrets(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/oauth2/revoke" || r.Method != http.MethodPost {
+			t.Errorf("revoke request: %s %s", r.Method, r.URL.Path)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Error(err)
+		}
+		if r.Form.Get("client_id") != "app-1" || r.Form.Get("token") != "access-secret" {
+			t.Error("revoke form was not bound to client and token")
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	p := TwitchProvider{ClientID: "app-1", BaseURL: "https://provider.test", HTTPClient: providerTestClient(handler)}
+	if err := p.Revoke(context.Background(), "access-secret"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // In-memory transport exercises provider HTTP requests without opening a
 // localhost listener, so the offline gate works with networking disabled.
 type providerTestTransport struct{ handler http.Handler }
