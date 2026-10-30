@@ -59,7 +59,7 @@ func OpenCheckpoint(path string, expected SessionBundle, resume bool) (*Checkpoi
 			return nil, e
 		}
 		b := c.Bundle
-		if b.CorpusKind != expected.CorpusKind || b.DatasetSHA256 != expected.DatasetSHA256 || b.Split != expected.Split || b.FreezeSHA256 != expected.FreezeSHA256 || b.JudgeModel != expected.JudgeModel || b.EmbeddingModel != expected.EmbeddingModel || b.Provenance != expected.Provenance || b.Requested != expected.Requested || b.BudgetNanoUSD != expected.BudgetNanoUSD || !reflect.DeepEqual(b.SourceHashes, expected.SourceHashes) {
+		if b.CorpusKind != expected.CorpusKind || b.DatasetSHA256 != expected.DatasetSHA256 || b.Split != expected.Split || b.FreezeSHA256 != expected.FreezeSHA256 || b.JudgeModel != expected.JudgeModel || !reflect.DeepEqual(b.ComparisonModels, expected.ComparisonModels) || b.EmbeddingModel != expected.EmbeddingModel || b.Provenance != expected.Provenance || b.Requested != expected.Requested || b.BudgetNanoUSD != expected.BudgetNanoUSD || !reflect.DeepEqual(b.SourceHashes, expected.SourceHashes) {
 			return nil, errors.New("checkpoint manifest mismatch")
 		}
 		if e = c.validate(); e != nil {

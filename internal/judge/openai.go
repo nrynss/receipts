@@ -27,9 +27,11 @@ type Client struct {
 	Model  string
 }
 type Result struct {
-	Verdict       detect.Verdict `json:"verdict"`
-	ClaimSourceID string         `json:"claim_source_id"`
-	LaterSourceID string         `json:"later_source_id"`
+	Verdict       detect.Verdict     `json:"verdict"`
+	ClaimSourceID string             `json:"claim_source_id"`
+	LaterSourceID string             `json:"later_source_id"`
+	Confidence    *float64           `json:"confidence,omitempty"`
+	Probabilities map[string]float64 `json:"probabilities,omitempty"`
 }
 
 // Judge compares one receipt and its original evidence to one later source. It
