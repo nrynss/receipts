@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestEraseDisconnectedAccountKeepsOtherOwner(t *testing.T) {
@@ -68,4 +69,31 @@ func requestWithCookie(c *http.Cookie) *http.Request {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.AddCookie(c)
 	return r
+}
+
+func TestDeletionRejectsOAuthFlowStartedBeforeErasure(t *testing.T) {
+	ctx := context.Background()
+	f := newAuthFixture(t, filepath.Join(t.TempDir(), "barrier.db"), nil)
+	_, _, a := login(t, f.service)
+	started := f.clock.Now().UnixMilli()
+	expiry := f.clock.Now().Add(f.service.stateTTL).UnixMilli()
+	if err := f.service.RevokeProviderAuthorization(ctx, a.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.service.EraseDisconnectedAccount(ctx, a.ID, func(context.Context, string) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	sealed, err := f.service.seal(a.TwitchID, storedTokens{Access: "fixture", Refresh: "fixture"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant := f.provider.grant
+	if _, err = f.service.upsertAccountFromState(ctx, grant, sealed, time.Hour, started, expiry); !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("stale callback: %v", err)
+	}
+	f.clock.Add(time.Millisecond)
+	_, _, fresh := login(t, f.service)
+	if fresh.ID == a.ID {
+		t.Fatal("new sign-in reused deleted account")
+	}
 }

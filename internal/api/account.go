@@ -9,8 +9,34 @@ import (
 	channelruntime "receipts/internal/runtime"
 )
 
+// ListeningState is an owner-facing observation, never capture authority.
+type ListeningState string
+
+const (
+	StateUnavailable  ListeningState = "unavailable"
+	StateUnknown      ListeningState = "unknown"
+	StateOffline      ListeningState = "offline"
+	StateMissingGrant ListeningState = "missing_grant"
+	StateCapacity     ListeningState = "capacity"
+	StateNotListening ListeningState = "not_listening"
+	StateListening    ListeningState = "listening"
+	StatePaused       ListeningState = "paused"
+)
+
+// ListeningBackend provides read-only observations and explicit activation.
+// Start must use the trusted live-session activation path, not the observation.
+type ListeningBackend interface {
+	Status(context.Context, auth.ChannelContext) (ListeningState, error)
+	Start(context.Context, auth.ChannelContext) error
+	CanStart() bool
+}
+
 // AccountHandler remains available while the owner's channel is offline.
 func AccountHandler(sessions *auth.Service, supervisor *channelruntime.Manager, disconnect func(context.Context, string) error, budgets *channelruntime.Budgets) http.Handler {
+	return AccountHandlerWithBackend(sessions, supervisor, disconnect, budgets, nil)
+}
+
+func AccountHandlerWithBackend(sessions *auth.Service, supervisor *channelruntime.Manager, disconnect func(context.Context, string) error, budgets *channelruntime.Budgets, backend ListeningBackend) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /account-api/status", func(w http.ResponseWriter, r *http.Request) {
 		identity, err := auth.ChannelFromContext(r.Context())
@@ -18,18 +44,52 @@ func AccountHandler(sessions *auth.Service, supervisor *channelruntime.Manager, 
 			http.Error(w, "Sign in required", 401)
 			return
 		}
-		ctx, channel, cancel, err := supervisor.BindRequest(r.Context(), identity)
-		_ = ctx
-		state := "not_listening"
-		paused := false
+		_, channel, cancel, err := supervisor.BindRequest(r.Context(), identity)
+		state := StateUnavailable
 		if err == nil {
 			defer cancel()
-			state = "listening"
-			paused = channel.Paused()
+			state = StateListening
+			if channel.Paused() {
+				state = StatePaused
+			}
+		} else if backend != nil {
+			observed, statusErr := backend.Status(r.Context(), identity)
+			if statusErr != nil {
+				state = StateUnknown
+			} else {
+				switch observed {
+				case StateOffline, StateUnknown, StateMissingGrant, StateCapacity, StateNotListening, StateUnavailable:
+					state = observed
+				default:
+					state = StateUnknown
+				}
+			}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(map[string]any{"state": state, "paused": paused})
+		_ = json.NewEncoder(w).Encode(map[string]any{"state": state, "can_start": backend != nil && backend.CanStart()})
+	})
+	mux.HandleFunc("POST /account-api/start", func(w http.ResponseWriter, r *http.Request) {
+		identity, err := auth.ChannelFromContext(r.Context())
+		if err != nil || identity.Device {
+			http.Error(w, "Sign in required", http.StatusUnauthorized)
+			return
+		}
+		if backend == nil || !backend.CanStart() {
+			http.Error(w, "Listening unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if err = backend.Start(r.Context(), identity); err != nil {
+			http.Error(w, "Listening could not start", http.StatusServiceUnavailable)
+			return
+		}
+		_, _, cancel, err := supervisor.BindRequest(r.Context(), identity)
+		if err != nil {
+			http.Error(w, "Listening unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		defer cancel()
+		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("POST /account-api/stop", func(w http.ResponseWriter, r *http.Request) {
 		identity, err := auth.ChannelFromContext(r.Context())

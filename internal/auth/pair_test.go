@@ -168,3 +168,60 @@ func TestDeviceCookieSurvivesServiceRestart(t *testing.T) {
 		t.Fatal("device unavailable after restart")
 	}
 }
+
+func TestRevokedBeforePollCannotReportPaired(t *testing.T) {
+	testRevokedBeforePoll(t, false)
+}
+
+func TestDisconnectedBeforePollCannotReportPaired(t *testing.T) {
+	testRevokedBeforePoll(t, true)
+}
+
+func testRevokedBeforePoll(t *testing.T, disconnect bool) {
+	f := newAuthFixture(t, filepath.Join(t.TempDir(), "poll-revoke.db"), nil)
+	session, csrf, a := login(t, f.service)
+	start := httptest.NewRequest(http.MethodPost, "https://receipts.example/auth/pair/start", nil)
+	start.Header.Set("Origin", "https://receipts.example")
+	out := httptest.NewRecorder()
+	f.service.Handler().ServeHTTP(out, start)
+	var body struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(out.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	browser := findCookie(t, out.Result().Cookies(), pairCookie)
+	confirm := httptest.NewRequest(http.MethodPost, "https://receipts.example/auth/pair/confirm", strings.NewReader(`{"code":"`+body.Code+`"}`))
+	confirm.AddCookie(session)
+	confirm.AddCookie(csrf)
+	confirm.Header.Set("Origin", "https://receipts.example")
+	confirm.Header.Set("X-CSRF-Token", csrf.Value)
+	out = httptest.NewRecorder()
+	f.service.Handler().ServeHTTP(out, confirm)
+	if out.Code != 204 {
+		t.Fatalf("confirm %d", out.Code)
+	}
+	var id string
+	if err := f.db.Reader().QueryRowContext(context.Background(), `SELECT id FROM device_sessions WHERE account_id=?`, a.ID).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	if disconnect {
+		if err := f.service.RevokeProviderAuthorization(context.Background(), a.ID); err != nil {
+			t.Fatal(err)
+		}
+	} else if err := f.service.RevokeDeviceCredential(context.Background(), ownerContext(f, session, a), id); err != nil {
+		t.Fatal(err)
+	}
+	poll := httptest.NewRequest(http.MethodGet, "https://receipts.example/auth/pair/status", nil)
+	poll.AddCookie(browser)
+	out = httptest.NewRecorder()
+	f.service.Handler().ServeHTTP(out, poll)
+	if out.Code != http.StatusGone {
+		t.Fatalf("revoked poll %d", out.Code)
+	}
+	for _, c := range out.Result().Cookies() {
+		if c.Name == DeviceCookie && c.Value != "" {
+			t.Fatal("issued revoked cookie")
+		}
+	}
+}

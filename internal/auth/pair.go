@@ -132,7 +132,17 @@ func (s *Service) pairStatus(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusAccepted)
 			return
 		}
+		s.deviceMu.Lock()
+		var active int
+		err := s.db.Reader().QueryRowContext(r.Context(), `SELECT count(*) FROM device_sessions d JOIN accounts a ON a.id=d.account_id WHERE d.token_hash=? AND d.revoked_at IS NULL AND a.status='connected'`, digest(p.credential)).Scan(&active)
+		if err != nil || active != 1 {
+			s.deviceMu.Unlock()
+			delete(s.pairs, code)
+			http.Error(w, "Pairing unavailable", http.StatusGone)
+			return
+		}
 		http.SetCookie(w, s.cookie(DeviceCookie, p.credential, 365*24*time.Hour, true))
+		s.deviceMu.Unlock()
 		http.SetCookie(w, s.expiredCookie(pairCookie, true))
 		delete(s.pairs, code)
 		w.WriteHeader(http.StatusNoContent)

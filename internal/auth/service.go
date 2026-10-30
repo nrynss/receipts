@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -209,7 +210,8 @@ func (s *Service) callback(w http.ResponseWriter, r *http.Request) {
 		authFailure(w, http.StatusBadRequest)
 		return
 	}
-	if !s.consumeState(r.Context(), states[0], cookie.Value) {
+	started, stateExpires, validState := s.consumeState(r.Context(), states[0], cookie.Value)
+	if !validState {
 		authFailure(w, http.StatusBadRequest)
 		return
 	}
@@ -237,7 +239,7 @@ func (s *Service) callback(w http.ResponseWriter, r *http.Request) {
 		authFailure(w, http.StatusInternalServerError)
 		return
 	}
-	account, err := s.upsertAccount(r.Context(), grant, sealed, expiresIn)
+	account, err := s.upsertAccountFromState(r.Context(), grant, sealed, expiresIn, started, stateExpires)
 	if err != nil {
 		authFailure(w, http.StatusInternalServerError)
 		return
@@ -482,6 +484,7 @@ func (s *Service) Maintain(ctx context.Context, onError func(error)) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			_, _ = s.db.Writer().ExecContext(ctx, `DELETE FROM auth_deletion_barriers WHERE expires_at<=?`, s.now().UTC().UnixMilli())
 			if err := s.ValidateAll(ctx); err != nil && onError != nil {
 				onError(err)
 			}
@@ -542,6 +545,9 @@ func (s *Service) validateCurrentLocked(ctx context.Context, accountID string, r
 
 func (s *Service) saveState(ctx context.Context, state, browser string) error {
 	now := s.now().UTC()
+	if _, err := s.db.Writer().ExecContext(ctx, `DELETE FROM auth_deletion_barriers WHERE expires_at<=?`, now.UnixMilli()); err != nil {
+		return err
+	}
 	_, err := s.db.Writer().ExecContext(ctx, `DELETE FROM oauth_states WHERE expires_at<=?`, now.UnixMilli())
 	if err != nil {
 		return err
@@ -550,35 +556,52 @@ func (s *Service) saveState(ctx context.Context, state, browser string) error {
 	return err
 }
 
-func (s *Service) consumeState(ctx context.Context, state, browser string) bool {
+func (s *Service) consumeState(ctx context.Context, state, browser string) (int64, int64, bool) {
 	if state == "" || browser == "" {
-		return false
+		return 0, 0, false
 	}
 	tx, err := s.db.BeginWrite(ctx)
 	if err != nil {
-		return false
+		return 0, 0, false
 	}
 	defer tx.Rollback()
 	var expected []byte
-	var expires int64
-	err = tx.QueryRowContext(ctx, `SELECT browser_hash,expires_at FROM oauth_states WHERE state_hash=?`, digest(state)).Scan(&expected, &expires)
+	var expires, created int64
+	err = tx.QueryRowContext(ctx, `SELECT browser_hash,expires_at,created_at FROM oauth_states WHERE state_hash=?`, digest(state)).Scan(&expected, &expires, &created)
 	if err != nil || expires <= s.now().UTC().UnixMilli() || subtle.ConstantTimeCompare(expected, digest(browser)) != 1 {
-		return false
+		return 0, 0, false
 	}
 	result, err := tx.ExecContext(ctx, `DELETE FROM oauth_states WHERE state_hash=? AND browser_hash=? AND expires_at>?`, digest(state), digest(browser), s.now().UTC().UnixMilli())
 	if err != nil {
-		return false
+		return 0, 0, false
 	}
 	if rows, rowsErr := result.RowsAffected(); rowsErr != nil || rows != 1 {
-		return false
+		return 0, 0, false
 	}
-	return tx.Commit() == nil
+	if tx.Commit() != nil {
+		return 0, 0, false
+	}
+	return created, expires, true
 }
 
 func (s *Service) upsertAccount(ctx context.Context, grant Grant, ciphertext []byte, expires time.Duration) (Account, error) {
+	return s.upsertAccountFromState(ctx, grant, ciphertext, expires, s.now().UTC().UnixMilli(), 0)
+}
+
+func (s *Service) upsertAccountFromState(ctx context.Context, grant Grant, ciphertext []byte, expires time.Duration, started, stateExpires int64) (Account, error) {
 	lock := s.accountLock(grant.UserID)
 	lock.Lock()
 	defer lock.Unlock()
+	if stateExpires != 0 && stateExpires <= s.now().UTC().UnixMilli() {
+		return Account{}, ErrUnauthorized
+	}
+	var blocked int
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM auth_deletion_barriers WHERE subject_hash=? AND deleted_at>=? AND expires_at>?`, s.deletionSubject(grant.UserID), started, s.now().UTC().UnixMilli()).Scan(&blocked); err != nil {
+		return Account{}, err
+	}
+	if blocked != 0 {
+		return Account{}, ErrUnauthorized
+	}
 	now := s.now().UTC()
 	channelCandidate, err := id.New()
 	if err != nil {
@@ -674,6 +697,8 @@ func (s *Service) loadAccountTokens(ctx context.Context, accountID string) (acco
 }
 
 func (s *Service) markReconnectLocked(ctx context.Context, accountID string) error {
+	s.deviceMu.Lock()
+	defer s.deviceMu.Unlock()
 	operationCtx, cancel := s.detachedOperationContext(ctx)
 	defer cancel()
 	tx, err := s.db.BeginWrite(operationCtx)
@@ -876,4 +901,11 @@ func decodeScopes(raw string) []string {
 func authFailure(w http.ResponseWriter, status int) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	http.Error(w, "Twitch sign-in could not be completed. Try connecting again.", status)
+}
+
+func (s *Service) deletionSubject(subject string) []byte {
+	mac := hmac.New(sha256.New, s.key)
+	_, _ = mac.Write([]byte("receipts-deletion-barrier\x00"))
+	_, _ = mac.Write([]byte(subject))
+	return mac.Sum(nil)
 }

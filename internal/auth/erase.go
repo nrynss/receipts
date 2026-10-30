@@ -30,6 +30,13 @@ func (s *Service) EraseDisconnectedAccount(ctx context.Context, accountID string
 		return err
 	}
 	defer tx.Rollback()
+	now := s.now().UTC()
+	if _, err = tx.ExecContext(ctx, `DELETE FROM auth_deletion_barriers WHERE expires_at<=?`, now.UnixMilli()); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO auth_deletion_barriers(subject_hash,deleted_at,expires_at) VALUES(?,?,?) ON CONFLICT(subject_hash) DO UPDATE SET deleted_at=excluded.deleted_at,expires_at=excluded.expires_at`, s.deletionSubject(subject), now.UnixMilli(), now.Add(s.stateTTL).UnixMilli()); err != nil {
+		return err
+	}
 	statements := []string{
 		`DELETE FROM stamp_history WHERE channel_id=?`,
 		`DELETE FROM detections WHERE channel_id=?`,

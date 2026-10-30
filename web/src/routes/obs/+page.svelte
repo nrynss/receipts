@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Overlay from '$lib/overlay/Overlay.svelte';
+  import { fixture } from '$lib/overlay/fixtures';
   import { decodeSnapshot } from '$lib/api/contracts';
   import { displayFromSnapshot, type Display } from '$lib/overlay/model';
   let display = $state<Display>({state:'idle'});
@@ -39,9 +40,17 @@
         timer=setTimeout(poll,2000);
       } catch { status='Pairing unavailable. Refresh this source to try again.'; }
     }
+    if (import.meta.env.DEV) { const mode = new URLSearchParams(window.location.search).get('fixture'); if (mode === 'pairing') { code='SAMPLE123456'; status='Enter this code in your Receipts setup.'; return; } if (mode === 'paired') { paired=true; display=fixture('evidence'); return; } }
     void check(); return () => { stopped=true; clearTimeout(timer); events?.close(); };
   });
 </script>
 <svelte:head><title>Receipts OBS source</title></svelte:head>
-<main>{#if paired}<Overlay {display} />{:else}<p>{status}</p>{#if code}<strong>{code}</strong>{/if}{/if}</main>
-<style>main{font:1.3rem system-ui;color:white;text-shadow:0 1px 4px black;padding:2rem;min-height:100vh;box-sizing:border-box;display:flex;align-items:flex-end;justify-content:center}strong{font-size:2.5rem;letter-spacing:.12em}</style>
+<main class:paired>{#if paired}<Overlay {display} />{:else}<section class="pairing"><p>{status}</p>{#if code}<strong>{code}</strong>{/if}</section>{/if}</main>
+<style>
+  :global(html), :global(body) { margin:0; background:transparent; }
+  main { box-sizing:border-box; width:100%; height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem; font:1.3rem system-ui; }
+  main.paired { align-items:flex-end; }
+  .pairing { box-sizing:border-box; max-width:min(40rem,100%); padding:2rem 3rem; text-align:center; color:#f4eedc; background:#171d1a; border:3px solid #f1b969; }
+  .pairing p { margin:0 0 1rem; }
+  .pairing strong { display:block; font-size:clamp(1.5rem,4vw,3rem); letter-spacing:.12em; overflow-wrap:anywhere; }
+</style>
