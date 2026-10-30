@@ -328,3 +328,18 @@ func (m *Manager) WithActive(authority auth.ChannelContext, commit func(*Channel
 	}
 	return commit(c)
 }
+
+// StopAccount cancels and drains all work belonging to the account.
+func (m *Manager) StopAccount(accountID string) {
+	m.mu.RLock()
+	var authorities []auth.ChannelContext
+	for _, c := range m.active {
+		if c.Authority.AccountID == accountID {
+			authorities = append(authorities, c.Authority)
+		}
+	}
+	m.mu.RUnlock()
+	for _, a := range authorities {
+		_ = m.Stop(a)
+	}
+}

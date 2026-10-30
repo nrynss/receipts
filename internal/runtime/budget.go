@@ -26,6 +26,7 @@ type Budgets struct {
 	store        *costsql.Store
 	keyed        *costsql.KeyedBudget
 	channelLimit cost.Price
+	db           *sqlite.DB
 }
 
 // OpenBudgets shares the application database and never owns its lifetime.
@@ -37,7 +38,7 @@ func OpenBudgets(ctx context.Context, db *sqlite.DB, cfg BudgetConfig) (*Budgets
 	if err != nil {
 		return nil, err
 	}
-	return &Budgets{store: store, keyed: costsql.NewKeyedBudget(store), channelLimit: cfg.ChannelLimit}, nil
+	return &Budgets{store: store, keyed: costsql.NewKeyedBudget(store), channelLimit: cfg.ChannelLimit, db: db}, nil
 }
 
 func (b *Budgets) authorize(ctx context.Context, channelID string) error {
@@ -85,4 +86,21 @@ func (b *Budgets) Remaining(ctx context.Context, channelID string) (channel, glo
 	}
 	global, err = b.store.Remaining(ctx)
 	return
+}
+
+// ForgetChannel removes keyed spend state while retaining anonymized global charges.
+func (b *Budgets) ForgetChannel(ctx context.Context, channelID string) error {
+	if b == nil || b.keyed == nil || channelID == "" {
+		return errors.New("runtime: budget unavailable")
+	}
+	err := b.keyed.ForgetOwner(ctx, channelID)
+	if err != nil && !errors.Is(err, cost.ErrUnknownOwner) {
+		return err
+	}
+	return b.redactChannelCharges(ctx, channelID)
+}
+
+func (b *Budgets) redactChannelCharges(ctx context.Context, channelID string) error {
+	_, err := b.db.Writer().ExecContext(ctx, `UPDATE receipts_budget_charge SET ref='erased:' || id WHERE json_valid(ref) AND json_extract(ref, '$[0]')=?`, channelID)
+	return err
 }

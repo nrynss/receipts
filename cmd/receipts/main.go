@@ -19,6 +19,7 @@ import (
 	channelruntime "receipts/internal/runtime"
 	"receipts/internal/settings"
 	"receipts/internal/store"
+	"receipts/internal/twitch/connection"
 )
 
 //go:embed all:static
@@ -122,6 +123,8 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 		}()
 		mux := http.NewServeMux()
 		mux.Handle("/auth/", authService.Handler())
+		adapter := &connection.Adapter{Runtime: supervisor, Resolver: connection.ServiceResolverFunc{Service: authService}, Tokens: authService, LossHandler: authService}
+		mux.Handle("/account-api/", api.AccountHandlerWithBackend(authService, supervisor, authService.DisconnectProviderAuthorization, budgets, listeningObservation{adapter: adapter}))
 		mux.Handle("/api/", api.NewForOwner(api.Config{
 			OwnerReader:   api.LedgerReader{Store: ledger, Mode: string(cfg.Mode)},
 			OwnerControls: api.LedgerControls{Store: ledger, Runtime: supervisor, AppealDuration: cfg.AppealDuration, StampCooldown: cfg.StampCooldown},

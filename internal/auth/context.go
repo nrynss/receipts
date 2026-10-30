@@ -15,6 +15,8 @@ import (
 	"github.com/nrynss/keel/id"
 )
 
+const DeviceCookie = "receipts_device"
+
 // ChannelContext is server-validated owner/device identity plus the live
 // session authority bound by the runtime manager. Browser sessions are not
 // runtime identities and caller-supplied channel IDs never create one.
@@ -137,10 +139,16 @@ func (s *Service) RevokeDeviceCredential(ctx context.Context, owner ChannelConte
 
 func (s *Service) authenticateDevice(r *http.Request) (ChannelContext, context.Context, context.CancelFunc, func(), error) {
 	header := r.Header.Get("Authorization")
-	if !strings.HasPrefix(header, "Bearer ") || len(header) < 8 {
+	credential := ""
+	if strings.HasPrefix(header, "Bearer ") {
+		credential = strings.TrimPrefix(header, "Bearer ")
+	} else if cookie, err := r.Cookie(DeviceCookie); err == nil {
+		credential = cookie.Value
+	}
+	if credential == "" {
 		return ChannelContext{}, nil, nil, nil, ErrUnauthorized
 	}
-	hash := sha256.Sum256([]byte(strings.TrimPrefix(header, "Bearer ")))
+	hash := sha256.Sum256([]byte(credential))
 	var value ChannelContext
 	err := s.db.Reader().QueryRowContext(r.Context(), "SELECT d.id,a.id,d.channel_id FROM device_sessions d JOIN accounts a ON a.id=d.account_id WHERE d.token_hash=? AND d.revoked_at IS NULL AND a.status='connected'", hash[:]).Scan(&value.DeviceID, &value.AccountID, &value.ChannelID)
 	if err != nil {

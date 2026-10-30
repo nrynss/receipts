@@ -50,7 +50,7 @@ func TestDeviceCredentialHashReadOnlyAndImmediateRevocation(t *testing.T) {
 		close(canceled)
 	}))
 	req := httptest.NewRequest(http.MethodGet, "/api/events", nil)
-	req.Header.Set("Authorization", "Bearer "+credential)
+	req.AddCookie(&http.Cookie{Name: DeviceCookie, Value: credential})
 	go handler.ServeHTTP(httptest.NewRecorder(), req)
 	select {
 	case <-entered:
@@ -58,7 +58,7 @@ func TestDeviceCredentialHashReadOnlyAndImmediateRevocation(t *testing.T) {
 		t.Fatal("device stream did not start")
 	}
 	control := httptest.NewRequest(http.MethodPost, "/api/control/pause", strings.NewReader("{\"paused\":true}"))
-	control.Header.Set("Authorization", "Bearer "+credential)
+	control.AddCookie(&http.Cookie{Name: DeviceCookie, Value: credential})
 	blocked := httptest.NewRecorder()
 	f.service.ChannelMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Fatal("device reached control handler") })).ServeHTTP(blocked, control)
 	if blocked.Code != http.StatusForbidden {
@@ -75,7 +75,7 @@ func TestDeviceCredentialHashReadOnlyAndImmediateRevocation(t *testing.T) {
 
 	for _, path := range []string{"/api/overlay", "/api/events"} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
-		req.Header.Set("Authorization", "Bearer "+credential)
+		req.AddCookie(&http.Cookie{Name: DeviceCookie, Value: credential})
 		res := httptest.NewRecorder()
 		handler.ServeHTTP(res, req)
 		if res.Code != http.StatusUnauthorized {

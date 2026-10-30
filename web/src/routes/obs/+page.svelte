@@ -1,0 +1,56 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import Overlay from '$lib/overlay/Overlay.svelte';
+  import { fixture } from '$lib/overlay/fixtures';
+  import { decodeSnapshot } from '$lib/api/contracts';
+  import { displayFromSnapshot, type Display } from '$lib/overlay/model';
+  let display = $state<Display>({state:'idle'});
+  let paired = $state(false);
+  let code = $state('');
+  let status = $state('Checking pairing…');
+  onMount(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let events: EventSource | undefined;
+    let generation = 0;
+    async function update() {
+      const current = ++generation;
+      try { const response = await fetch('/api/overlay'); const next = response.ok ? displayFromSnapshot(decodeSnapshot(await response.json())) : {state:'idle'} as Display; if (!stopped && current === generation) display = next; } catch { if (!stopped && current === generation) display = {state:'idle'}; }
+    }
+    function activate() {
+      paired = true; void update(); events = new EventSource('/api/events');
+      events.onopen = () => { void update(); };
+      for (const name of ['snapshot','stamp','status','reset']) events.addEventListener(name, () => { void update(); });
+      events.onerror = () => { generation++; display = {state:'idle'}; };
+    }
+    async function check() {
+      try {
+        const existing = await fetch('/auth/device');
+        if (existing.ok) { status=''; activate(); return; }
+        const start = await fetch('/auth/pair/start',{method:'POST'});
+        if (!start.ok) throw new Error();
+        code = (await start.json()).code; status='Enter this code in your Receipts setup.';
+        async function poll() {
+          if (stopped) return;
+          const result = await fetch('/auth/pair/status');
+          if (result.status === 204) { code=''; status=''; activate(); return; }
+          if (result.status !== 202) { code=''; status='Code expired. Refresh this source to try again.'; return; }
+          timer=setTimeout(poll,2000);
+        }
+        timer=setTimeout(poll,2000);
+      } catch { status='Pairing unavailable. Refresh this source to try again.'; }
+    }
+    if (import.meta.env.DEV) { const mode = new URLSearchParams(window.location.search).get('fixture'); if (mode === 'pairing') { code='SAMPLE123456'; status='Enter this code in your Receipts setup.'; return; } if (mode === 'paired') { paired=true; display=fixture('evidence'); return; } }
+    void check(); return () => { stopped=true; clearTimeout(timer); events?.close(); };
+  });
+</script>
+<svelte:head><title>Receipts OBS source</title></svelte:head>
+<main class:paired>{#if paired}<Overlay {display} />{:else}<section class="pairing"><p>{status}</p>{#if code}<strong>{code}</strong>{/if}</section>{/if}</main>
+<style>
+  :global(html), :global(body) { margin:0; background:transparent; }
+  main { box-sizing:border-box; width:100%; height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem; font:1.3rem system-ui; }
+  main.paired { align-items:flex-end; }
+  .pairing { box-sizing:border-box; max-width:min(40rem,100%); padding:2rem 3rem; text-align:center; color:#f4eedc; background:#171d1a; border:3px solid #f1b969; }
+  .pairing p { margin:0 0 1rem; }
+  .pairing strong { display:block; font-size:clamp(1.5rem,4vw,3rem); letter-spacing:.12em; overflow-wrap:anywhere; }
+</style>

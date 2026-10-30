@@ -2,7 +2,7 @@
 
 **Goal:** Complete the promise-to-stamp-to-verdict experience using recorded inputs before wiring live services.
 
-**Status:** in-progress (2/4)
+**Status:** in-progress (3/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -38,7 +38,7 @@ Use a judge port backed initially by recorded responses. Separate contradicts, d
 requires: T2.2
 fixture-ok: yes
 owns: internal/appeal/, internal/commands/, internal/api/
-status: in-progress
+status: done
 ```
 
 Implement Admit, Appeal and Context changed as authenticated streamer actions. Define !void for streamer/moderators and !receipts off/on with verified roles. Distinguish stamp pause from stopping audio. Count one vote per Twitch user per active appeal; accept !uphold and !overturn only in the correct channel and voting window. First vote is final for this version. A tie or no votes produces an explicit inconclusive verdict. Persist deadlines and close overdue appeals on recovery without replaying the stamp.
@@ -86,3 +86,5 @@ The principal thread independently ran the full offline gate and uncached comman
 ### T2.2 acceptance
 
 Reviewed `492f6c1` adds recorded judge responses, exact persisted-source preflight, post-judge authority/version/source checks and a serialized runtime/database/event commit. Durable stamp history keeps cooldown through restart and void. Eligible uncertainty enters the channel-scoped quiet review queue; public snapshots project the current valid stamp with viewer credit. Principal full-gate and uncached detect/store/runtime/API race checks passed. Tests cover delayed void/expiry/pause/rollover/revocation/cancellation, concurrent candidates, channel isolation, deterministic replay through SSE and a nonanimated reconnect snapshot. Live retrieval/judge adapters remain P5; P4 still owns live session activation.
+
+T2.3 is reviewed and integrated in `75d2a52`: guarded answers/review, trusted votes, deterministic deadlines and startup recovery pass the offline gate and race tests. Verified-runtime scheduling and trusted chat delivery connect through P4 activation; no live acceptance is claimed. T2.4 lore and full replay acceptance remains open.

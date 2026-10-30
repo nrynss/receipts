@@ -78,3 +78,5 @@ Record task IDs, relevant revision, checks and artifact paths when work lands. N
 ### Notes for the next task
 
 T4.1 waits for TA.2. Reuse `internal/auth` token access and unauthorized-refresh hooks. Never bypass channel authorization using caller-supplied IDs.
+
+T4.1 implementation is reviewed and integrated in `2627aea`: scoped Helix/EventSub requests, bounded owner status observation, one refresh retry and generation/token-safe authorization loss pass offline and race checks. The tagged live capability test has not run; T4.1 remains in-progress pending that acceptance.
