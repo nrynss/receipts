@@ -69,7 +69,7 @@ Combine verified live-status signals with bounded freshness and startup checks. 
 
 ### What exists now
 
-P4 adapter integration has not started. P0 proved bounded Twitch capability; TA.1 OAuth/session lifecycle is implemented in `ed2c7d6`. These do not establish a running multi-channel EventSub/clip product pipeline.
+T4.1 adapter integration and bounded live chat/clip acceptance are complete. P0 proved bounded Twitch capability; TA.1 OAuth/session lifecycle is implemented in `ed2c7d6`. These do not establish a running multi-channel EventSub/clip product pipeline.
 
 ### Evidence and decisions
 

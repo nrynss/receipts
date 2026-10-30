@@ -48,7 +48,7 @@ Run `./bin/receipts replay --fixture testdata/replay/foundation.json --db /tmp/r
 
 ## Hosted channel limits
 
-`RECEIPTS_MAX_ACTIVE_CHANNELS` defaults to 2 (allowed 1–64). `RECEIPTS_GLOBAL_SPEND_LIMIT_USD` defaults to 3 and `RECEIPTS_CHANNEL_SPEND_LIMIT_USD` to 1.5. Limits must be positive and finite; a channel ceiling cannot exceed the global ceiling. Keel persists nanodollar accounting in the application SQLite file, with a lifetime ceiling (restart does not reset spend). These limits supplement the per-model settings. Owner-confirmed OBS pairing, credential issuance and revocation are implemented; actual OBS persistence acceptance remains TA.3. See [runtime handoff](ta2-runtime-handoff.md).
+`RECEIPTS_MAX_ACTIVE_CHANNELS` defaults to 2 (allowed 1–64). `RECEIPTS_GLOBAL_SPEND_LIMIT_USD` defaults to 3 and `RECEIPTS_CHANNEL_SPEND_LIMIT_USD` to 1.5. Limits must be positive and finite; a channel ceiling cannot exceed the global ceiling. Keel persists nanodollar accounting in the application SQLite file, with a lifetime ceiling (restart does not reset spend). These limits supplement the per-model settings. Owner-confirmed OBS pairing, credential issuance and revocation are implemented; local actual OBS persistence acceptance passed; deployed-origin acceptance remains TA.4. See [runtime handoff](ta2-runtime-handoff.md).
 
 ## Overlay visual verification
 

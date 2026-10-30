@@ -10,9 +10,7 @@ it is no longer trusted; its current stream closes and later requests fail.
 Pair it again with a fresh code when needed. Pausing stamps and stopping
 listening are separate controls. Signing out ends the current dashboard session.
 
-Pairing persistence through a real OBS refresh and restart remains a release
-check. Browser and server fixture tests do not establish that OBS stores its
-cookies across those operations.
+Local real OBS acceptance passed: the owner confirmed source refresh, OBS restart and server restart without re-pairing. A persisted appeal restored the same countdown and vote counts without replaying a stamp animation. Revocation cleared the source without a refresh. See [acceptance evidence](evidence/t33-ta3-obs.json). Deployed-origin acceptance remains TA.4.
 
 ## Local OBS pairing rehearsal
 

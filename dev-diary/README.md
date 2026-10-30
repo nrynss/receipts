@@ -10,9 +10,9 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 |---|---|---|---|
 | P0 | [Ground and feasibility](PHASE-0-ground.md) | 4 / 4 | Complete; owner confirmed OBS video, audio and autoplay |
 | P1 | [Contracts, storage and lifecycle](PHASE-1-contracts.md) | 4 / 4 | Complete; replay driver landed; full product scenario acceptance belongs to T2.4 |
-| TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 2 / 4 | Identity/isolation complete; Onboarding implemented; actual OBS acceptance pending |
+| TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 3 / 4 | Identity, isolation and onboarding/OBS pairing complete; hosted judge acceptance remains |
 | P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 4 / 4 | Complete; capture, detection, appeals, lore and full offline replay verified |
-| P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 2 / 3 | Overlay and owner controls complete; recovery implemented, actual OBS rehearsal remains |
+| P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 3 / 3 | Complete; recovery and owner-reported real OBS rehearsal passed |
 | P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 1 / 4 | Authorized adapters verified with bounded real chat/clip calls; transport, clip readiness and session authority remain |
 | P5 | [Live transcription and contradiction judging](PHASE-5-intelligence.md) | 0 / 4 | Not started |
 | P6 | [Live proof, operations and submission](PHASE-6-ship.md) | 0 / 4 | Not started |
@@ -45,7 +45,7 @@ For a completed task record the revision, relevant checks, evidence location and
 
 ## Scope boundaries
 
-- Hosted scope: multiple Twitch owners, one owned channel per account, one Go process and one SQLite file, with isolated channel runtimes and overlays. See [accounts and judge onboarding scope](../docs/accounts-scope.md); TA.1 identity/sessions and TA.2 runtime isolation are implemented; TA.3 is implemented pending actual OBS acceptance; TA.4 remains planned.
+- Hosted scope: multiple Twitch owners, one owned channel per account, one Go process and one SQLite file, with isolated channel runtimes and overlays. See [accounts and judge onboarding scope](../docs/accounts-scope.md); TA.1 identity/sessions and TA.2 runtime isolation are implemented; TA.3 is complete with local OBS acceptance; TA.4 remains planned.
 - Viewers use existing Twitch chat commands; the streamer uses a private control page/OBS dock.
 - Explicit spoken promises and spoken contradictions first. Visual gameplay recognition and billing are deferred. Self-service Twitch onboarding is now required by the hosted scope.
 - Capture preserves transcript evidence even if a clip is pending, late or unavailable. A transcript fallback is clearly labelled.
@@ -78,16 +78,18 @@ T0.1 → T0.4 → T1.2 → T1.3 → T1.4 → T2.1 → T2.2 → T2.3 → T2.4 est
 | T2.1 receipt capture | `4150ce5` | Exact attributed evidence, durable dedup/throttles and clip jobs; live extraction/transport remain downstream |
 | TA.2 channel isolation | `3b9242c` | Runtime/API/device isolation and durable budgets; [runtime handoff](../docs/ta2-runtime-handoff.md); live activation remains P4 |
 | T2.2 detection/review | `0190538` | Delayed-result guards, durable cooldown and replay/SSE recovery |
-| T3.1 overlay states | `090acd8` | Reviewed original fixture UI and mounted browser checks; authenticated SSE implemented; actual OBS acceptance remains |
+| T3.1 overlay states | `090acd8` | Reviewed original fixture UI and mounted browser checks; authenticated SSE and local actual OBS acceptance passed |
 
 | T2.3 appeals | `75d2a52` | Guarded decisions, votes, review and restart recovery |
-| TA.3 onboarding | `e1821fa` | Account lifecycle and OBS pairing implemented; actual OBS acceptance pending |
+| TA.3 onboarding | `e1821fa` | Account lifecycle and OBS pairing implemented; local OBS refresh/restart/revocation acceptance passed |
 | T4.1 authorization | `5d33818` | Bound adapter confirmed live nrynss, sent one approved message and created one clip; readiness remains T4.3 |
 | T2.4 lore/replay | `418121b` | Two fresh stores, complete event payload comparison, failed clip and restart |
 | T3.2 owner controls | `a796c8b` candidate | Reviewed dock, keyboard rehearsal, retry recovery; integrated with this handoff |
+
+| T3.3 / TA.3 acceptance | `3e4b9f1` + principal evidence | [Real OBS owner reports and persisted restart checks](../docs/evidence/t33-ta3-obs.json); fresh hosted onboarding remains TA.4 |
 
 The integrated capture/isolation tree passed the full offline gate and uncached auth/API/events/runtime/settings/store/commands/startup race checks. Provider HTTP tests use an in-memory transport, so the gate requires no localhost socket permissions. The full offline receipt loop is verified; deployed multi-streamer acceptance remains open.
 
 ## Ready next
 
-T3.3 recovery is implemented pending actual OBS rehearsal. T4.2 EventSub/chat transport and T4.3 clip jobs are ready by their listed dependencies. T4.4 live-session authority unlocks actual listening activation. TA.3 actual OBS acceptance remains open; T4.1 bounded live capability acceptance passed. T6.1 deploys after TA.3; TA.4 verifies the deployed experience and gates T6.3 judge readiness.
+T3.3 recovery and actual local OBS rehearsal are complete. T4.2 EventSub/chat transport and T4.3 clip jobs are ready by their listed dependencies. T4.4 live-session authority unlocks actual listening activation. TA.3 local OBS acceptance and T4.1 bounded live capability acceptance passed. T6.1 deploys after TA.3; TA.4 verifies the deployed experience and gates T6.3 judge readiness.

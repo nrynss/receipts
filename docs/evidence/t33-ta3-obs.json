@@ -1,0 +1,27 @@
+{
+  "environment": "loopback HTTPS, synthetic local account, real OBS Browser Source",
+  "origin": "https://127.0.0.1:18082",
+  "source_path": "/obs",
+  "provider_calls": 0,
+  "owner_reported": {
+    "initial_receipt_visible": true,
+    "obs_close_reopen_without_pairing": true,
+    "source_properties_refresh_without_pairing": true,
+    "server_restart_without_pairing": true,
+    "appeal_counts_restored": "0 uphold / 0 overturn",
+    "appeal_countdown_restored_without_reset": true,
+    "no_replayed_stamp_animation": true,
+    "revocation_cleared_source_without_refresh": true
+  },
+  "agent_verified": {
+    "owner_setup_https": true,
+    "production_pairing_routes": true,
+    "persisted_appeal_closes_at_unchanged_across_restart": true,
+    "owner_device_list_empty_after_revoke": true
+  },
+  "limitations": [
+    "Local synthetic account; fresh real-owner hosted onboarding remains TA.4.",
+    "Deployed-origin OBS and clip playback remain later hosted/live acceptance.",
+    "No saved OBS screenshot or video artifact is claimed."
+  ]
+}

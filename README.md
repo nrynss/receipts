@@ -4,7 +4,7 @@
 
 Chat types `!receipt` when a streamer promises something on stream. Receipts clips the moment and keeps the claim. When the streamer later goes back on it, a **RECEIPT** stamp lands on the overlay with the old clip, and chat votes on the appeal. `!lore` gives new viewers the channel's running promises and the ones that broke.
 
-> **Status:** entry for the Codex × TwitchCon Hackathon, in development. P0 feasibility, P1 foundation and the offline receipt loop are complete. Account isolation, onboarding/OBS pairing and owner controls are implemented. Actual OBS acceptance, shared live activation and hosted judge acceptance remain open; see the [development diary](dev-diary/README.md).
+> **Status:** entry for the Codex × TwitchCon Hackathon, in development. P0 feasibility, P1 foundation and the offline receipt loop are complete. Account isolation, onboarding/OBS pairing and owner controls are implemented. Shared live activation and hosted judge acceptance remain open; see the [development diary](dev-diary/README.md).
 
 Implementation phases, task dependencies and acceptance criteria are in the [development diary](dev-diary/README.md).
 Build and run the current server using the [development instructions](docs/development.md).
@@ -15,9 +15,9 @@ Build and run the current server using the [development instructions](docs/devel
 |---|---|---|
 | P0 — Feasibility | 4/4 | Twitch, audio and OBS probes |
 | P1 — Foundation | 4/4 | Settings, ledger, contracts and deterministic replay driver |
-| TA — Accounts and onboarding | 2/4 | Identity/isolation implemented; OBS pairing implemented pending manual acceptance; judge demo pending |
+| TA — Accounts and onboarding | 3/4 | Identity, isolation and OBS pairing verified; hosted judge demo acceptance pending |
 | P2 — Offline receipt loop | 4/4 | Capture, detection, appeals, lore and deterministic full-loop replay verified |
-| P3 — Overlay/controls | 2/3 | Overlay and owner controls verified; OBS/SSE recovery rehearsal pending |
+| P3 — Overlay/controls | 3/3 | Overlay, owner controls and actual local OBS/SSE recovery verified |
 | P4 — Twitch integration | 1/4 | Authorized adapter live proof complete; EventSub, clip readiness and session authority pending |
 | P5 — Intelligence | 0/4 | Live transcription, extraction, judging and evaluation pending |
 | P6 — Release | Planned | Deployment, live proof and judge readiness |
@@ -35,7 +35,7 @@ The replay database path must be new. The CLI replay persists transcript fixture
 
 ## Planned streamer experience
 
-Twitch sign-in and OBS pairing for the owner’s channel are implemented. Owners reach the private control dock at `/control` from account setup. Actual OBS acceptance, live-adapter activation and the anonymous recorded demo remain open.
+Twitch sign-in and OBS pairing for the owner’s channel are implemented. Owners reach the private control dock at `/control` from account setup. Local OBS pairing/recovery acceptance passed. Live-session activation and the anonymous recorded demo remain open.
 
 Add the overlay to OBS as a browser source. Chat commands: `!receipt`, `!lore`, `!uphold`, `!overturn`; the streamer and mods also have `!receipts off` and `!void`.
 

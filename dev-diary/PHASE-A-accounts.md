@@ -2,7 +2,7 @@
 
 **Goal:** Let judges try Receipts immediately and streamers connect their own channel safely.
 
-**Status:** in-progress (2/4)
+**Status:** in-progress (3/4)
 
 Read [the phase index](README.md), [account scope](../docs/accounts-scope.md), [product](../product.md) and [agent protocol](../AGENTS.md). The scope defines product boundaries; this document owns TA task status, dependencies and implementation evidence.
 
@@ -38,7 +38,7 @@ Resolve validated owner or device channel context at every API boundary. Give ea
 requires: TA.2, T3.1
 fixture-ok: yes
 owns: web/src/lib/account/, web/src/routes/, internal/auth/, internal/api/, docs/obs.md
-status: in-progress
+status: done
 ```
 
 Build connection/setup dashboard with offline, live, listening, paused, missing-grant and capacity states. Pair OBS through an expiring single-use code confirmed by the owner. Keep the copied browser-source URL free of credentials. Persist revocable read-only device sessions; store device credentials hashed. Implement disconnect and account deletion, including dependent records and documented backup retention.
@@ -72,12 +72,12 @@ TA.1 is landed in `ed2c7d6`; T1.4 replay foundation is landed in `ced2280`. P2 c
 
 ## Handoff log
 
-TA.1 is reviewed from `50ced59` and integrated with startup in `ed2c7d6`. Principal-thread full offline gate and uncached auth/settings/store/startup race tests passed. TA.2 runtime/API authorization is reviewed from `7c463e1`; TA.3 onboarding waits for T3.1 overlay states. Onboarding UI and OBS pairing are implemented; trusted live adapter activation remains pending P4.4. Public HTTPS origin, active-channel capacity and operator spend limits must be configured before hosted activation. Billing, moderator delegation and multiple owned channels per account remain deferred.
+TA.1 is reviewed from `50ced59` and integrated with startup in `ed2c7d6`. Principal-thread full offline gate and uncached auth/settings/store/startup race tests passed. TA.2 runtime/API authorization is reviewed from `7c463e1`; TA.3 onboarding and OBS acceptance are complete. Onboarding UI and OBS pairing are implemented; trusted live adapter activation remains pending P4.4. Public HTTPS origin, active-channel capacity and operator spend limits must be configured before hosted activation. Billing, moderator delegation and multiple owned channels per account remain deferred.
 
 Review fixed login/refresh/revocation ordering, durable rotated-token persistence despite caller cancellation or temporary validation outage, subject-bound encryption, and session issuance after revocation. Startup and cancellable hourly maintenance validate connected grants; invalid authorization revokes browser sessions. Provider tests are offline; real Twitch consent at the hosted HTTPS origin remains TA.4 acceptance. See [auth handoff](../docs/ta1-auth-handoff.md).
 
 ### TA.2 acceptance
 
-Reviewed candidate `7c463e1` composes owner/device middleware, channel-local publishers and runtime generations, scoped ledger reads and durable Keel budgets on the same SQLite file. The principal thread contributed budget/read-model/composition tests and independently verified the full gate plus uncached auth/API/runtime/settings/store/commands/startup race checks. Tests cover guessed authority, two-owner data and SSE isolation, device read-only restrictions, CSRF, revocation/session expiry, capacity held until workers stop, pre-cancelled work, activation/revocation races and persistent spend caps. Default void/review/receipt-decision actions return 501 until P2 lifecycle services can commit state and events together. P4 must call the verified activation seam; no real live runtime is enabled just by login. See [runtime handoff](../docs/ta2-runtime-handoff.md).
+Reviewed candidate `7c463e1` composes owner/device middleware, channel-local publishers and runtime generations, scoped ledger reads and durable Keel budgets on the same SQLite file. The principal thread contributed budget/read-model/composition tests and independently verified the full gate plus uncached auth/API/runtime/settings/store/commands/startup race checks. Tests cover guessed authority, two-owner data and SSE isolation, device read-only restrictions, CSRF, revocation/session expiry, capacity held until workers stop, pre-cancelled work, activation/revocation races and persistent spend caps. Void, review and receipt decisions now use the completed P2 services. P4 must call the verified activation seam; no real live runtime is enabled just by login. See [runtime handoff](../docs/ta2-runtime-handoff.md).
 
-TA.3 implementation is reviewed from `cb0bd7a` and `6b6c63c`: account/OBS setup, persistent revocable device cookies, owner deletion and typed status are implemented. Offline gate and focused race tests pass; dashboard and pairing panel were visually reviewed. A build-tagged loopback acceptance harness now supports a real OBS pairing rehearsal with a synthetic account and no provider calls; its use is not yet evidence of an OBS run. Actual OBS refresh/restart acceptance remains pending, so TA.3 remains in-progress. Start-listening explicitly remains unavailable until P4.4 supplies trusted activation.
+TA.3 implementation is reviewed from `cb0bd7a` and `6b6c63c`: account/OBS setup, persistent revocable device cookies, owner deletion and typed status are implemented. Offline gate and focused race tests pass; dashboard and pairing panel were visually reviewed. A build-tagged loopback acceptance harness now supports a real OBS pairing rehearsal with a synthetic account and no provider calls; automated harness evidence is recorded separately from owner-reported OBS observations. Actual local OBS acceptance passed: the owner confirmed source refresh, OBS restart and server restart without re-pairing, restored appeal countdown/counts and immediate clearing after revocation. Synthetic process-restart tests verify persistent device authorization. See [OBS evidence](../docs/evidence/t33-ta3-obs.json). Fresh real-owner onboarding on the deployed origin remains TA.4. Start-listening explicitly remains unavailable until P4.4 supplies trusted activation.

@@ -2,7 +2,7 @@
 
 **Goal:** Make the core moment readable and controllable on a real broadcast canvas.
 
-**Status:** in-progress (2/3)
+**Status:** done (3/3)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -38,7 +38,7 @@ Provide a private control page usable as an OBS dock: Admit, Appeal, Context cha
 requires: T2.4, T3.2
 fixture-ok: yes
 owns: web/src/lib/events/, internal/events/, docs/obs.md
-status: in-progress
+status: done
 ```
 
 Connect Keel stream to Chaaya createEventStream with snapshots and stable IDs. Show disconnected state privately; restore the current appeal and remaining time from server state. Document browser-source dimensions and an OBS setup rehearsal using fixture mode. Capture no tokens in screenshots.
@@ -56,7 +56,7 @@ Connect Keel stream to Chaaya createEventStream with snapshots and stable IDs. S
 
 ### What exists now
 
-T3.1 overlay states/playback components are reviewed from `090acd8`. T1.3 supplies TypeScript decoding/reconnect helpers and TA.1–TA.2 supply hosted authorization. Streamer controls, authenticated overlay transport and OBS pairing are implemented. Actual OBS/SSE recovery remains T3.3.
+T3.1 overlay states/playback components are reviewed from `090acd8`. T1.3 supplies TypeScript decoding/reconnect helpers and TA.1–TA.2 supply hosted authorization. Streamer controls, authenticated overlay transport and OBS pairing are implemented. Actual OBS/SSE recovery subsequently passed in T3.3.
 
 ### Evidence and decisions
 
@@ -70,16 +70,16 @@ TA.3 onboarding/OBS pairing is ready from T3.1 and TA.2. T3.2 requires T2.3. TA.
 
 The principal thread independently ran the complete gate and browser harness on reviewed `090acd8`. Mounted checks passed for pending/unavailable clips, simulated iframe error/timeout, state changes through idle, exact long text with bounded scrolling, timer cleanup and snapshot recovery without stamp animation. The 640×360 run also passed with reduced motion emulated. Evidence-state screenshots were visually inspected at 640×360 and 1920×1080; no saved image artifact is claimed. Credit and fallback were readable at both sizes. See [browser evidence](../docs/evidence/t31-overlay.md).
 
-The default page stays transparent/idle; `?fixture=sequence` selects original visual fixtures. This is not the full anonymous product demo or production SSE composition. Real Twitch playback and OBS are not verified by simulated iframe events; saved claim text stays visible when an embed cannot report its cross-origin playback state. T3.3 and P4 retain live/OBS acceptance.
+The default page stays transparent/idle; `?fixture=sequence` selects original visual fixtures. This is not the full anonymous product demo or production SSE composition. Real Twitch playback and OBS are not verified by simulated iframe events; saved claim text stays visible when an embed cannot report its cross-origin playback state. T3.3 subsequently passed local OBS recovery; P4 retains real clip/deployed-origin acceptance.
 
 ### T3.2 control dock handoff
 
 The owner dock at `/control` reads account listening status and the active runtime's snapshot, health and private review queue. It sends owner actions through the existing CSRF-protected endpoints. Decision and review retries retain their action key across refreshes in the same tab, scoped to the authenticated owner and channel. The stored record contains a SHA-256 digest of the action payload and the key, never credentials, private review text or context reasons. Definitive 4xx refusals release the key; network and server failures retain it. Retry the same choice and reason; a different keyed action is blocked until the uncertain action succeeds. The dock does not enable live activation: it displays the backend's availability and exposes stop only while listening. Review claims and reasons remain private to the authenticated owner endpoint.
 
-The offline gate and client tests cover pending submission and retry identity. Existing hosted API tests cover owner and device authorization. Principal browser rehearsal verified keyboard pause/resume, Admit, required context reasons, Context changed and review approval with original fixture data. The dock was visually inspected. Full offline gate and backend device-denial checks pass. Actual OBS/SSE recovery remains T3.3; no live activation is claimed.
+The offline gate and client tests cover pending submission and retry identity. Existing hosted API tests cover owner and device authorization. Principal browser rehearsal verified keyboard pause/resume, Admit, required context reasons, Context changed and review approval with original fixture data. The dock was visually inspected. Full offline gate and backend device-denial checks pass. Actual local OBS/SSE recovery subsequently passed in T3.3; no live activation is claimed.
 
 The development-only `/control?fixture=dock` rehearsal uses original local fixture data and no provider calls. It is labelled as a fixture and is not enabled in production. Automated tests cover key retention across refresh, owner isolation, absence of the private reason in storage, and pending-action suppression.
 
 ### T3.3 recovery implementation
 
-Reviewed recovery commits `b596428`, `0c7e727` and `ae84e7b` compose the production cookie-authenticated OBS EventSource with authoritative snapshots and epoch/sequence deduplication. New stamps animate once; reconnect snapshots restore persisted appeal votes and deadlines without an arrival animation. Disconnect, disposal, late pairing requests and failed snapshot reads cannot restore stale display content. The principal offline gate passed; focused uncached race checks passed. Actual OBS refresh/restart rehearsal is pending and remains required for completion.
+Reviewed recovery commits `b596428`, `0c7e727` and `ae84e7b` compose the production cookie-authenticated OBS EventSource with authoritative snapshots and epoch/sequence deduplication. New stamps animate once; reconnect snapshots restore persisted appeal votes and deadlines without an arrival animation. Disconnect, disposal, late pairing requests and failed snapshot reads cannot restore stale display content. The principal offline gate passed; focused uncached race checks passed. Actual OBS acceptance passed: the owner confirmed source refresh, OBS restart and server restart without re-pairing; the appeal restored its counts and remaining countdown without a fresh stamp animation. Revoking the source cleared the overlay without a refresh. See [acceptance evidence](../docs/evidence/t33-ta3-obs.json).
