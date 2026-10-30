@@ -32,6 +32,15 @@ mode needs no Twitch credentials and does not open network connections.
 
 ## Bounded live check
 
+Live operation pins promise extraction and Decisions sensitivity/judging to
+`gpt-6-luna`; the old GPT-4o mini snapshot is rejected in production settings
+and remains only in historical evaluation adapters and recordings.
+`gpt-transcribe` and `text-embedding-3-small` remain unchanged. Promise
+extraction uses Chat Completions Structured Outputs; sensitivity and
+contradiction classification use the Decisions API. Contradictions still go
+to private review, and model confidence does not enable automatic stamps. See
+the [model migration and limits](model-migration.md).
+
 The `live`-tagged `TestLiveConnectionCapability` is a read-only check. It makes
 at most one Twitch token validation request and one `GET /helix/streams`
 request, with a five-second client timeout and a 15-second overall deadline.

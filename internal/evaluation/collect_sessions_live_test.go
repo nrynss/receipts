@@ -170,7 +170,7 @@ func TestCollectSessionsLive(t *testing.T) {
 		t.Fatal("unsafe ledger directory")
 	}
 	httpClient := &http.Client{Transport: DigestTransport{}}
-	client := claims.Client{APIKey: key, HTTP: httpClient}
+	client := claims.Client{APIKey: key, Model: claims.LegacyModel, HTTP: httpClient}
 	embed := retrieval.Client{APIKey: key, HTTP: httpClient, Space: retrieval.Space{Model: retrieval.DefaultModel, Version: "evaluation-v1", Dimensions: retrieval.DefaultDimensions}}
 	j := judge.Client{APIKey: key, HTTP: httpClient}
 	for _, sc := range pending {

@@ -3,6 +3,7 @@ package claims
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/nrynss/keel/cost"
 	"io"
 	"net/http"
@@ -35,7 +36,7 @@ func TestExtractionFailsClosed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			content := tt.content
-			client := Client{APIKey: "test", HTTP: &http.Client{Transport: roundTrip(func(*http.Request) (*http.Response, error) {
+			client := Client{APIKey: "test", Model: LegacyModel, HTTP: &http.Client{Transport: roundTrip(func(*http.Request) (*http.Response, error) {
 				b, _ := jsonEnvelope(content)
 				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(b)), Header: make(http.Header)}, nil
 			})}}
@@ -44,6 +45,23 @@ func TestExtractionFailsClosed(t *testing.T) {
 				t.Fatalf("got %#v, %v", got, err)
 			}
 		})
+	}
+}
+
+func TestClaimsClientRejectsUnmeteredModelsWithoutCallingProvider(t *testing.T) {
+	called := false
+	client := Client{APIKey: "test", Model: "unlisted-model", HTTP: &http.Client{Transport: roundTrip(func(*http.Request) (*http.Response, error) {
+		called = true
+		return nil, errors.New("unexpected provider call")
+	})}}
+	if _, err := client.Extract(context.Background(), []receipt.Segment{{ID: "s", Text: "I will keep the route.", Attribution: "broadcaster", End: time.Second}}); err == nil || !strings.Contains(err.Error(), "historical comparisons") {
+		t.Fatalf("unlisted extraction model error=%v", err)
+	}
+	if _, err := client.Sensitive(context.Background(), "I will keep the route."); err == nil || !strings.Contains(err.Error(), "historical comparisons") {
+		t.Fatalf("unlisted sensitivity model error=%v", err)
+	}
+	if called {
+		t.Fatal("unlisted model reached the provider")
 	}
 }
 
@@ -80,7 +98,7 @@ func TestSensitivityFailsClosedOnMalformedOrRefusal(t *testing.T) {
 func TestSensitivityReportsProviderUsageOnRefusal(t *testing.T) {
 	var got cost.Usage
 	ctx := providerusage.WithCollector(context.Background(), func(v cost.Usage) { got = v })
-	c := Client{APIKey: "test", HTTP: &http.Client{Transport: roundTrip(func(*http.Request) (*http.Response, error) {
+	c := Client{APIKey: "test", Model: LegacyModel, HTTP: &http.Client{Transport: roundTrip(func(*http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"model":"gpt-4o-mini-2024-07-18","service_tier":"default","usage":{"prompt_tokens":100,"completion_tokens":10,"total_tokens":110},"choices":[{"finish_reason":"stop","message":{"refusal":"declined"}}]}`)), Header: make(http.Header)}, nil
 	})}}
 	if _, err := c.Sensitive(ctx, "I will try again."); err == nil {

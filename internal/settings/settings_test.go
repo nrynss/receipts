@@ -34,6 +34,24 @@ func TestLoadFixtureWithoutSecrets(t *testing.T) {
 	}
 }
 
+func TestPinnedProductionModelDefaultsAndLegacyOverrideErrors(t *testing.T) {
+	d := Defaults()
+	if d.ExtractionModel != "gpt-6-luna" || d.JudgeModel != "gpt-6-luna" {
+		t.Fatalf("production defaults extraction=%q judge=%q", d.ExtractionModel, d.JudgeModel)
+	}
+	for _, tc := range []struct{ key, want string }{
+		{"RECEIPTS_EXTRACTION_MODEL", "RECEIPTS_EXTRACTION_MODEL must be gpt-6-luna"},
+		{"RECEIPTS_JUDGE_MODEL", "RECEIPTS_JUDGE_MODEL must be gpt-6-luna"},
+	} {
+		t.Run(tc.key, func(t *testing.T) {
+			_, err := Load(context.Background(), env(map[string]string{"RECEIPTS_MODE": "fixture", tc.key: "gpt-4o-mini-2024-07-18"}))
+			if err == nil || !strings.Contains(err.Error(), tc.want) || !strings.Contains(err.Error(), "historical evaluation only") {
+				t.Fatalf("legacy override error=%v", err)
+			}
+		})
+	}
+}
+
 func TestLoadLiveReportsMissingNamesWithoutSecretValues(t *testing.T) {
 	const sentinel = "secret-sentinel"
 	_, err := Load(context.Background(), env(map[string]string{
@@ -53,14 +71,14 @@ func TestLoadLiveWithConfiguredSettings(t *testing.T) {
 	s, err := Load(context.Background(), env(map[string]string{
 		"RECEIPTS_MODE": "live", "RECEIPTS_CHANNEL_ID": "channel-id",
 		"RECEIPTS_CHANNEL_NAME": "owner", "RECEIPTS_TRANSCRIPTION_MODEL": "gpt-transcribe",
-		"RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "model-judge",
+		"RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "gpt-6-luna",
 		"TWITCH_CLIENT_ID": "client-secret-sentinel", "TWITCH_ACCESS_TOKEN": "token-secret-sentinel",
 		"OPENAI_API_KEY": "openai-secret-sentinel",
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Mode != ModeLive || s.JudgeModel != "model-judge" {
+	if s.Mode != ModeLive || s.ExtractionModel != "gpt-6-luna" || s.JudgeModel != "gpt-6-luna" {
 		t.Fatalf("live settings = %#v", s)
 	}
 	formatted := fmt.Sprintf("%+v %#v", s, s)
@@ -80,7 +98,7 @@ func TestLoadHostedAuthUsesOperatorKeysWithoutSharedChannelToken(t *testing.T) {
 	s, err := Load(context.Background(), env(map[string]string{
 		"RECEIPTS_MODE": "live", "RECEIPTS_AUTH_ENABLED": "true",
 		"RECEIPTS_PUBLIC_ORIGIN":       "https://receipts.example",
-		"RECEIPTS_TRANSCRIPTION_MODEL": "gpt-transcribe", "RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "model-judge",
+		"RECEIPTS_TRANSCRIPTION_MODEL": "gpt-transcribe", "RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "gpt-6-luna",
 		"TWITCH_CLIENT_ID": "app-id", "TWITCH_CLIENT_SECRET": "client-secret-value",
 		"RECEIPTS_TOKEN_ENCRYPTION_KEY": encryptionKey, "OPENAI_API_KEY": "openai-key",
 	}))
@@ -105,7 +123,7 @@ func TestHostedAuthRequiresEncryptionKeyAndHTTPS(t *testing.T) {
 	base := map[string]string{
 		"RECEIPTS_MODE": "live", "RECEIPTS_AUTH_ENABLED": "true",
 		"RECEIPTS_PUBLIC_ORIGIN":       "http://receipts.example",
-		"RECEIPTS_TRANSCRIPTION_MODEL": "gpt-transcribe", "RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "model-judge",
+		"RECEIPTS_TRANSCRIPTION_MODEL": "gpt-transcribe", "RECEIPTS_EMBEDDING_MODEL": "model-embedding", "RECEIPTS_JUDGE_MODEL": "gpt-6-luna",
 		"TWITCH_CLIENT_ID": "app-id", "TWITCH_CLIENT_SECRET": "client-secret-value", "OPENAI_API_KEY": "openai-key",
 	}
 	if _, err := Load(context.Background(), env(base)); err == nil || !strings.Contains(err.Error(), "RECEIPTS_TOKEN_ENCRYPTION_KEY") {

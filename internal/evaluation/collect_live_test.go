@@ -93,7 +93,7 @@ func TestCollectLive(t *testing.T) {
 	}()
 	space := retrieval.Space{Model: retrieval.DefaultModel, Version: "evaluation-v1", Dimensions: retrieval.DefaultDimensions}
 	emb := retrieval.Client{APIKey: key, Space: space}
-	sensitive := claims.Client{APIKey: key}
+	sensitive := claims.Client{APIKey: key, Model: claims.LegacyModel}
 	j := judge.Client{APIKey: key}
 	for _, p := range pairs {
 		if p.Split != split {

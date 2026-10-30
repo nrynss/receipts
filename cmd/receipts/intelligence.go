@@ -104,6 +104,10 @@ func (a *intelligenceAttachment) attach(ctx context.Context, authority auth.Chan
 	if a == nil || a.ledger == nil || a.runtime == nil || a.adapter == nil || a.adapter.Resolver == nil {
 		return nil, errors.New("intelligence: attachment unavailable")
 	}
+	svc, err := a.buildIntelligenceService(authority)
+	if err != nil {
+		return nil, err
+	}
 	grant, err := a.adapter.Resolver.Resolve(ctx, authority)
 	if err != nil {
 		return nil, err
@@ -111,20 +115,6 @@ func (a *intelligenceAttachment) attach(ctx context.Context, authority auth.Chan
 	if grant.SubjectID == "" || grant.SubjectID != grant.ChannelPlatformID {
 		return nil, connection.ErrBinding
 	}
-	model := a.extractionModel
-	if model == "" {
-		model = claims.DefaultModel
-	}
-	embedding := a.embeddingModel
-	if embedding == "" {
-		embedding = retrieval.DefaultModel
-	}
-	if model != claims.DefaultModel || embedding != retrieval.DefaultModel || a.judgeModel != judge.Model {
-		return nil, errors.New("intelligence: unsupported metered model")
-	}
-	extractor := claims.Client{APIKey: a.apiKey, Model: model}
-	space := retrieval.Space{Model: embedding, Version: a.embeddingVersion, Dimensions: a.embeddingDimensions}
-	svc := &intelligence.Service{Authority: authority, Meter: a.runtime, Ledger: a.ledger, Extractor: extractor, Sensitive: extractor, Embedder: retrieval.Client{APIKey: a.apiKey, Space: space}, Index: a.ledger, Space: space, ExtractionModel: model, Judge: judge.Client{APIKey: a.apiKey, Model: a.judgeModel}, DetectionStore: a.ledger}
 	run, cancel := context.WithCancel(ctx)
 	a.services.Store(authority.ChannelID, svc)
 	queue := newJudgeQueue(run, authority, 16, svc.JudgeSource)
@@ -141,6 +131,42 @@ func (a *intelligenceAttachment) attach(ctx context.Context, authority auth.Chan
 		a.judgeQueues.CompareAndDelete(authority.ChannelID, queue)
 		queue.wait()
 		a.services.CompareAndDelete(authority.ChannelID, svc)
+	}, nil
+}
+
+func (a *intelligenceAttachment) buildIntelligenceService(authority auth.ChannelContext) (*intelligence.Service, error) {
+	if a == nil {
+		return nil, errors.New("intelligence: attachment unavailable")
+	}
+	model := a.extractionModel
+	if model == "" {
+		model = claims.LunaModel
+	}
+	if model != claims.LunaModel {
+		return nil, errors.New("RECEIPTS_EXTRACTION_MODEL must be gpt-6-luna; gpt-4o-mini-2024-07-18 is reserved for historical evaluation only")
+	}
+	judgeModel := a.judgeModel
+	if judgeModel == "" {
+		judgeModel = judge.DecisionsModel
+	}
+	if judgeModel != judge.DecisionsModel {
+		return nil, errors.New("RECEIPTS_JUDGE_MODEL must be gpt-6-luna for Decisions classification; gpt-4o-mini-2024-07-18 is reserved for historical evaluation only")
+	}
+	embedding := a.embeddingModel
+	if embedding == "" {
+		embedding = retrieval.DefaultModel
+	}
+	if embedding != retrieval.DefaultModel {
+		return nil, errors.New("RECEIPTS_EMBEDDING_MODEL must be text-embedding-3-small")
+	}
+	space := retrieval.Space{Model: embedding, Version: a.embeddingVersion, Dimensions: a.embeddingDimensions}
+	extractor := claims.Client{APIKey: a.apiKey, Model: model}
+	return &intelligence.Service{
+		Authority: authority, Meter: a.runtime, Ledger: a.ledger,
+		Extractor: extractor, Sensitive: claims.DecisionsClient{APIKey: a.apiKey},
+		Embedder: retrieval.Client{APIKey: a.apiKey, Space: space},
+		Index:    a.ledger, Space: space, ExtractionModel: model,
+		Judge: judge.DecisionsClient{APIKey: a.apiKey}, DetectionStore: a.ledger,
 	}, nil
 }
 

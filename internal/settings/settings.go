@@ -145,7 +145,8 @@ func Defaults() Settings {
 		StampCooldown:         30 * time.Second,
 		AppealDuration:        2 * time.Minute,
 		LiveStatusFreshness:   15 * time.Second,
-		ExtractionModel:       "gpt-4o-mini-2024-07-18",
+		ExtractionModel:       "gpt-6-luna",
+		JudgeModel:            "gpt-6-luna",
 		EmbeddingVersion:      "claim-v1",
 		EmbeddingDimensions:   1536,
 		TranscriptionSpendUSD: 1,
@@ -284,6 +285,12 @@ func (s Settings) Validate() error {
 	case ModeFixture, ModeLive:
 	default:
 		return errorsf("RECEIPTS_MODE must be explicitly set to fixture or live")
+	}
+	if s.ExtractionModel != "gpt-6-luna" {
+		return errorsf("RECEIPTS_EXTRACTION_MODEL must be gpt-6-luna; gpt-4o-mini-2024-07-18 is reserved for historical evaluation only")
+	}
+	if s.JudgeModel != "gpt-6-luna" {
+		return errorsf("RECEIPTS_JUDGE_MODEL must be gpt-6-luna for Decisions classification; gpt-4o-mini-2024-07-18 is reserved for historical evaluation only")
 	}
 	u, err := url.Parse(s.PublicOrigin)
 	if err != nil || u == nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.Hostname() == "" ||

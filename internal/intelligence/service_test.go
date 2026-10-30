@@ -2,8 +2,12 @@ package intelligence
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -11,6 +15,7 @@ import (
 	"github.com/nrynss/keel/cost"
 	"github.com/nrynss/keel/sqlite"
 	"receipts/internal/auth"
+	"receipts/internal/claims"
 	"receipts/internal/commands"
 	"receipts/internal/detect"
 	"receipts/internal/judge"
@@ -40,6 +45,83 @@ func (f sensitiveFunc) Sensitive(c context.Context, s string) (bool, error) { re
 type embedFunc func(context.Context, string) ([]float64, error)
 
 func (f embedFunc) Embed(c context.Context, s string) ([]float64, error) { return f(c, s) }
+
+type serviceRoundTripper func(*http.Request) (*http.Response, error)
+
+func (f serviceRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func mockedLunaHTTP(t *testing.T) (*http.Client, *atomic.Int64, *atomic.Int64, *atomic.Int64) {
+	t.Helper()
+	var extractionCalls, sensitivityCalls, judgeCalls atomic.Int64
+	client := &http.Client{Transport: serviceRoundTripper(func(r *http.Request) (*http.Response, error) {
+		respond := func(body []byte) (*http.Response, error) {
+			return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(string(body))), Header: make(http.Header)}, nil
+		}
+		switch r.URL.String() {
+		case "https://api.openai.com/v1/chat/completions":
+			extractionCalls.Add(1)
+			var request struct {
+				Messages []struct {
+					Role    string `json:"role"`
+					Content string `json:"content"`
+				} `json:"messages"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil || len(request.Messages) != 2 || request.Messages[1].Role != "user" {
+				t.Fatalf("invalid mocked Luna extraction request: %v", err)
+			}
+			var sources []receipt.Segment
+			if err := json.Unmarshal([]byte(request.Messages[1].Content), &sources); err != nil || len(sources) != 1 {
+				t.Fatalf("invalid mocked extraction sources: %v", err)
+			}
+			content, _ := json.Marshal(map[string]any{"eligible": true, "claim": sources[0].Text, "source_id": sources[0].ID, "topic": "promise", "sensitive": false})
+			body, _ := json.Marshal(map[string]any{
+				"model": claims.LunaModel, "service_tier": "default",
+				"usage":   map[string]int{"prompt_tokens": 200, "completion_tokens": 10, "total_tokens": 210},
+				"choices": []any{map[string]any{"finish_reason": "stop", "message": map[string]string{"content": string(content)}}},
+			})
+			return respond(body)
+		case "https://api.openai.com/v1/decisions":
+			var request struct {
+				Questions []struct {
+					Name string `json:"name"`
+				} `json:"questions"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil || len(request.Questions) != 1 {
+				t.Fatalf("invalid mocked Decisions request: %v", err)
+			}
+			answer := map[string]any{"type": "choice", "confidence": 0.99}
+			switch request.Questions[0].Name {
+			case "sensitivity":
+				sensitivityCalls.Add(1)
+				answer["name"], answer["choice"] = "sensitivity", "not_sensitive"
+				answer["probabilities"] = []any{
+					map[string]any{"value": "sensitive", "probability": 0.005},
+					map[string]any{"value": "not_sensitive", "probability": 0.99},
+					map[string]any{"value": "unsure", "probability": 0.005},
+				}
+			case "verdict":
+				judgeCalls.Add(1)
+				answer["name"], answer["choice"] = "verdict", "contradicts"
+				answer["probabilities"] = []any{
+					map[string]any{"value": "contradicts", "probability": 0.99},
+					map[string]any{"value": "does_not_contradict", "probability": 0.005},
+					map[string]any{"value": "unsure", "probability": 0.005},
+				}
+			default:
+				t.Fatalf("unexpected Decisions question %q", request.Questions[0].Name)
+			}
+			body, _ := json.Marshal(map[string]any{
+				"model": judge.DecisionsModel, "answers": []any{answer},
+				"usage": map[string]int{"input_tokens": 100, "output_tokens": 5, "total_tokens": 105},
+			})
+			return respond(body)
+		default:
+			t.Fatalf("unexpected provider endpoint %s", r.URL)
+			return nil, errors.New("unexpected provider endpoint")
+		}
+	})}
+	return client, &extractionCalls, &sensitivityCalls, &judgeCalls
+}
 
 func TestCaptureReindexAndRetrieveWithDurableBudget(t *testing.T) {
 	ctx := context.Background()
@@ -84,16 +166,21 @@ func TestCaptureReindexAndRetrieveWithDurableBudget(t *testing.T) {
 	}
 	captureTime := sessionStart.Add(10 * time.Second)
 	clock.Store(captureTime.UnixMilli())
-	calls := 0
-	sourceChecks := 0
-	svc := &Service{Authority: a, Meter: manager, Ledger: ledger, Index: ledger, Space: retrieval.Space{Model: retrieval.DefaultModel, Version: "v1", Dimensions: 2}, ExtractionModel: "gpt-4o-mini-2024-07-18", Extractor: extractFunc(func(_ context.Context, segs []receipt.Segment) (commands.Extraction, error) {
-		calls++
-		return commands.Extraction{Claim: segs[0].Text, SourceIDs: []string{segs[0].ID}}, nil
-	}), Sensitive: sensitiveFunc(func(_ context.Context, text string) (bool, error) { sourceChecks++; return false, nil }), Embedder: embedFunc(func(context.Context, string) ([]float64, error) { return []float64{1, 0}, nil })}
+	provider, extractionCalls, sensitivityCalls, decisionsJudgeCalls := mockedLunaHTTP(t)
+	apiKey := "offline-test-key"
+	svc := &Service{
+		Authority: a, Meter: manager, Ledger: ledger, Index: ledger,
+		Space:           retrieval.Space{Model: retrieval.DefaultModel, Version: "v1", Dimensions: 2},
+		ExtractionModel: claims.LunaModel,
+		Extractor:       claims.Client{APIKey: apiKey, Model: claims.LunaModel, HTTP: provider},
+		Sensitive:       claims.DecisionsClient{APIKey: apiKey, HTTP: provider},
+		Judge:           judge.DecisionsClient{APIKey: apiKey, HTTP: provider},
+		Embedder:        embedFunc(func(context.Context, string) ([]float64, error) { return []float64{1, 0}, nil }),
+	}
 	cmd := ports.ChatCommand{ID: "command", UserID: "viewer", Login: "viewer", Command: "!receipt", ReceivedAt: captureTime}
 	result, err := svc.Handle(ctx, commands.Authority{ChannelID: c.ID, SessionID: a.LiveSessionID}, cmd)
-	if err != nil || result.Code != commands.ReplyCaptured || sourceChecks != 2 {
-		t.Fatalf("capture=%#v checks=%d err=%v", result, sourceChecks, err)
+	if err != nil || result.Code != commands.ReplyCaptured || sensitivityCalls.Load() != 2 || extractionCalls.Load() != 1 {
+		t.Fatalf("capture=%#v sensitivity calls=%d extraction calls=%d err=%v", result, sensitivityCalls.Load(), extractionCalls.Load(), err)
 	}
 	evidence, err := ledger.Evidence(ctx, result.Receipt.ID)
 	if err != nil || len(evidence) != 1 || evidence[0].TimingBasis != "coarse_pcm_ingest_hls_delay_unknown" {
@@ -112,11 +199,6 @@ func TestCaptureReindexAndRetrieveWithDurableBudget(t *testing.T) {
 		t.Fatalf("matches=%#v err=%v", matches, err)
 	}
 	svc.DetectionStore = ledger
-	judgeCalls := 0
-	svc.Judge = judgeFunc(func(_ context.Context, _ receipt.Receipt, e receipt.Evidence, src receipt.Segment) (judge.Result, error) {
-		judgeCalls++
-		return judge.Result{Verdict: detect.Contradicts, ClaimSourceID: e.SourceID, LaterSourceID: src.ID}, nil
-	})
 	earlier := receipt.Segment{ID: "earlier", SessionID: a.LiveSessionID, Start: 3 * time.Second, End: 4 * time.Second, Text: "Earlier words.", SpeakerID: c.ID, Attribution: "broadcaster", TimingBasis: "coarse_pcm_ingest_hls_delay_unknown"}
 	if err = ledger.AddLiveSegment(ctx, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation, earlier); err != nil {
 		t.Fatal(err)
@@ -126,11 +208,14 @@ func TestCaptureReindexAndRetrieveWithDurableBudget(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if judgeCalls != 0 {
-		t.Fatalf("paid calls for own or earlier source: %d", judgeCalls)
+	if decisionsJudgeCalls.Load() != 0 {
+		t.Fatalf("paid Decisions calls for own or earlier source: %d", decisionsJudgeCalls.Load())
 	}
 	if err = svc.JudgeSource(ctx, later); err != nil {
 		t.Fatalf("judge source: %v", err)
+	}
+	if decisionsJudgeCalls.Load() != 1 {
+		t.Fatalf("Decisions judge calls=%d, want one", decisionsJudgeCalls.Load())
 	}
 	var outcome string
 	if err = db.Reader().QueryRowContext(ctx, `SELECT outcome FROM detections WHERE receipt_id=? AND source_id=?`, result.Receipt.ID, later.ID).Scan(&outcome); err != nil || outcome != "review" {
@@ -164,8 +249,8 @@ func TestCaptureReindexAndRetrieveWithDurableBudget(t *testing.T) {
 	if err != nil || channel >= 2_000_000_000 || channel != global {
 		t.Fatalf("budget=%d/%d err=%v", channel, global, err)
 	}
-	if _, err = svc.Handle(ctx, commands.Authority{ChannelID: c.ID, SessionID: a.LiveSessionID}, cmd); err != nil || calls != 1 {
-		t.Fatalf("retry calls=%d err=%v", calls, err)
+	if _, err = svc.Handle(ctx, commands.Authority{ChannelID: c.ID, SessionID: a.LiveSessionID}, cmd); err != nil || extractionCalls.Load() != 1 {
+		t.Fatalf("retry extraction calls=%d err=%v", extractionCalls.Load(), err)
 	}
 	entered := make(chan struct{})
 	svc.Extractor = extractFunc(func(ctx context.Context, _ []receipt.Segment) (commands.Extraction, error) {
