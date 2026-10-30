@@ -20,7 +20,7 @@ Build and run the current server using the [development instructions](docs/devel
 | P3 — Overlay/controls | 3/3 | Overlay, owner controls and actual local OBS/SSE recovery verified |
 | P4 — Twitch integration | 4/4 | Authorized adapters, chat, local clip fallback and real stream-end capture exit verified |
 | P5 — Intelligence | 4/4 | Evaluation and human label review complete; automatic stamps remain disabled by policy |
-| PU: UI and copy | 3/4 | Brand, overlay/demo and streamer setup complete; chat feedback remains |
+| PU: UI and copy | 4/4 | Brand, overlay/demo, streamer setup and bounded chat feedback verified |
 | P6: Release | 0/4 | Deployment, live proof and judge readiness |
 
 [TA implementation phase and acceptance criteria](dev-diary/PHASE-A-accounts.md), with [account scope](docs/accounts-scope.md). TA.1 identity/sessions and TA.2 channel isolation are implemented, TA.3 joins the overlay work, and TA.4 verifies the deployed judge experience before submission preparation.

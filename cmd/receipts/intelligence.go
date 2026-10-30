@@ -9,10 +9,12 @@ import (
 	"sync"
 	"time"
 
+	"receipts/internal/appeal"
 	"receipts/internal/auth"
 	"receipts/internal/claims"
 	"receipts/internal/intelligence"
 	"receipts/internal/judge"
+	"receipts/internal/lore"
 	"receipts/internal/receipt"
 	"receipts/internal/retrieval"
 	runtime "receipts/internal/runtime"
@@ -119,7 +121,7 @@ func (a *intelligenceAttachment) attach(ctx context.Context, authority auth.Chan
 	a.services.Store(authority.ChannelID, svc)
 	queue := newJudgeQueue(run, authority, 16, svc.JudgeSource)
 	a.judgeQueues.Store(authority.ChannelID, queue)
-	router := &chat.Router{Authority: authority, ChannelPlatformID: grant.ChannelPlatformID, Capture: svc}
+	router := newRuntimeChatRouter(authority, grant.ChannelPlatformID, svc, a.ledger, a.runtime, a.adapter)
 	sink := newCaptureSink(run, router, captureQueueSize)
 	client := &eventsub.Client{Helix: eventsub.Adapter{Connection: a.adapter}, Sink: sink, OnAuthorizationLost: func(error) { _ = a.runtime.Cancel(authority) }}
 	done := make(chan struct{})
@@ -132,6 +134,14 @@ func (a *intelligenceAttachment) attach(ctx context.Context, authority auth.Chan
 		queue.wait()
 		a.services.CompareAndDelete(authority.ChannelID, svc)
 	}, nil
+}
+
+func newRuntimeChatRouter(authority auth.ChannelContext, platformID string, capture chat.Capture, ledger *store.Store, manager *runtime.Manager, sender chat.Sender) *chat.Router {
+	return &chat.Router{
+		Authority: authority, ChannelPlatformID: platformID, Capture: capture,
+		Appeals: appeal.Service{Store: ledger, Runtime: manager},
+		Lore:    lore.Service{Ledger: ledger}, Sender: sender,
+	}
 }
 
 func (a *intelligenceAttachment) buildIntelligenceService(authority auth.ChannelContext) (*intelligence.Service, error) {

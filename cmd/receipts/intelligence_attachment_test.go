@@ -4,10 +4,16 @@ import (
 	"strings"
 	"testing"
 
+	"receipts/internal/appeal"
 	"receipts/internal/auth"
 	"receipts/internal/claims"
+	"receipts/internal/intelligence"
 	"receipts/internal/judge"
+	"receipts/internal/lore"
 	"receipts/internal/retrieval"
+	"receipts/internal/runtime"
+	"receipts/internal/store"
+	"receipts/internal/twitch/connection"
 )
 
 func TestIntelligenceAttachmentBuildsLunaAndDecisionsAdapters(t *testing.T) {
@@ -28,6 +34,30 @@ func TestIntelligenceAttachmentBuildsLunaAndDecisionsAdapters(t *testing.T) {
 	}
 	if svc.Space.Model != retrieval.DefaultModel {
 		t.Fatalf("embedding model changed to %q", svc.Space.Model)
+	}
+}
+
+func TestRuntimeChatRouterWiresProductionServicesAndAuthorityBoundSender(t *testing.T) {
+	authority := auth.ChannelContext{AccountID: "owner", ChannelID: "channel", LiveSessionID: "session", Generation: 7}
+	capture := &intelligence.Service{Authority: authority}
+	ledger := &store.Store{}
+	manager := runtime.New(runtime.Config{})
+	sender := &connection.Adapter{}
+	router := newRuntimeChatRouter(authority, "platform-channel", capture, ledger, manager, sender)
+	if router.Authority != authority || router.ChannelPlatformID != "platform-channel" {
+		t.Fatalf("router authority=%+v platform=%q", router.Authority, router.ChannelPlatformID)
+	}
+	if got, ok := router.Capture.(*intelligence.Service); !ok || got != capture {
+		t.Fatalf("capture=%T", router.Capture)
+	}
+	if got, ok := router.Appeals.(appeal.Service); !ok || got.Store != ledger || got.Runtime != manager {
+		t.Fatalf("appeals=%#v", router.Appeals)
+	}
+	if got, ok := router.Lore.(lore.Service); !ok || got.Ledger != ledger {
+		t.Fatalf("lore=%#v", router.Lore)
+	}
+	if got, ok := router.Sender.(*connection.Adapter); !ok || got != sender {
+		t.Fatalf("sender=%T", router.Sender)
 	}
 }
 

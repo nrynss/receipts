@@ -19,6 +19,7 @@ import (
 )
 
 const MaxMessageBytes = 512
+const MaxReplyBytes = 450
 const DefaultDedupeCapacity = 4096
 
 type Capture interface {
@@ -49,6 +50,8 @@ type Router struct {
 	index             int
 	loreUsers         map[string]time.Time
 	loreReplies       []time.Time
+	receiptUsers      map[string]time.Time
+	receiptReplies    []time.Time
 }
 type seenEntry struct {
 	id string
@@ -123,8 +126,22 @@ func (r *Router) HandleEvent(ctx context.Context, raw json.RawMessage, receivedA
 		if r.Capture == nil {
 			return errors.New("twitch chat: receipt service unavailable")
 		}
-		_, err := r.Capture.Handle(ctx, commands.Authority{ChannelID: r.Authority.ChannelID, SessionID: r.Authority.LiveSessionID}, cmd)
-		return err
+		result, err := r.Capture.Handle(ctx, commands.Authority{ChannelID: r.Authority.ChannelID, SessionID: r.Authority.LiveSessionID}, cmd)
+		if err != nil || result.Code != commands.ReplyCaptured || result.Receipt == nil || r.Sender == nil {
+			return err
+		}
+		if !r.allowReceipt(e.ChatterID) {
+			return nil
+		}
+		message := boundedReceiptMessage(e.Login, result.Receipt.Claim)
+		ok, err := r.Sender.SendChatMessage(ctx, r.Authority, message)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errors.New("twitch chat: receipt reply rejected")
+		}
+		return nil
 	case "!uphold", "!overturn", "!void", "!receipts":
 		if r.Appeals == nil {
 			return errors.New("twitch chat: appeal service unavailable")
@@ -141,8 +158,8 @@ func (r *Router) HandleEvent(ctx context.Context, raw json.RawMessage, receivedA
 		if err != nil {
 			return err
 		}
-		if len(answer) > 450 {
-			answer = answer[:450]
+		if len(answer) > MaxReplyBytes {
+			answer = answer[:MaxReplyBytes]
 			for !utf8.ValidString(answer) {
 				answer = answer[:len(answer)-1]
 			}
@@ -157,6 +174,64 @@ func (r *Router) HandleEvent(ctx context.Context, raw json.RawMessage, receivedA
 		return nil
 	}
 	return nil
+}
+
+func boundedReceiptMessage(login, claim string) string {
+	login = strings.TrimSpace(login)
+	claim = strings.Join(strings.Fields(claim), " ")
+	prefix := "🧾 Receipt taken (@" + login + "): \""
+	suffix := "\""
+	room := MaxReplyBytes - len(prefix) - len(suffix)
+	if room < 0 {
+		prefix = "🧾 Receipt taken: \""
+		room = MaxReplyBytes - len(prefix) - len(suffix)
+	}
+	if len(claim) > room {
+		claim = claim[:room]
+		for !utf8.ValidString(claim) {
+			claim = claim[:len(claim)-1]
+		}
+		claim = strings.TrimSpace(claim)
+	}
+	return prefix + claim + suffix
+}
+
+func (r *Router) allowReceipt(user string) bool {
+	now := time.Now().UTC()
+	if r.Now != nil {
+		now = r.Now().UTC()
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.receiptUsers == nil {
+		r.receiptUsers = map[string]time.Time{}
+	}
+	for i := 0; i < len(r.receiptReplies); {
+		if now.Sub(r.receiptReplies[i]) >= 5*time.Second {
+			r.receiptReplies = append(r.receiptReplies[:i], r.receiptReplies[i+1:]...)
+		} else {
+			i++
+		}
+	}
+	if last, ok := r.receiptUsers[user]; ok && now.Sub(last) < 30*time.Second {
+		return false
+	}
+	if len(r.receiptReplies) >= 3 {
+		return false
+	}
+	if len(r.receiptUsers) >= 4096 {
+		for k, v := range r.receiptUsers {
+			if now.Sub(v) >= 30*time.Second {
+				delete(r.receiptUsers, k)
+			}
+		}
+		if len(r.receiptUsers) >= 4096 {
+			return false
+		}
+	}
+	r.receiptUsers[user] = now
+	r.receiptReplies = append(r.receiptReplies, now)
+	return true
 }
 
 func (r *Router) admit(id string) bool {

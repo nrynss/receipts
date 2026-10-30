@@ -48,13 +48,16 @@ func (s Service) Render(ctx context.Context, channel string) (string, error) {
 	result := fmt.Sprintf("Lore: %d total | %d open, %d broken, %d overturned, %d context changed, %d inconclusive.", len(rows), open, broken, overturned, contextChanged, inconclusive)
 	for _, r := range rows {
 		claim := strings.Join(strings.Fields(r.Claim), " ")
+		tag := outcomeTag(r.Verdict)
 		prefix := " "
 		if !strings.Contains(result, " Claims:") {
 			prefix = " Claims: "
 		} else {
 			prefix = "; "
 		}
-		remaining := 450 - len(result) - len(prefix)
+		itemPrefix := prefix + "\""
+		itemSuffix := "\" (" + tag + ")"
+		remaining := 450 - len(result) - len(itemPrefix) - len(itemSuffix)
 		if remaining <= 0 {
 			break
 		}
@@ -67,12 +70,29 @@ func (s Service) Render(ctx context.Context, channel string) (string, error) {
 			if claim == "" {
 				break
 			}
-			result += prefix + claim
+			result += itemPrefix + claim + itemSuffix
 			break
 		}
-		result += prefix + claim
+		result += itemPrefix + claim + itemSuffix
 	}
 	return result, nil
+}
+
+func outcomeTag(verdict receipt.Verdict) string {
+	switch verdict {
+	case receipt.Undecided:
+		return "open"
+	case receipt.Admitted, receipt.Upheld:
+		return "broken"
+	case receipt.Overturned:
+		return "overturned"
+	case receipt.ContextChanged:
+		return "context changed"
+	case receipt.Inconclusive:
+		return "inconclusive"
+	default:
+		return "inconclusive"
+	}
 }
 
 // Handle accepts a trusted channel-bound chat command. Delivery remains the

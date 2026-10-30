@@ -2,7 +2,7 @@
 
 **Goal:** Unify the visual identity around the "Broadcast Ledger / Pro-Wrestling Receipt" aesthetic, fix streamer-dock and overlay UX gaps, and polish all user-facing copy before P6 deployment.
 
-**Status:** in-progress (3/4)
+**Status:** complete (4/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -61,7 +61,7 @@ Bring `/control`, `/account` and `/obs` into the Dark Forest & Parchment Ledger 
 requires: TU.2, TU.3, T4.2
 fixture-ok: yes
 owns: internal/twitch/chat/, internal/lore/, docs/evidence/
-status: not-started
+status: complete
 ```
 
 Update `internal/twitch/chat/router.go` so a successful `!receipt` capture (`res.Code == commands.ReplyCaptured && res.Receipt != nil`) sends a bounded, rate-limited chat confirmation (`🧾 Receipt taken (@<login>): "<claim>"`, truncated safely within `MaxMessageBytes` / 450 UTF-8 bytes) when `r.Sender != nil`, while remaining silent on `duplicate`, `throttled`, `no_eligible_claim`, `suppressed` and `transcript_unavailable`. Update `internal/lore/lore.go` so each listed claim in `!lore` includes its outcome tag in parentheses: `(open)`, `(broken)`, `(overturned)`, `(context changed)` or `(inconclusive)`, while preserving the scoreboard prefix (`Lore: <N> total | <open> open, <broken> broken, <overturned> overturned, <contextChanged> context changed, <inconclusive> inconclusive.`) and 450-byte UTF-8 ceiling. Run `./tools/check.sh` and the mounted browser verification across all routes.
@@ -231,16 +231,16 @@ Use this exact vector artwork in `web/src/lib/brand/ReceiptMark.svelte` (accepti
 
 ## Exit criteria
 
-- [ ] Every task above (`TU.1`-`TU.4`) has evidence against its done criteria.
-- [ ] `./tools/check.sh` passes on the candidate revision without keys, network or live broadcasts.
-- [ ] Mounted browser checks (`overlay-checks.ts`) pass at `1920×1080` and `640×360` including `prefers-reduced-motion`.
-- [ ] All contract and test updates are documented in the handoff log below.
+- [x] Every task above (`TU.1`-`TU.4`) has evidence against its done criteria.
+- [x] `./tools/check.sh` passes on the candidate revision without keys, network or live broadcasts.
+- [x] Mounted browser checks (`overlay-checks.ts`) pass at `1920×1080` and `640×360` including `prefers-reduced-motion`.
+- [x] All contract and test updates are documented in the handoff log below.
 
 ## Handoff log
 
 ### What exists now
 
-Planning complete; Option 1 ("The Knife-Edge Chop") SVG and full before/after UI/UX/text specification locked in.
+TU.1 through TU.4 are implemented and independently reviewed. The full offline gate and targeted race checks passed.
 
 ### Evidence and decisions
 
@@ -251,3 +251,7 @@ Planning complete; Option 1 ("The Knife-Edge Chop") SVG and full before/after UI
 `TU.1` is unblocked immediately. `TU.2` and `TU.3` depend on `TU.1`, and `TU.4` closes the phase before `T6.1`.
 
 Parent TU.1 review confirmed the shared home navigation in the mounted browser, transparent body/html and absent navigation on the root fixture route, and absent navigation on OBS. Full combined offline gate passed. Detailed responsive route verification continues with TU.2/TU.3.
+
+### TU.4: Twitch chat feedback
+
+Implemented `!receipt` confirmation on captured receipts only, with per-user and global send limits and a 450-byte UTF-8 bound. Added outcome tags to `!lore` claims while retaining its scoreboard prefix and byte ceiling. Wired the existing appeal service, lore service and verified connection adapter sender into the production EventSub router; this composition wiring was necessary for chat replies to reach their existing ports. Added offline router tests and extended the synthetic EventSub acceptance sink to assert the capture confirmation. `GOCACHE=/tmp/receipts-go-cache ./tools/check.sh` passed, as did targeted race tests for chat, lore and EventSub. Parent mounted browser review covered home, demo, account, control and chrome-free OBS/fixture routes. Prior combined overlay lifecycle, responsive and reduced-motion evidence is recorded in [TU.2/TU.3 review](../docs/evidence/tu2-tu3-browser.md). No Twitch send or paid provider call was made. See [TU.4 chat feedback evidence](../docs/evidence/tu4-chat-feedback.md).
