@@ -18,7 +18,8 @@ Build and run the current server using the [development instructions](docs/devel
 | TA — Accounts and onboarding | 2/4 | Identity/isolation implemented; OBS pairing implemented pending manual acceptance; judge demo pending |
 | P2 — Offline receipt loop | 4/4 | Capture, detection, appeals, lore and deterministic full-loop replay verified |
 | P3 — Overlay/controls | 2/3 | Overlay and owner controls verified; OBS/SSE recovery rehearsal pending |
-| P4–P5 — Live integration | Planned | Twitch and intelligence adapters |
+| P4 — Twitch integration | 1/4 | Authorized adapter live proof complete; EventSub, clip readiness and session authority pending |
+| P5 — Intelligence | 0/4 | Live transcription, extraction, judging and evaluation pending |
 | P6 — Release | Planned | Deployment, live proof and judge readiness |
 
 [TA implementation phase and acceptance criteria](dev-diary/PHASE-A-accounts.md), with [account scope](docs/accounts-scope.md). TA.1 identity/sessions and TA.2 channel isolation are implemented, TA.3 joins the overlay work, and TA.4 verifies the deployed judge experience before submission preparation.

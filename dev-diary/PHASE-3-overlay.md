@@ -38,7 +38,7 @@ Provide a private control page usable as an OBS dock: Admit, Appeal, Context cha
 requires: T2.4, T3.2
 fixture-ok: yes
 owns: web/src/lib/events/, internal/events/, docs/obs.md
-status: not-started
+status: in-progress
 ```
 
 Connect Keel stream to Chaaya createEventStream with snapshots and stable IDs. Show disconnected state privately; restore the current appeal and remaining time from server state. Document browser-source dimensions and an OBS setup rehearsal using fixture mode. Capture no tokens in screenshots.
@@ -79,3 +79,7 @@ The owner dock at `/control` reads account listening status and the active runti
 The offline gate and client tests cover pending submission and retry identity. Existing hosted API tests cover owner and device authorization. Principal browser rehearsal verified keyboard pause/resume, Admit, required context reasons, Context changed and review approval with original fixture data. The dock was visually inspected. Full offline gate and backend device-denial checks pass. Actual OBS/SSE recovery remains T3.3; no live activation is claimed.
 
 The development-only `/control?fixture=dock` rehearsal uses original local fixture data and no provider calls. It is labelled as a fixture and is not enabled in production. Automated tests cover key retention across refresh, owner isolation, absence of the private reason in storage, and pending-action suppression.
+
+### T3.3 recovery implementation
+
+Reviewed recovery commits `b596428`, `0c7e727` and `ae84e7b` compose the production cookie-authenticated OBS EventSource with authoritative snapshots and epoch/sequence deduplication. New stamps animate once; reconnect snapshots restore persisted appeal votes and deadlines without an arrival animation. Disconnect, disposal, late pairing requests and failed snapshot reads cannot restore stale display content. The principal offline gate passed; focused uncached race checks passed. Actual OBS refresh/restart rehearsal is pending and remains required for completion.
