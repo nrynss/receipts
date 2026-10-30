@@ -17,19 +17,20 @@ import (
 
 // Authority activates runtime lifecycle only; it does not imply audio capture.
 type Authority struct {
-	Adapter      *connection.Adapter
-	Ledger       *store.Store
-	Runtime      *runtime.Manager
-	Freshness    time.Duration
-	PollInterval time.Duration
-	Root         context.Context
-	Attach       func(context.Context, auth.ChannelContext) (func(), error)
-	AttachAudio  func(context.Context, auth.ChannelContext, bool) (func(), error)
-	AudioActive  func(auth.ChannelContext) bool
-	mu           sync.Mutex
-	locks        map[string]*sync.Mutex
-	activations  map[string]uint64
-	active       map[string]runtimeActivation
+	Adapter             *connection.Adapter
+	Ledger              *store.Store
+	Runtime             *runtime.Manager
+	Freshness           time.Duration
+	PollInterval        time.Duration
+	Root                context.Context
+	Attach              func(context.Context, auth.ChannelContext) (func(), error)
+	AttachAudio         func(context.Context, auth.ChannelContext, bool) (func(), error)
+	AudioActive         func(auth.ChannelContext) bool
+	TranscriptionActive func(auth.ChannelContext) bool
+	mu                  sync.Mutex
+	locks               map[string]*sync.Mutex
+	activations         map[string]uint64
+	active              map[string]runtimeActivation
 }
 
 type runtimeActivation struct {
@@ -41,6 +42,9 @@ func (a *Authority) CanStart() bool {
 	return a != nil && a.Adapter != nil && a.Ledger != nil && a.Runtime != nil
 }
 func (a *Authority) AudioCaptureActive() bool { return false }
+func (a *Authority) TranscriptionFor(identity auth.ChannelContext) bool {
+	return a.TranscriptionActive != nil && a.TranscriptionActive(identity)
+}
 func (a *Authority) AudioCaptureFor(identity auth.ChannelContext) bool {
 	return a.AudioActive != nil && a.AudioActive(identity)
 }

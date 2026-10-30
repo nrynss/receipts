@@ -61,7 +61,7 @@ func TestAudioAttachmentStopsAndIsOwnerScoped(t *testing.T) {
 		t.Fatal(err)
 	}
 	<-entered
-	if !attachment.activeFor(authority) || attachment.activeFor(auth.ChannelContext{AccountID: "other", ChannelID: channel.ID}) {
+	if !attachment.activeFor(authority) || attachment.transcriptionFor(authority) || attachment.activeFor(auth.ChannelContext{AccountID: "other", ChannelID: channel.ID}) {
 		t.Fatal("capture status leaked across owners")
 	}
 	if err = manager.Cancel(authority); err != nil {
@@ -140,6 +140,9 @@ func TestAudioAttachmentPersistsAttestedSpeech(t *testing.T) {
 	}
 	if err = <-complete; err != nil {
 		t.Fatal(err)
+	}
+	if !attachment.transcriptionFor(authority) || attachment.transcriptionFor(auth.ChannelContext{AccountID: "other", ChannelID: channel.ID}) {
+		t.Fatal("transcription mode leaked or unavailable")
 	}
 	segments, err := ledger.Transcript(ctx, authority.LiveSessionID)
 	if err != nil || len(segments) != 1 || segments[0].Text != "original speech" || segments[0].Attribution != "broadcaster" || segments[0].TimingBasis != "coarse_pcm_ingest_hls_delay_unknown" {

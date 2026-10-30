@@ -42,6 +42,9 @@ type SessionOptionsBackend interface {
 }
 
 type AudioReadiness interface{ AudioCaptureActive() bool }
+type TranscriptionReadiness interface {
+	TranscriptionFor(auth.ChannelContext) bool
+}
 type ScopedAudioReadiness interface {
 	AudioCaptureFor(auth.ChannelContext) bool
 }
@@ -111,7 +114,11 @@ func AccountHandlerWithBackend(sessions *auth.Service, supervisor *channelruntim
 				release()
 			}
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"state": state, "can_start": backend != nil && backend.CanStart(), "audio_capture_active": audioActive})
+		transcriptionEnabled := false
+		if readiness, ok := backend.(TranscriptionReadiness); ok && audioActive {
+			transcriptionEnabled = readiness.TranscriptionFor(identity)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"state": state, "can_start": backend != nil && backend.CanStart(), "audio_capture_active": audioActive, "transcription_enabled": transcriptionEnabled})
 	})
 	mux.HandleFunc("POST /account-api/start", func(w http.ResponseWriter, r *http.Request) {
 		identity, err := auth.ChannelFromContext(r.Context())

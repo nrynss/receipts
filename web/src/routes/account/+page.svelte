@@ -7,6 +7,11 @@
   let statusValue = $state<State>('unavailable');
   let canStart = $state(false);
   let soleBroadcaster = $state(false);
+  let transcriptionEnabled = $state(false);
+  let statusController: AbortController | undefined;
+  let statusVersion = 0;
+  let disposed = false;
+  let statusActionPending = false;
   let account = $state<{login:string} | null>(null);
   let devices = $state<{id:string; created_at:number}[]>([]);
   let code = $state('');
@@ -16,8 +21,9 @@
   let message = $state('');
   const csrf = () => decodeURIComponent(document.cookie.split('; ').find((c) => c.startsWith('receipts_csrf='))?.split('=')[1] ?? '');
   async function load() {
+    const version=++statusVersion; statusController?.abort();
     const response = await request('/auth/account');
-    if (response.ok) { account = await response.json(); const d = await request('/auth/devices'); if (d.ok) devices = await d.json(); const statusResponse = await request('/account-api/status'); if (statusResponse.ok) { const value = await statusResponse.json(); if (['unavailable','unknown','offline','missing_grant','capacity','not_listening','session_active','listening','paused'].includes(value.state)) statusValue = value.state; canStart = value.can_start === true; } }
+    if (response.ok) { account = await response.json(); const d = await request('/auth/devices'); if (d.ok) devices = await d.json(); const statusResponse = await request('/account-api/status'); if (statusResponse.ok) { const value = await statusResponse.json(); if (disposed || version!==statusVersion) return; if (['unavailable','unknown','offline','missing_grant','capacity','not_listening','session_active','listening','paused'].includes(value.state)) statusValue = value.state; canStart = value.can_start === true; transcriptionEnabled = value.transcription_enabled === true; } }
   }
   async function post(path:string, body?:unknown) {
     const response = await request(path, { method:'POST', headers:{'X-CSRF-Token':csrf(), 'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined });
@@ -25,8 +31,13 @@
   }
   async function confirm() { try { await post('/auth/pair/confirm', {code}); code=''; message='OBS source paired.'; await load(); } catch { message='Code expired or could not be confirmed.'; } }
   async function revoke(id:string) { try { await post(`/auth/devices/${encodeURIComponent(id)}/revoke`); await load(); message='OBS source revoked.'; } catch { message='Could not revoke source.'; } }
-  async function start() { const attested = soleBroadcaster; soleBroadcaster=false; try { await post('/account-api/start', {sole_broadcaster: attested}); await load(); message='Live session started.'; } catch { await load(); message='Listening could not start. Check the status and try again.'; } }
-  async function stop() { soleBroadcaster=false; try { await post('/account-api/stop'); await load(); message='Stopped listening.'; } catch { message='Could not stop listening.'; } }
+  async function refreshStatus() {
+    if (statusActionPending) return;
+    statusController?.abort(); const controller = new AbortController(); statusController=controller; const version=++statusVersion;
+    try { const response=await request('/account-api/status', {signal:controller.signal}); if (!response.ok) return; const value=await response.json(); if (disposed || version!==statusVersion) return; if (['unavailable','unknown','offline','missing_grant','capacity','not_listening','session_active','listening','paused'].includes(value.state)) statusValue=value.state; canStart=value.can_start===true; transcriptionEnabled=value.transcription_enabled===true; } catch { /* A later refresh retries. */ }
+  }
+  async function start() { statusController?.abort(); statusVersion++; statusActionPending=true; const attested = soleBroadcaster; soleBroadcaster=false; try { await post('/account-api/start', {sole_broadcaster: attested}); await load(); message='Live session started.'; } catch { await load(); message='Listening could not start. Check the status and try again.'; } finally { statusActionPending=false; } }
+  async function stop() { statusController?.abort(); statusVersion++; statusActionPending=true; soleBroadcaster=false; try { await post('/account-api/stop'); await load(); message='Stopped listening.'; } catch { message='Could not stop listening.'; } finally { statusActionPending=false; } }
   async function pause() { try { await post('/api/control/pause', {paused:!paused}); await load(); } catch { message='Could not change stamp pause.'; } }
   async function disconnect() { try { await post('/account-api/disconnect'); account=null; devices=[]; message='Twitch disconnected.'; } catch { message='Disconnect could not be confirmed. Refresh setup to check your connection.'; } }
   async function deleteAccount() {
@@ -39,7 +50,7 @@
     } catch { message='Deletion could not be completed. Reconnect and try again.'; }
   }
   async function logout() { try { await post('/auth/logout'); account=null; devices=[]; } catch { message='Could not sign out.'; } }
-  onMount(() => { if (import.meta.env.DEV) { const fixture = new URLSearchParams(window.location.search).get('fixture'); if (fixture && ['unavailable','unknown','offline','missing_grant','capacity','not_listening','session_active','listening','paused'].includes(fixture)) request = fixtureFetch(fixture); } void load(); });
+  onMount(() => { if (import.meta.env.DEV) { const fixture = new URLSearchParams(window.location.search).get('fixture'); if (fixture && ['unavailable','unknown','offline','missing_grant','capacity','not_listening','session_active','listening','paused'].includes(fixture)) request = fixtureFetch(fixture); } void load(); const timer=window.setInterval(() => { if (account) void refreshStatus(); },5000); return () => { disposed=true; statusVersion++; statusController?.abort(); window.clearInterval(timer); }; });
 </script>
 <svelte:head><title>Receipts setup</title></svelte:head>
 <main>
@@ -48,7 +59,7 @@
     <p>Connected as {account.login}</p>
     <p><a href={resolve("/control")}>Open streamer control dock</a></p>
     <p>{({unavailable:'Listening is unavailable.',unknown:'Stream status is unknown. Try again.',offline:'Your channel is offline.',missing_grant:'Reconnect Twitch to grant the required permissions.',capacity:'Listening capacity is full. Try again later.',not_listening:'Your channel is live and not listening.',session_active:'Live session active. Audio capture is not attached.',listening:'Listening.',paused:'Listening; stamps paused.'})[statusValue]}</p>
-    {#if listening}<button onclick={pause}>{paused ? "Resume stamps" : "Pause stamps"}</button><button onclick={stop}>Stop listening</button>{:else if sessionActive}<button onclick={stop}>Stop session</button>{:else if statusValue === "not_listening"}{#if canStart}<label><input type="checkbox" bind:checked={soleBroadcaster} /> I am the only person speaking in this broadcast. Enable transcript attribution for this session.</label><p>Leave this unchecked if other voices may be heard. Microphone capture is unavailable.</p><button onclick={start}>Start session</button>{:else}<p>Starting a session is currently unavailable.</p>{/if}{:else if statusValue === "missing_grant"}<button onclick={() => { window.location.href = "/auth/twitch"; }}>Reconnect Twitch</button>{/if}
+    {#if listening}<p>{transcriptionEnabled ? 'Transcription enabled for your sole voice.' : 'Audio is being monitored; transcription is off because sole-speaker confirmation was not given.'}</p><button onclick={pause}>{paused ? "Resume stamps" : "Pause stamps"}</button><button onclick={stop}>Stop listening</button>{:else if sessionActive}<button onclick={stop}>Stop session</button>{:else if statusValue === "not_listening"}{#if canStart}<label><input type="checkbox" bind:checked={soleBroadcaster} /> I am the only person speaking in this broadcast. Enable transcript attribution for this session.</label><p>Leave this unchecked if other voices may be heard. Microphone capture is unavailable.</p><button onclick={start}>Start session</button>{:else}<p>Starting a session is currently unavailable.</p>{/if}{:else if statusValue === "missing_grant"}<button onclick={() => { window.location.href = "/auth/twitch"; }}>Reconnect Twitch</button>{/if}
     <h2>OBS browser source</h2>
     <p>Add this URL as a browser source, then enter the code shown there.</p>
     <code>{typeof window === 'undefined' ? '/obs' : `${window.location.origin}/obs`}</code>

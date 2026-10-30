@@ -35,12 +35,24 @@ func (a *audioAttachment) activeFor(identity auth.ChannelContext) bool {
 		return false
 	}
 	value, ok := a.active.Load(channel.Authority.ChannelID)
-	return ok && value == (captureIdentity{channel.Authority.LiveSessionID, channel.Authority.Generation})
+	current, valid := value.(captureIdentity)
+	return ok && valid && current.session == channel.Authority.LiveSessionID && current.generation == channel.Authority.Generation
 }
 
 type captureIdentity struct {
 	session    string
 	generation uint64
+	sole       bool
+}
+
+func (a *audioAttachment) transcriptionFor(identity auth.ChannelContext) bool {
+	channel, err := a.runtime.ResolveByIdentity(identity)
+	if err != nil {
+		return false
+	}
+	value, ok := a.active.Load(identity.ChannelID)
+	current, valid := value.(captureIdentity)
+	return ok && valid && current.session == channel.Authority.LiveSessionID && current.generation == channel.Authority.Generation && current.sole
 }
 
 func (a *audioAttachment) attach(ctx context.Context, authority auth.ChannelContext, sole bool) (func(), error) {
@@ -77,13 +89,13 @@ func (a *audioAttachment) attach(ctx context.Context, authority auth.ChannelCont
 	go func() {
 		defer close(done)
 		defer os.RemoveAll(dir)
-		defer a.active.CompareAndDelete(authority.ChannelID, captureIdentity{authority.LiveSessionID, authority.Generation})
+		defer a.active.CompareAndDelete(authority.ChannelID, captureIdentity{authority.LiveSessionID, authority.Generation, sole})
 		capture := a.capture
 		if capture == nil {
 			capture = audio.StreamChunks
 		}
 		err := capture(runCtx, streamlink, fmt.Sprintf("https://www.twitch.tv/%s", login), dir, func(ctx context.Context, chunk audio.IngestChunk) error {
-			a.active.Store(authority.ChannelID, captureIdentity{authority.LiveSessionID, authority.Generation})
+			a.active.Store(authority.ChannelID, captureIdentity{authority.LiveSessionID, authority.Generation, sole})
 			if !sole {
 				return nil
 			}
