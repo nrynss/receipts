@@ -4,7 +4,7 @@
 
 Chat types `!receipt` when a streamer promises something on stream. Receipts clips the moment and keeps the claim. When the streamer later goes back on it, a **RECEIPT** stamp lands on the overlay with the old clip, and chat votes on the appeal. `!lore` gives new viewers the channel's running promises and the ones that broke.
 
-> **Status:** entry for the Codex × TwitchCon Hackathon, in development. P0 feasibility, P1 foundation and the offline receipt loop are complete. Account isolation, onboarding/OBS pairing and owner controls are implemented. Shared live activation and hosted judge acceptance remain open; see the [development diary](dev-diary/README.md).
+> **Status:** entry for the Codex × TwitchCon Hackathon, in development. P0 feasibility, P1 foundation and the offline receipt loop are complete. Account isolation, onboarding/OBS pairing and owner controls are implemented. Verified live-session lifecycle and Twitch adapter checks pass. The production audio/model pipeline and hosted judge acceptance remain open; see the [development diary](dev-diary/README.md).
 
 Implementation phases, task dependencies and acceptance criteria are in the [development diary](dev-diary/README.md).
 Build and run the current server using the [development instructions](docs/development.md).
@@ -18,7 +18,7 @@ Build and run the current server using the [development instructions](docs/devel
 | TA — Accounts and onboarding | 3/4 | Identity, isolation and OBS pairing verified; anonymous recorded demo implemented; hosted judge acceptance pending |
 | P2 — Offline receipt loop | 4/4 | Capture, detection, appeals, lore and deterministic full-loop replay verified |
 | P3 — Overlay/controls | 3/3 | Overlay, owner controls and actual local OBS/SSE recovery verified |
-| P4 — Twitch integration | 3/4 | Authorized adapters, real chat and local clip fallback verified; session authority implemented, live shutdown acceptance pending |
+| P4 — Twitch integration | 4/4 | Authorized adapters, chat, local clip fallback and real stream-end capture exit verified |
 | P5 — Intelligence | 0/4 | Live transcription, extraction, judging and evaluation pending |
 | P6 — Release | Planned | Deployment, live proof and judge readiness |
 

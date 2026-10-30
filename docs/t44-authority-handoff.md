@@ -56,10 +56,8 @@ reference also requires a user or app access token for that API. See the
 - No live Twitch request, chat post, clip creation, model call, or audio
   recording was made for this implementation.
 
-## Remaining acceptance
+## Live acceptance
 
-The bounded live end-of-stream rehearsal still needs a coordinated short
-user-controlled stream start/stop. It should use the existing real capture
-subprocess hook, stay within the agreed short window and `$0` model budget, and
-remove its ephemeral output. It must report capture stop only if a real capture
-process was started. No rehearsal result is claimed here.
+The principal ran `TestLiveAuthorityStopsCapture` against nrynss. The production authority lifecycle activated an isolated synthetic account session and attached the existing real Streamlink/ffmpeg capture probe. At least one second of decoded audio sample data was observed before the owner was asked to stop the stream. Twitch then confirmed the broadcast ended, and the capture subprocesses exited. The run passed in 41.38 seconds with 10 Twitch HTTP requests, no model calls, no chat or clip writes, and discarded temporary audio.
+
+This proves the bounded real stream-end lifecycle rehearsal. It does not connect production audio/transcription or the hosted chat/clip worker composition; those remain downstream integration. See [sanitized authority evidence](evidence/t44-authority.json).

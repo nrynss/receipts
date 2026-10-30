@@ -2,7 +2,7 @@
 
 **Goal:** Replace recorded Twitch adapters while keeping the proven product loop and explicit failure states.
 
-**Status:** in-progress (3/4)
+**Status:** done (4/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -51,7 +51,7 @@ Use the proven clip API contract. Persist pending work, poll with bounded retrie
 requires: T0.3, T4.2
 fixture-ok: yes
 owns: internal/session/, internal/twitch/live/, testdata/twitch/
-status: in-progress
+status: done
 ```
 
 Combine verified live-status signals with bounded freshness and startup checks. Bind audio and pending results to a session identity. Offline or unknown status stops listening; an old session cannot publish after a new one starts. Expose the state to streamer controls. Explicit mic enablement never carries into another live session.
@@ -60,16 +60,16 @@ Combine verified live-status signals with bounded freshness and startup checks. 
 
 ## Exit criteria
 
-- [ ] Every task above has evidence against its done criteria.
-- [ ] The offline gate passes on the candidate revision.
-- [ ] Live checks are separately identified, budgeted and never part of the offline gate.
-- [ ] Outstanding limitations and downstream contract changes are recorded.
+- [x] Every task above has evidence against its done criteria.
+- [x] The offline gate passes on the candidate revision.
+- [x] Live checks are separately identified, budgeted and never part of the offline gate.
+- [x] Outstanding limitations and downstream contract changes are recorded.
 
 ## Handoff log
 
 ### What exists now
 
-T4.1 adapter integration and bounded live chat/clip acceptance are complete. P0 proved bounded Twitch capability; TA.1 OAuth/session lifecycle is implemented in `ed2c7d6`. These do not establish a running multi-channel EventSub/clip product pipeline.
+T4.1–T4.4 adapter, transport, local fallback and real stream-end authority acceptance are complete. P0 proved bounded Twitch capability; TA.1 OAuth/session lifecycle is implemented in `ed2c7d6`. These do not establish a running multi-channel EventSub/clip product pipeline.
 
 ### Evidence and decisions
 
@@ -83,7 +83,7 @@ T4.1 implementation is reviewed and integrated in `2627aea`: scoped Helix/EventS
 
 The opt-in adapter-bound writer acceptance validates the grant (including the nrynss login) and channel binding, confirms live status, then permits exactly one fixed chat message and one clip creation under an eight-request cap. The live harness uses an in-memory resolver/token provider and does not establish hosted account persistence or live refresh; offline tests cover those paths. EventSub subscription and receive transport remain T4.2 acceptance.
 
-T4.2 transport and T4.3 clip jobs are assigned to separate Luna worktrees from `85c69b8`. The principal thread owns integration and task status. Live acceptance remains distinct from offline implementation, and T4.4 still owns verified listening activation.
+T4.2 transport and T4.3 clip jobs were reviewed in isolated worktrees and integrated by the principal thread. Their live evidence remains distinct from offline implementation. T4.4 now supplies verified session lifecycle; actual production audio and model processing remain P5.
 
 T4.2 is reviewed from `b2c2ac8`. The principal ran the offline five-service acceptance and a real bounded EventSub run: the owner typed all five commands, and capture, vote, pause, resume and lore assertions passed. See [live transport evidence](../docs/evidence/t42-live-transport.json). Recorded transcript input and an isolated synthetic ledger avoid claiming live audio/model activation; T4.4 still owns that activation.
 
@@ -93,4 +93,4 @@ T4.4 authority and T4.3 local OBS acceptance are assigned to separate Luna workt
 
 T4.3 local fallback acceptance passed against the production-built paired OBS route: the owner reported a readable saved claim beside a paused/blocked player and could not identify a Play control. Video/audio playback remains unverified and is not claimed. The local fallback criterion is satisfied; safe routing is documented, deployed-origin playback belongs to T6.1 and actual capture-feedback rehearsal to T6.2. See [local OBS evidence](../docs/evidence/t43-obs.json). Principal reviewed implementation revision: `71088c2`.
 
-T4.4 implementation is reviewed and integrated in `17a2a74`. Persisted generations fence stale cleanup/results, same-broadcast restart retains receipt/appeal history, startup clears capture freshness and microphone consent, and an independent watchdog cancels stale authority. Stop intent fencing and exact-generation rollback pass in-memory HTTP/real-SQLite tests, the principal offline gate and uncached all-Go race suite. The owner page distinguishes `session_active` from actual audio capture; audio/transcription and production chat/clip attachments remain later integration work. The opt-in real-capture end-of-stream harness compiles but has not run: T4.4 remains in-progress pending the coordinated live rehearsal. See [authority evidence](../docs/evidence/t44-authority.json) and [handoff](../docs/t44-authority-handoff.md).
+T4.4 implementation is reviewed and integrated in `17a2a74`. Persisted generations fence stale cleanup/results, same-broadcast restart retains receipt/appeal history, startup clears capture freshness and microphone consent, and an independent watchdog cancels stale authority. Stop intent fencing and exact-generation rollback pass in-memory HTTP/real-SQLite tests, the principal offline gate and uncached all-Go race suite. The owner page distinguishes `session_active` from actual audio capture; audio/transcription and production chat/clip attachments remain later integration work. The principal ran the opt-in real-capture end-of-stream harness: actual audio sample data arrived, the owner stopped nrynss, Twitch confirmed the broadcast ended, and the capture subprocesses exited. The run passed in 41.38 seconds with 10 Twitch requests, no model calls and discarded temporary audio. T4.4 acceptance is complete. See [authority evidence](../docs/evidence/t44-authority.json) and [handoff](../docs/t44-authority-handoff.md).
