@@ -142,7 +142,7 @@ func TestAccountStopIsScopedAndCSRFProtected(t *testing.T) {
 	statusPaused.AddCookie(&http.Cookie{Name: auth.SessionCookie, Value: a.session})
 	pausedResult := httptest.NewRecorder()
 	realStart.ServeHTTP(pausedResult, statusPaused)
-	if !strings.Contains(pausedResult.Body.String(), "paused") {
+	if !strings.Contains(pausedResult.Body.String(), "session_active") {
 		t.Fatalf("paused: %s", pausedResult.Body.String())
 	}
 	if err := manager.Stop(a.authority); err != nil {

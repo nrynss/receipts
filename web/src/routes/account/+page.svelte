@@ -6,6 +6,7 @@
   let request: typeof fetch = fetch;
   let statusValue = $state<State>('unavailable');
   let canStart = $state(false);
+  let soleBroadcaster = $state(false);
   let account = $state<{login:string} | null>(null);
   let devices = $state<{id:string; created_at:number}[]>([]);
   let code = $state('');
@@ -24,8 +25,8 @@
   }
   async function confirm() { try { await post('/auth/pair/confirm', {code}); code=''; message='OBS source paired.'; await load(); } catch { message='Code expired or could not be confirmed.'; } }
   async function revoke(id:string) { try { await post(`/auth/devices/${encodeURIComponent(id)}/revoke`); await load(); message='OBS source revoked.'; } catch { message='Could not revoke source.'; } }
-  async function start() { try { await post('/account-api/start'); await load(); message='Listening started.'; } catch { await load(); message='Listening could not start. Check the status and try again.'; } }
-  async function stop() { try { await post('/account-api/stop'); await load(); message='Stopped listening.'; } catch { message='Could not stop listening.'; } }
+  async function start() { const attested = soleBroadcaster; soleBroadcaster=false; try { await post('/account-api/start', {sole_broadcaster: attested}); await load(); message='Live session started.'; } catch { await load(); message='Listening could not start. Check the status and try again.'; } }
+  async function stop() { soleBroadcaster=false; try { await post('/account-api/stop'); await load(); message='Stopped listening.'; } catch { message='Could not stop listening.'; } }
   async function pause() { try { await post('/api/control/pause', {paused:!paused}); await load(); } catch { message='Could not change stamp pause.'; } }
   async function disconnect() { try { await post('/account-api/disconnect'); account=null; devices=[]; message='Twitch disconnected.'; } catch { message='Disconnect could not be confirmed. Refresh setup to check your connection.'; } }
   async function deleteAccount() {
@@ -47,7 +48,7 @@
     <p>Connected as {account.login}</p>
     <p><a href={resolve("/control")}>Open streamer control dock</a></p>
     <p>{({unavailable:'Listening is unavailable.',unknown:'Stream status is unknown. Try again.',offline:'Your channel is offline.',missing_grant:'Reconnect Twitch to grant the required permissions.',capacity:'Listening capacity is full. Try again later.',not_listening:'Your channel is live and not listening.',session_active:'Live session active. Audio capture is not attached.',listening:'Listening.',paused:'Listening; stamps paused.'})[statusValue]}</p>
-    {#if listening}<button onclick={pause}>{paused ? "Resume stamps" : "Pause stamps"}</button><button onclick={stop}>Stop listening</button>{:else if sessionActive}<button onclick={stop}>Stop session</button>{:else if statusValue === "not_listening"}{#if canStart}<button onclick={start}>Start session</button>{:else}<p>Starting a session is currently unavailable.</p>{/if}{:else if statusValue === "missing_grant"}<button onclick={() => { window.location.href = "/auth/twitch"; }}>Reconnect Twitch</button>{/if}
+    {#if listening}<button onclick={pause}>{paused ? "Resume stamps" : "Pause stamps"}</button><button onclick={stop}>Stop listening</button>{:else if sessionActive}<button onclick={stop}>Stop session</button>{:else if statusValue === "not_listening"}{#if canStart}<label><input type="checkbox" bind:checked={soleBroadcaster} /> I am the only person speaking in this broadcast. Enable transcript attribution for this session.</label><p>Leave this unchecked if other voices may be heard. Microphone capture is unavailable.</p><button onclick={start}>Start session</button>{:else}<p>Starting a session is currently unavailable.</p>{/if}{:else if statusValue === "missing_grant"}<button onclick={() => { window.location.href = "/auth/twitch"; }}>Reconnect Twitch</button>{/if}
     <h2>OBS browser source</h2>
     <p>Add this URL as a browser source, then enter the code shown there.</p>
     <code>{typeof window === 'undefined' ? '/obs' : `${window.location.origin}/obs`}</code>

@@ -24,6 +24,8 @@ type Authority struct {
 	PollInterval time.Duration
 	Root         context.Context
 	Attach       func(context.Context, auth.ChannelContext) (func(), error)
+	AttachAudio  func(context.Context, auth.ChannelContext, bool) (func(), error)
+	AudioActive  func(auth.ChannelContext) bool
 	mu           sync.Mutex
 	locks        map[string]*sync.Mutex
 	activations  map[string]uint64
@@ -39,6 +41,9 @@ func (a *Authority) CanStart() bool {
 	return a != nil && a.Adapter != nil && a.Ledger != nil && a.Runtime != nil
 }
 func (a *Authority) AudioCaptureActive() bool { return false }
+func (a *Authority) AudioCaptureFor(identity auth.ChannelContext) bool {
+	return a.AudioActive != nil && a.AudioActive(identity)
+}
 
 func (a *Authority) freshness() time.Duration {
 	if a.Freshness > 0 {
@@ -146,11 +151,16 @@ func isMissingGrant(err error) bool {
 }
 
 func (a *Authority) Start(ctx context.Context, identity auth.ChannelContext) error {
-	return a.StartWithMicrophone(ctx, identity, false)
+	return a.StartWithOptions(ctx, identity, false, false)
 }
 
 // StartWithMicrophone records consent for this confirmed session only.
 func (a *Authority) StartWithMicrophone(ctx context.Context, identity auth.ChannelContext, microphoneAllowed bool) error {
+	return a.StartWithOptions(ctx, identity, microphoneAllowed, false)
+}
+
+// StartWithOptions requires a fresh explicit sole-voice attestation for this activation.
+func (a *Authority) StartWithOptions(ctx context.Context, identity auth.ChannelContext, microphoneAllowed, soleBroadcaster bool) error {
 	if !a.CanStart() || identity.Device || identity.AccountID == "" || identity.ChannelID == "" {
 		return errors.New("session: owner authority unavailable")
 	}
@@ -207,8 +217,14 @@ func (a *Authority) StartWithMicrophone(ctx context.Context, identity auth.Chann
 		_ = a.Ledger.ClearLivePermission(context.Background(), identity.ChannelID, sess.ID, authority.Generation)
 		return errors.New("session: runtime stopped during activation")
 	}
-	if a.Attach != nil {
-		detach, attachErr := a.Attach(channel.Context, authority)
+	if a.Attach != nil || a.AttachAudio != nil {
+		var detach func()
+		var attachErr error
+		if a.AttachAudio != nil {
+			detach, attachErr = a.AttachAudio(channel.Context, authority, soleBroadcaster)
+		} else {
+			detach, attachErr = a.Attach(channel.Context, authority)
+		}
 		if attachErr != nil {
 			if detach != nil {
 				detach()

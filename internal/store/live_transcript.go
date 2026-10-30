@@ -89,3 +89,14 @@ func (s *Store) ClaimAudioChunk(ctx context.Context, accountID, channelID, sessi
 	}
 	return tx.Commit()
 }
+
+// LiveAudioSource returns the owner-verified Twitch login and persisted clock origin.
+func (s *Store) LiveAudioSource(ctx context.Context, accountID, channelID, sessionID string, generation uint64) (string, time.Time, error) {
+	var login string
+	var started int64
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT c.login,l.started_at FROM live_sessions l JOIN channels c ON c.id=l.channel_id JOIN accounts a ON a.channel_id=c.id WHERE a.id=? AND a.channel_id=? AND a.status='connected' AND a.provider='twitch' AND a.provider_subject=c.platform_id AND l.id=? AND l.state='live' AND l.ended_at IS NULL AND l.runtime_generation=?`, accountID, channelID, sessionID, generation).Scan(&login, &started)
+	if err != nil {
+		return "", time.Time{}, ErrConflict
+	}
+	return login, time.UnixMilli(started).UTC(), nil
+}

@@ -2,6 +2,7 @@ package audio
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
@@ -99,7 +100,7 @@ func streamChunks(ctx context.Context, dir string, consume func(context.Context,
 				if total > 2<<20 {
 					return stop(errors.New("audio: buffer limit exceeded"))
 				}
-				if anchor.IsZero() && info.Size() > 44 {
+				if anchor.IsZero() && info.Size() > 44 && hasPCMData(path) {
 					anchor = now.UTC()
 				}
 			}
@@ -143,4 +144,27 @@ func streamChunks(ctx context.Context, dir string, consume func(context.Context,
 			next++
 		}
 	}
+}
+
+// hasPCMData observes bytes after the WAV data header, not the header itself.
+func hasPCMData(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	b := make([]byte, 4096)
+	n, _ := f.Read(b)
+	b = b[:n]
+	for i := 12; i+8 <= len(b); {
+		size := int(binary.LittleEndian.Uint32(b[i+4 : i+8]))
+		if string(b[i:i+4]) == "data" {
+			return len(b) > i+8
+		}
+		if size > len(b)-i-8 {
+			return false
+		}
+		i += 8 + size + (size & 1)
+	}
+	return false
 }
