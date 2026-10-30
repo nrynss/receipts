@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/nrynss/keel/sqlite"
 )
 
 func TestPairBrowserBoundSingleUseAndCSRF(t *testing.T) {
@@ -166,6 +168,62 @@ func TestDeviceCookieSurvivesServiceRestart(t *testing.T) {
 	})).ServeHTTP(httptest.NewRecorder(), req)
 	if !seen {
 		t.Fatal("device unavailable after restart")
+	}
+}
+
+func TestDeviceCookieSurvivesSQLiteRestart(t *testing.T) {
+	f := newAuthFixture(t, filepath.Join(t.TempDir(), "sqlite-restart.db"), nil)
+	session, csrf, account := login(t, f.service)
+	deviceID, credential, err := f.service.IssueDeviceCredential(context.Background(), ownerContext(f, session, account))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	db, err := sqlite.Open(context.Background(), sqlite.Config{Path: f.path, Now: f.clock.Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	restarted, err := New(context.Background(), Config{DB: db, Provider: f.provider, ClientID: "app-1", RedirectURL: "https://receipts.example/auth/twitch/callback", PublicOrigin: "https://receipts.example", EncryptionKey: bytes32('k'), SecureCookie: true, Now: f.clock.Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	device := httptest.NewRequest(http.MethodGet, "https://receipts.example/auth/device", nil)
+	device.AddCookie(&http.Cookie{Name: DeviceCookie, Value: credential})
+	deviceResult := httptest.NewRecorder()
+	restarted.Handler().ServeHTTP(deviceResult, device)
+	if deviceResult.Code != http.StatusNoContent {
+		t.Fatalf("device credential after database restart: %d", deviceResult.Code)
+	}
+
+	deviceIDResult := httptest.NewRequest(http.MethodGet, "https://receipts.example/api/overlay", nil)
+	deviceIDResult.AddCookie(&http.Cookie{Name: DeviceCookie, Value: credential})
+	seen := false
+	restarted.ChannelMiddleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		identity, err := ChannelFromContext(r.Context())
+		seen = err == nil && identity.Device && identity.DeviceID == deviceID && identity.ChannelID == account.ChannelID
+	})).ServeHTTP(httptest.NewRecorder(), deviceIDResult)
+	if !seen {
+		t.Fatal("device did not retain its channel identity after database restart")
+	}
+
+	revoke := httptest.NewRequest(http.MethodPost, "https://receipts.example/auth/devices/"+deviceID+"/revoke", nil)
+	revoke.AddCookie(session)
+	revoke.AddCookie(csrf)
+	revoke.Header.Set("Origin", "https://receipts.example")
+	revoke.Header.Set("X-CSRF-Token", csrf.Value)
+	revokeResult := httptest.NewRecorder()
+	restarted.Handler().ServeHTTP(revokeResult, revoke)
+	if revokeResult.Code != http.StatusNoContent {
+		t.Fatalf("revoke after database restart: %d %s", revokeResult.Code, revokeResult.Body.String())
+	}
+	denied := httptest.NewRecorder()
+	restarted.Handler().ServeHTTP(denied, device)
+	if denied.Code != http.StatusUnauthorized {
+		t.Fatalf("revoked device after database restart: %d", denied.Code)
 	}
 }
 
