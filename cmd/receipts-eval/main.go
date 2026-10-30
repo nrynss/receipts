@@ -13,6 +13,7 @@ import (
 func main() {
 	dataset := flag.String("dataset", "testdata/eval/pairs.jsonl", "labelled corpus")
 	recording := flag.String("recording", "", "sanitized recording bundle")
+	reviewFile := flag.String("review", "", "independent human review assertion JSON (required for accuracy)")
 	flag.Parse()
 	if *recording == "" {
 		fmt.Fprintln(os.Stderr, "recording is required")
@@ -34,7 +35,20 @@ func main() {
 	if e = json.Unmarshal(raw, &b); e != nil {
 		fail(e)
 	}
-	r, e := evaluation.Report(pairs, hash, b)
+	var r evaluation.Summary
+	if *reviewFile == "" {
+		r, e = evaluation.Report(pairs, hash, b)
+	} else {
+		raw, e = os.ReadFile(*reviewFile)
+		if e != nil {
+			fail(e)
+		}
+		var review evaluation.Review
+		if e = json.Unmarshal(raw, &review); e != nil {
+			fail(e)
+		}
+		r, e = evaluation.AccuracyReport(pairs, hash, b, review)
+	}
 	if e != nil {
 		fail(e)
 	}

@@ -59,6 +59,15 @@ type Manifest struct {
 	RetrievalSourceSHA256 string `json:"retrieval_source_sha256"`
 	PolicySourceSHA256    string `json:"policy_source_sha256"`
 }
+
+// Review attests independent human review of the exact labelled corpus. The
+// program cannot authenticate the reviewer; this is an auditable assertion,
+// not a cryptographic identity check. No marker is supplied by this project.
+type Review struct {
+	DatasetSHA256 string `json:"dataset_sha256"`
+	Reviewer      string `json:"reviewer"`
+	Decision      string `json:"decision"`
+}
 type Bundle struct {
 	Manifest Manifest    `json:"manifest"`
 	Records  []Recording `json:"records"`
@@ -73,6 +82,7 @@ type CaseResult struct {
 type Summary struct {
 	Manifest                                                                                                                                   Manifest     `json:"manifest"`
 	Cases                                                                                                                                      []CaseResult `json:"cases"`
+	AccuracyReviewed                                                                                                                           bool         `json:"accuracy_reviewed"`
 	Total, EligibleContradictions, NegativeLabels, Stamps, CorrectStamps, FalseStamps, Abstentions, RetrievalAttempts, RetrievalMisses, Errors int
 	LatencyMS, SpendNanoUSD                                                                                                                    int64
 	Precision, Recall, FalseStampRate, AbstentionRate                                                                                          *float64
@@ -118,8 +128,20 @@ func (r *reader) Read(p []byte) (int, error) {
 	return n, nil
 }
 func Report(pairs []Pair, datasetHash string, b Bundle) (Summary, error) {
+	return report(pairs, datasetHash, b, false)
+}
+
+// AccuracyReport requires an independently supplied review assertion bound to
+// the exact corpus. A self-asserted marker cannot prove a review occurred.
+func AccuracyReport(pairs []Pair, datasetHash string, b Bundle, review Review) (Summary, error) {
+	if review.DatasetSHA256 != datasetHash || review.Reviewer == "" || review.Decision != "independent-human-reviewed" {
+		return Summary{}, errors.New("independent corpus review required")
+	}
+	return report(pairs, datasetHash, b, true)
+}
+func report(pairs []Pair, datasetHash string, b Bundle, reviewed bool) (Summary, error) {
 	m := b.Manifest
-	out := Summary{Manifest: m}
+	out := Summary{Manifest: m, AccuracyReviewed: reviewed}
 	if m.DatasetSHA256 != datasetHash || (m.Split != "dev" && m.Split != "heldout") || m.Policy != "review-only-v1" || m.JudgeModel != "gpt-4o-mini-2024-07-18" || m.EmbeddingModel != "text-embedding-3-small" || m.Provenance == "" || m.JudgeSourceSHA256 != JudgeSourceHash || m.RetrievalSourceSHA256 != RetrievalSourceHash || m.PolicySourceSHA256 != PolicySourceHash {
 		return out, errors.New("invalid manifest")
 	}
@@ -205,9 +227,20 @@ func Report(pairs []Pair, datasetHash string, b Bundle) (Summary, error) {
 	if len(records) != 0 {
 		return out, errors.New("recording outside requested partition")
 	}
-	out.Precision = ratio(out.CorrectStamps, out.Stamps)
-	out.Recall = ratio(out.CorrectStamps, out.EligibleContradictions)
-	out.FalseStampRate = ratio(out.FalseStamps, out.NegativeLabels)
+	if reviewed {
+		out.Precision = ratio(out.CorrectStamps, out.Stamps)
+		out.Recall = ratio(out.CorrectStamps, out.EligibleContradictions)
+		out.FalseStampRate = ratio(out.FalseStamps, out.NegativeLabels)
+	} else {
+		// Routing reports contain no label-derived accuracy counts or per-case errors.
+		out.EligibleContradictions = 0
+		out.NegativeLabels = 0
+		out.CorrectStamps = 0
+		out.FalseStamps = 0
+		for i := range out.Cases {
+			out.Cases[i].FalseStamp = false
+		}
+	}
 	out.AbstentionRate = ratio(out.Abstentions, out.Total)
 	return out, nil
 }

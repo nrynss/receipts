@@ -30,8 +30,8 @@ func TestCollectLive(t *testing.T) {
 		t.Skip("OPENAI_API_KEY required")
 	}
 	split := os.Getenv("RECEIPTS_EVAL_SPLIT")
-	if split != "dev" && split != "heldout" {
-		t.Fatal("set RECEIPTS_EVAL_SPLIT")
+	if split != "dev" {
+		t.Fatal("legacy collector supports dev only; set RECEIPTS_EVAL_SPLIT")
 	}
 	n, e := strconv.Atoi(os.Getenv("RECEIPTS_EVAL_CASES"))
 	if e != nil || n < 1 || n > 44 {
