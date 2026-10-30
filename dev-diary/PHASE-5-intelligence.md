@@ -25,7 +25,7 @@ Use the selected source and current official OpenAI speech documentation. Choose
 requires: T5.1, T2.1
 fixture-ok: yes
 owns: internal/claims/, internal/retrieval/, testdata/models/
-status: not-started
+status: in-progress
 ```
 
 Choose supported OpenAI extraction/judge and embedding models from current official documentation; pin configurable IDs. Extract a normalized claim with exact evidence references and topic/attribution checks. Embed active eligible receipts and retrieve the nearest 3–5 with plain cosine in Go. Store embedding model/version and handle dimension changes through explicit reindexing. Transcript and chat are untrusted data, never model instructions.
@@ -80,3 +80,7 @@ Record task IDs, relevant revision, checks and artifact paths when work lands. N
 Record unresolved blockers, contract changes and the next unblocked task.
 
 T5.1 passed the offline gate, targeted uncached race checks and a real one-request transcription/shutdown test. The conservative charge estimate was $0.0045 under a $0.02 ceiling. Timing is coarse PCM ingest with unknown HLS delay; sole-speaker attestation is per activation. T5.2 is the next unblocked task. This short test does not prove long-running hosted operation or model accuracy.
+
+### T5.2 partial implementation
+
+Conservative extraction and embedding/index seams are implemented but not wired or metered. See [T5.2 partial handoff](../docs/t52-claims-handoff.md). T5.2 remains in progress; no live-model accuracy is claimed.

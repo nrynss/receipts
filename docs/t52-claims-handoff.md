@@ -1,0 +1,9 @@
+# T5.2 partial handoff
+
+The extraction adapter uses `gpt-4o-mini-2024-07-18` by default (configurable) and requires a strict structured response. It only accepts a complete, explicit first-person promise from a broadcaster-attributed segment, with an exact source ID. Ambiguity, quotation markers and instruction-like text cause abstention. This deliberately narrow lexical filter is not a semantic safety guarantee; the capture service must independently classify the claim and each cited source for sensitivity. The model output and transcript remain untrusted. The extraction adapter is not wired to a hosted runtime or metered: do not enable paid calls before T5.3 budgets and authority-bound cancellation are in place.
+
+The embedding adapter supports a configurable model, version and dimensions. `text-embedding-3-small` defaults to 1536 dimensions; the model/version/dimension tuple must match the persisted index. `ReindexEmbeddings` replaces a channel's complete eligible index in one transaction, rechecking the owner, session generation, eligibility and exact claim. `IndexedReceipts` filters current eligibility; decisions must revalidate both receipt and runtime authority after retrieval. Cosine ranking is deterministic and accepts three to five results. Index construction and retrieval are not yet wired to the runtime; newly added receipts require reindexing before the index is complete.
+
+Official model and API references: https://developers.openai.com/api/docs/models/gpt-4o-mini and https://developers.openai.com/api/docs/guides/embeddings.
+
+Remaining before T5.2 can be called complete: integrate extraction and retrieval with owner-bound runtime and T5.3 metering, enforce index completeness when receipts change, broaden recorded adversarial cases and run full end-to-end validation. No live model accuracy or T5.3 judging is claimed.

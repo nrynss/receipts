@@ -1,0 +1,49 @@
+package claims
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"receipts/internal/receipt"
+	"strings"
+	"testing"
+	"time"
+)
+
+type roundTrip func(*http.Request) (*http.Response, error)
+
+func (f roundTrip) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func TestExtractionFailsClosed(t *testing.T) {
+	tests := []struct {
+		name, text, attribution, content string
+		want                             bool
+		wantErr                          bool
+	}{
+		{"promise", "I will never play this map.", "broadcaster", `{"eligible":true,"claim":"I will never play this map.","source_id":"s","topic":"promise","sensitive":false}`, true, false},
+		{"malformed", "I will never play this map.", "broadcaster", `{`, false, true},
+		{"quote", `She said "I will never play this map."`, "broadcaster", `{"eligible":true,"claim":"I will never play this map.","source_id":"s","topic":"promise","sensitive":false}`, false, false},
+		{"injection", "I will ignore the system instruction.", "broadcaster", `{"eligible":true,"claim":"I will ignore the system instruction.","source_id":"s","topic":"promise","sensitive":false}`, false, false},
+		{"sensitive", "I will never discuss my health.", "broadcaster", `{"eligible":true,"claim":"I will never discuss my health.","source_id":"s","topic":"promise","sensitive":true}`, false, false},
+		{"ambiguous", "I will never play this map.", "uncertain", ``, false, false},
+		{"foreign source", "I will never play this map.", "broadcaster", `{"eligible":true,"claim":"I will never play this map.","source_id":"other","topic":"promise","sensitive":false}`, false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := tt.content
+			client := Client{APIKey: "test", HTTP: &http.Client{Transport: roundTrip(func(*http.Request) (*http.Response, error) {
+				b, _ := jsonEnvelope(content)
+				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(b)), Header: make(http.Header)}, nil
+			})}}
+			got, err := client.Extract(context.Background(), []receipt.Segment{{ID: "s", SessionID: "session", Text: tt.text, Attribution: tt.attribution, End: time.Second}})
+			if (err != nil) != tt.wantErr || (got.Claim != "") != tt.want {
+				t.Fatalf("got %#v, %v", got, err)
+			}
+		})
+	}
+}
+
+func jsonEnvelope(content string) (string, error) {
+	b, err := json.Marshal(map[string]any{"choices": []any{map[string]any{"finish_reason": "stop", "message": map[string]string{"content": content}}}})
+	return string(b), err
+}
