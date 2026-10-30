@@ -184,7 +184,7 @@ func (s *Store) StartSession(ctx context.Context, channelID string) (receipt.Ses
 	if exists == 0 {
 		return receipt.Session{}, ErrNotFound
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE live_sessions SET state='ended',ended_at=? WHERE channel_id=? AND state='live'`, millis(now), channelID)
+	_, err = tx.ExecContext(ctx, `UPDATE live_sessions SET state='ended',ended_at=?,microphone_allowed=0 WHERE channel_id=? AND state='live'`, millis(now), channelID)
 	if err != nil {
 		return receipt.Session{}, err
 	}
@@ -199,7 +199,7 @@ func (s *Store) StartSession(ctx context.Context, channelID string) (receipt.Ses
 }
 
 func (s *Store) EndSession(ctx context.Context, channelID, sessionID string) error {
-	res, err := s.db.Writer().ExecContext(ctx, `UPDATE live_sessions SET state='ended',ended_at=? WHERE id=? AND channel_id=? AND state='live'`, millis(s.now()), sessionID, channelID)
+	res, err := s.db.Writer().ExecContext(ctx, `UPDATE live_sessions SET state='ended',ended_at=?,microphone_allowed=0 WHERE id=? AND channel_id=? AND state='live'`, millis(s.now()), sessionID, channelID)
 	if err != nil {
 		return err
 	}

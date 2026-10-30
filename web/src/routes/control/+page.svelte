@@ -16,12 +16,14 @@
   let reason = $state('');
   let voidID = $state('');
   let actions: ReturnType<typeof createActions>;
-  let listening = $derived(statusValue === 'listening' || statusValue === 'paused');
+  let listening = $state(false);
+  let sessionActive = $derived(listening || statusValue === 'session_active');
   async function load() {
     try {
       const data = await getControl(request);
       actions.setScope(data.owner.id, data.owner.channel_id);
       statusValue = data.state.state; canStart = data.state.can_start === true;
+      listening = data.state.audio_capture_active === true || statusValue === 'listening' || statusValue === 'paused';
       snapshot = data.snapshot; reviews = data.reviews; health = data.health; available = data.runtimeAvailable;
     } catch (error) { message = error instanceof Error ? error.message : 'Controls unavailable.'; }
   }
@@ -44,10 +46,11 @@
   {#if import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('fixture') === 'dock'}<p>Fixture rehearsal · no live actions</p>{/if}
   <header><div><p class="eyebrow">PRIVATE DOCK</p><h1>Receipts</h1></div><button onclick={() => load()} disabled={busy}>Refresh</button></header>
   <section aria-labelledby="status-heading"><h2 id="status-heading">Stream status</h2>
-    <div class="status"><p><span>Live</span><strong>{health ? (health.live_confirmed ? 'Confirmed' : 'Not confirmed') : 'Unknown'}</strong></p><p><span>Audio</span><strong>{listening ? 'Listening' : statusValue === 'not_listening' ? 'Not listening' : statusValue.replaceAll('_', ' ')}</strong></p><p><span>Stamps</span><strong>{listening ? (statusValue === 'paused' ? 'Paused' : 'On') : 'Unavailable'}</strong></p></div>
+    <div class="status"><p><span>Live</span><strong>{health ? (health.live_confirmed ? 'Confirmed' : 'Not confirmed') : 'Unknown'}</strong></p><p><span>Audio</span><strong>{listening ? 'Listening' : sessionActive ? 'Capture not attached' : statusValue === 'not_listening' ? 'Not listening' : statusValue.replaceAll('_', ' ')}</strong></p><p><span>Stamps</span><strong>{listening ? (statusValue === 'paused' ? 'Paused' : 'On') : 'Unavailable'}</strong></p></div>
     {#if listening}<div class="actions"><button disabled={busy} onclick={() => act('/api/control/pause', { paused: statusValue !== 'paused' })}>{statusValue === 'paused' ? 'Resume stamps' : 'Pause stamps'}</button><button disabled={busy} onclick={() => act('/account-api/stop')}>Stop listening</button></div>
-    {:else if statusValue === 'not_listening' && canStart}<button disabled={busy} onclick={() => act('/account-api/start')}>Start listening</button>
-    {:else}<p class="muted">Starting listening is currently unavailable. Check setup and live status.</p>{/if}
+    {:else if sessionActive}<button disabled={busy} onclick={() => act('/account-api/stop')}>Stop session</button>
+    {:else if statusValue === 'not_listening' && canStart}<button disabled={busy} onclick={() => act('/account-api/start')}>Start session</button>
+    {:else}<p class="muted">Starting a session is currently unavailable. Check setup and live status.</p>{/if}
   </section>
   <section aria-labelledby="stamp-heading"><h2 id="stamp-heading">Current stamp</h2>
     {#if snapshot?.current_stamp}<p class="claim">{snapshot.current_stamp.claim}</p><p class="muted">Receipt {snapshot.current_stamp.id}</p>

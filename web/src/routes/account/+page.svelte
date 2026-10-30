@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
   import { fixtureFetch } from '$lib/account/testing/fixture';
-  type State = 'unavailable' | 'unknown' | 'offline' | 'missing_grant' | 'capacity' | 'not_listening' | 'listening' | 'paused';
+  type State = 'unavailable' | 'unknown' | 'offline' | 'missing_grant' | 'capacity' | 'not_listening' | 'session_active' | 'listening' | 'paused';
   let request: typeof fetch = fetch;
   let statusValue = $state<State>('unavailable');
   let canStart = $state(false);
@@ -10,12 +10,13 @@
   let devices = $state<{id:string; created_at:number}[]>([]);
   let code = $state('');
   let listening = $derived(statusValue === 'listening' || statusValue === 'paused');
+  let sessionActive = $derived(listening || statusValue === 'session_active');
   let paused = $derived(statusValue === 'paused');
   let message = $state('');
   const csrf = () => decodeURIComponent(document.cookie.split('; ').find((c) => c.startsWith('receipts_csrf='))?.split('=')[1] ?? '');
   async function load() {
     const response = await request('/auth/account');
-    if (response.ok) { account = await response.json(); const d = await request('/auth/devices'); if (d.ok) devices = await d.json(); const statusResponse = await request('/account-api/status'); if (statusResponse.ok) { const value = await statusResponse.json(); if (['unavailable','unknown','offline','missing_grant','capacity','not_listening','listening','paused'].includes(value.state)) statusValue = value.state; canStart = value.can_start === true; } }
+    if (response.ok) { account = await response.json(); const d = await request('/auth/devices'); if (d.ok) devices = await d.json(); const statusResponse = await request('/account-api/status'); if (statusResponse.ok) { const value = await statusResponse.json(); if (['unavailable','unknown','offline','missing_grant','capacity','not_listening','session_active','listening','paused'].includes(value.state)) statusValue = value.state; canStart = value.can_start === true; } }
   }
   async function post(path:string, body?:unknown) {
     const response = await request(path, { method:'POST', headers:{'X-CSRF-Token':csrf(), 'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined });
@@ -37,7 +38,7 @@
     } catch { message='Deletion could not be completed. Reconnect and try again.'; }
   }
   async function logout() { try { await post('/auth/logout'); account=null; devices=[]; } catch { message='Could not sign out.'; } }
-  onMount(() => { if (import.meta.env.DEV) { const fixture = new URLSearchParams(window.location.search).get('fixture'); if (fixture && ['unavailable','unknown','offline','missing_grant','capacity','not_listening','listening','paused'].includes(fixture)) request = fixtureFetch(fixture); } void load(); });
+  onMount(() => { if (import.meta.env.DEV) { const fixture = new URLSearchParams(window.location.search).get('fixture'); if (fixture && ['unavailable','unknown','offline','missing_grant','capacity','not_listening','session_active','listening','paused'].includes(fixture)) request = fixtureFetch(fixture); } void load(); });
 </script>
 <svelte:head><title>Receipts setup</title></svelte:head>
 <main>
@@ -45,8 +46,8 @@
   {#if account}
     <p>Connected as {account.login}</p>
     <p><a href={resolve("/control")}>Open streamer control dock</a></p>
-    <p>{({unavailable:'Listening is unavailable.',unknown:'Stream status is unknown. Try again.',offline:'Your channel is offline.',missing_grant:'Reconnect Twitch to grant the required permissions.',capacity:'Listening capacity is full. Try again later.',not_listening:'Your channel is live and not listening.',listening:'Listening.',paused:'Listening; stamps paused.'})[statusValue]}</p>
-    {#if listening}<button onclick={pause}>{paused ? "Resume stamps" : "Pause stamps"}</button><button onclick={stop}>Stop listening</button>{:else if statusValue === "not_listening"}{#if canStart}<button onclick={start}>Start listening</button>{:else}<p>Starting listening is currently unavailable.</p>{/if}{:else if statusValue === "missing_grant"}<button onclick={() => { window.location.href = "/auth/twitch"; }}>Reconnect Twitch</button>{/if}
+    <p>{({unavailable:'Listening is unavailable.',unknown:'Stream status is unknown. Try again.',offline:'Your channel is offline.',missing_grant:'Reconnect Twitch to grant the required permissions.',capacity:'Listening capacity is full. Try again later.',not_listening:'Your channel is live and not listening.',session_active:'Live session active. Audio capture is not attached.',listening:'Listening.',paused:'Listening; stamps paused.'})[statusValue]}</p>
+    {#if listening}<button onclick={pause}>{paused ? "Resume stamps" : "Pause stamps"}</button><button onclick={stop}>Stop listening</button>{:else if sessionActive}<button onclick={stop}>Stop session</button>{:else if statusValue === "not_listening"}{#if canStart}<button onclick={start}>Start session</button>{:else}<p>Starting a session is currently unavailable.</p>{/if}{:else if statusValue === "missing_grant"}<button onclick={() => { window.location.href = "/auth/twitch"; }}>Reconnect Twitch</button>{/if}
     <h2>OBS browser source</h2>
     <p>Add this URL as a browser source, then enter the code shown there.</p>
     <code>{typeof window === 'undefined' ? '/obs' : `${window.location.origin}/obs`}</code>

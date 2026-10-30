@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/nrynss/keel/cost"
 	"github.com/nrynss/keel/id"
@@ -23,6 +24,9 @@ var (
 
 type LiveSessionVerifier interface {
 	VerifyLiveSession(context.Context, string, string, string) error
+}
+type LiveGenerationVerifier interface {
+	VerifyLiveGeneration(context.Context, string, string, string, uint64) error
 }
 
 type Config struct{ MaxChannels int }
@@ -97,7 +101,7 @@ func (m *Manager) StartVerified(parent context.Context, authority auth.ChannelCo
 	if verifier == nil || authority.AccountID == "" || authority.ChannelID == "" || authority.LiveSessionID == "" || authority.Generation == 0 {
 		return nil, ErrSessionNotLive
 	}
-	if err := verifier.VerifyLiveSession(parent, authority.AccountID, authority.ChannelID, authority.LiveSessionID); err != nil {
+	if err := verifyLiveGeneration(parent, authority, verifier); err != nil {
 		return nil, errors.Join(ErrSessionNotLive, err)
 	}
 	channel, err := m.Start(parent, authority)
@@ -107,11 +111,18 @@ func (m *Manager) StartVerified(parent context.Context, authority auth.ChannelCo
 	// Close the gap between the preflight check and map insertion. Revocation
 	// before insertion has no runtime for its hook to cancel; the second read
 	// catches it. Revocation after insertion sees the registered runtime.
-	if err := verifier.VerifyLiveSession(parent, authority.AccountID, authority.ChannelID, authority.LiveSessionID); err != nil {
+	if err := verifyLiveGeneration(parent, authority, verifier); err != nil {
 		_ = m.Stop(authority)
 		return nil, errors.Join(ErrSessionNotLive, err)
 	}
 	return channel, nil
+}
+
+func verifyLiveGeneration(ctx context.Context, authority auth.ChannelContext, verifier LiveSessionVerifier) error {
+	if generationVerifier, ok := verifier.(LiveGenerationVerifier); ok {
+		return generationVerifier.VerifyLiveGeneration(ctx, authority.AccountID, authority.ChannelID, authority.LiveSessionID, authority.Generation)
+	}
+	return verifier.VerifyLiveSession(ctx, authority.AccountID, authority.ChannelID, authority.LiveSessionID)
 }
 
 // Go ties delayed work to the live session and prevents the slot from being
@@ -299,6 +310,41 @@ func (m *Manager) Cancel(authority auth.ChannelContext) error {
 	return nil
 }
 
+// CancelChannel is used by owner stop controls before they know an active
+// session authority. It only cancels the matching account's channel runtime.
+func (m *Manager) CancelChannel(accountID, channelID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	channel := m.active[channelID]
+	if channel == nil || channel.Authority.AccountID != accountID {
+		return ErrStale
+	}
+	channel.launchMu.Lock()
+	channel.stopping.Store(true)
+	channel.launchMu.Unlock()
+	channel.cancel()
+	return nil
+}
+
+func (m *Manager) WaitChannelStopped(ctx context.Context, accountID, channelID string) error {
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		m.mu.RLock()
+		channel := m.active[channelID]
+		stopped := channel == nil || channel.Authority.AccountID != accountID
+		m.mu.RUnlock()
+		if stopped {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+
 // RevokeAccount invalidates and cancels every active runtime for one account.
 // It returns after cancellation; the slot stays occupied until the supervisor
 // has reaped every worker.
@@ -317,6 +363,12 @@ func (m *Manager) RevokeAccount(accountID string) {
 }
 
 func (m *Manager) Count() int { m.mu.RLock(); defer m.mu.RUnlock(); return len(m.active) }
+
+func (m *Manager) HasCapacity() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.active) < m.max
+}
 
 // WithActive serializes a short commit against stop, revocation and pause.
 func (m *Manager) WithActive(authority auth.ChannelContext, commit func(*Channel) error) error {

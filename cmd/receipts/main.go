@@ -19,6 +19,7 @@ import (
 	"receipts/internal/auth"
 	"receipts/internal/demo"
 	channelruntime "receipts/internal/runtime"
+	"receipts/internal/session"
 	"receipts/internal/settings"
 	"receipts/internal/store"
 	"receipts/internal/twitch/connection"
@@ -52,6 +53,9 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 	ledger, err := store.New(ctx, db, store.Retention{ExpireAfter: cfg.TranscriptRetention}, nil)
 	if err != nil {
 		return fmt.Errorf("initialize receipt ledger: %w", err)
+	}
+	if err := ledger.ResetLiveAuthority(ctx); err != nil {
+		return fmt.Errorf("reset stale live authority: %w", err)
 	}
 
 	if _, err := ledger.RecoverDueAppeals(ctx); err != nil {
@@ -133,7 +137,8 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 		mux.Handle("/demo/api/", demoServer)
 		mux.Handle("/auth/", authService.Handler())
 		adapter := &connection.Adapter{Runtime: supervisor, Resolver: connection.ServiceResolverFunc{Service: authService}, Tokens: authService, LossHandler: authService}
-		mux.Handle("/account-api/", api.AccountHandlerWithBackend(authService, supervisor, authService.DisconnectProviderAuthorization, budgets, listeningObservation{adapter: adapter}))
+		liveAuthority := &session.Authority{Adapter: adapter, Ledger: ledger, Runtime: supervisor, Freshness: cfg.LiveStatusFreshness, Root: ctx}
+		mux.Handle("/account-api/", api.AccountHandlerWithBackend(authService, supervisor, authService.DisconnectProviderAuthorization, budgets, liveAuthority))
 		mux.Handle("/api/", api.NewForOwner(api.Config{
 			OwnerReader:   api.LedgerReader{Store: ledger, Mode: string(cfg.Mode)},
 			OwnerControls: api.LedgerControls{Store: ledger, Runtime: supervisor, AppealDuration: cfg.AppealDuration, StampCooldown: cfg.StampCooldown},

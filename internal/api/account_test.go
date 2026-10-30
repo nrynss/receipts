@@ -123,7 +123,7 @@ func TestAccountStopIsScopedAndCSRFProtected(t *testing.T) {
 	if startResult.Code != http.StatusServiceUnavailable {
 		t.Fatalf("false start %d", startResult.Code)
 	}
-	realStart := AccountHandlerWithBackend(sessions, manager, nil, nil, fixtureListeningBackend{state: StateNotListening, start: func(_ context.Context, identity auth.ChannelContext) error {
+	realStart := AccountHandlerWithBackend(sessions, manager, nil, nil, fixtureListeningBackend{state: StateSessionActive, start: func(_ context.Context, identity auth.ChannelContext) error {
 		if identity.AccountID != a.authority.AccountID {
 			t.Error("wrong owner")
 		}
