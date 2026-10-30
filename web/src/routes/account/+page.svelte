@@ -22,10 +22,18 @@
   let paused = $derived(statusValue === 'paused');
   let message = $state('');
   const csrf = () => decodeURIComponent(document.cookie.split('; ').find((c) => c.startsWith('receipts_csrf='))?.split('=')[1] ?? '');
+  function statusUnknown() { uncertainSession=sessionActive;statusValue='unknown';transcriptionEnabled=false; }
   async function load() {
     const version=++statusVersion; poll?.cancel();
-    const response = await request('/auth/account');
-    if (response.ok) { const nextAccount = await response.json(); if (disposed || version!==statusVersion) return; account = nextAccount; const d = await request('/auth/devices'); if (d.ok) {const nextDevices=await d.json(); if (disposed || version!==statusVersion) return; devices=nextDevices;} const statusResponse = await request('/account-api/status'); if (statusResponse.ok) { const value = await statusResponse.json(); if (disposed || version!==statusVersion) return; if (['unavailable','unknown','offline','missing_grant','capacity','not_listening','session_active','listening','paused'].includes(value.state)) statusValue = value.state; canStart = value.can_start === true; transcriptionEnabled = value.transcription_enabled === true; uncertainSession=false; } }
+    try {
+      const response = await request('/auth/account'); if (!response.ok) throw new Error('Account unavailable');
+      const nextAccount = await response.json(); if (disposed || version!==statusVersion) return; account=nextAccount;
+      const d=await request('/auth/devices'); if (d.ok) { const nextDevices=await d.json(); if (disposed || version!==statusVersion) return; devices=nextDevices; }
+      const statusResponse=await request('/account-api/status'); if (!statusResponse.ok) throw new Error('Status unavailable');
+      const value=await statusResponse.json(); if (disposed || version!==statusVersion) return;
+      if (['unavailable','unknown','offline','missing_grant','capacity','not_listening','session_active','listening','paused'].includes(value.state)) statusValue=value.state;
+      canStart=value.can_start===true;transcriptionEnabled=value.transcription_enabled===true;uncertainSession=false;
+    } catch { if (!disposed && version===statusVersion) statusUnknown(); }
   }
   async function post(path:string, body?:unknown) {
     const response = await request(path, { method:'POST', headers:{'X-CSRF-Token':csrf(), 'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined });
@@ -48,7 +56,7 @@
     } catch { message='Deletion could not be completed. Reconnect and try again.'; }
   }
   async function logout() { try { await post('/auth/logout'); account=null; devices=[]; } catch { message='Could not sign out.'; } }
-  onMount(() => { if (import.meta.env.DEV) { const fixture = new URLSearchParams(window.location.search).get('fixture'); if (fixture && ['unavailable','unknown','offline','missing_grant','capacity','not_listening','session_active','listening','paused'].includes(fixture)) request = fixtureFetch(fixture); } poll=statusRefresh(request, (value) => { if (typeof value.state === 'string' && ['unavailable','unknown','offline','missing_grant','capacity','not_listening','session_active','listening','paused'].includes(value.state)) statusValue=value.state as State; canStart=value.can_start===true;transcriptionEnabled=value.transcription_enabled===true;uncertainSession=false; }, () => { uncertainSession=sessionActive;statusValue='unknown';transcriptionEnabled=false; }); void load(); const timer=window.setInterval(() => { if (account) void refreshStatus(); },5000); return () => { disposed=true; statusVersion++; poll?.dispose(); window.clearInterval(timer); }; });
+  onMount(() => { if (import.meta.env.DEV) { const fixture = new URLSearchParams(window.location.search).get('fixture'); if (fixture && ['unavailable','unknown','offline','missing_grant','capacity','not_listening','session_active','listening','paused'].includes(fixture)) request = fixtureFetch(fixture); } poll=statusRefresh(request, (value) => { if (typeof value.state === 'string' && ['unavailable','unknown','offline','missing_grant','capacity','not_listening','session_active','listening','paused'].includes(value.state)) statusValue=value.state as State; canStart=value.can_start===true;transcriptionEnabled=value.transcription_enabled===true;uncertainSession=false; }, statusUnknown); void load(); const timer=window.setInterval(() => { if (account) void refreshStatus(); },5000); return () => { disposed=true; statusVersion++; poll?.dispose(); window.clearInterval(timer); }; });
 </script>
 <svelte:head><title>Receipts setup</title></svelte:head>
 <main>

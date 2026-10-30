@@ -34,7 +34,7 @@
       transcriptionEnabled = data.state.transcription_enabled === true; uncertainSession=false;
       listening = data.state.audio_capture_active === true || statusValue === 'listening' || statusValue === 'paused';
       snapshot = data.snapshot; reviews = data.reviews; health = data.health; available = data.runtimeAvailable;
-    } catch (error) { message = error instanceof Error ? error.message : 'Controls unavailable.'; }
+    } catch (error) { if (disposed || version!==statusVersion) return; uncertainSession=sessionActive;statusValue='unknown';listening=false;transcriptionEnabled=false;message = error instanceof Error ? error.message : 'Controls unavailable.'; }
   }
   function refreshStatus() { if (!busy) { statusVersion++; void poll?.run(); } }
   async function act(path: string, body: Record<string, unknown> = {}, keyed = false) {
