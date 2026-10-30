@@ -23,13 +23,24 @@ implementation refuses every provider call. It is compiled only with the
 `receipts` binary.
 
 Build the static web assets, then use a locally trusted certificate for
-`localhost` / `127.0.0.1` (for example, a certificate created with `mkcert`):
+`localhost` / `127.0.0.1`. To create one with `mkcert`, install its CA in the
+current user's browser trust store and issue a loopback certificate:
 
 ```sh
 ./tools/build-web.sh
+TRUST_STORES=nss mkcert -install
+mkcert -cert-file /tmp/receipts-ta3-acceptance.pem \
+  -key-file /tmp/receipts-ta3-acceptance-key.pem localhost 127.0.0.1 ::1
 go run -tags acceptance ./cmd/receipts-acceptance \
-  -cert /path/to/localhost.pem -key /path/to/localhost-key.pem
+  -cert /tmp/receipts-ta3-acceptance.pem \
+  -key /tmp/receipts-ta3-acceptance-key.pem
 ```
+
+Restart the browser/OBS after installing the CA so their Chromium trust store
+reloads. `mkcert -CAROOT` shows the CA directory; do not share its
+`rootCA-key.pem`. Remove the CA from the NSS trust store with
+`TRUST_STORES=nss mkcert -uninstall`, then remove the two generated leaf
+certificate files from `/tmp` when the rehearsal is complete.
 
 Open the printed owner setup URL, then add the printed `/obs` URL as an OBS
 Browser Source. Enter the short code shown in OBS in setup and confirm it.
