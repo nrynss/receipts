@@ -17,7 +17,8 @@ Build and run the current server using the [development instructions](docs/devel
 | P1 — Foundation | 4/4 | Settings, ledger, contracts and deterministic replay driver |
 | TA — Accounts and onboarding | 2/4 | Identity and isolation implemented; OBS pairing and judge demo pending |
 | P2 — Offline receipt loop | 2/4 | Capture/detection implemented; appeal and lore pending |
-| P3–P5 — Live experience | Planned | Overlay, Twitch and intelligence |
+| P3 — Overlay/controls | 1/3 | Overlay states implemented; controls and OBS/SSE rehearsal pending |
+| P4–P5 — Live integration | Planned | Twitch and intelligence adapters |
 | P6 — Release | Planned | Deployment, live proof and judge readiness |
 
 [TA implementation phase and acceptance criteria](dev-diary/PHASE-A-accounts.md), with [account scope](docs/accounts-scope.md). TA.1 identity/sessions and TA.2 channel isolation are implemented, TA.3 joins the overlay work, and TA.4 verifies the deployed judge experience before submission preparation.
@@ -40,3 +41,7 @@ Add the overlay to OBS as a browser source. Chat commands: `!receipt`, `!lore`, 
 ## Licence
 
 Apache-2.0. See [`LICENSE`](LICENSE).
+
+## Overlay visual fixtures
+
+After building, run the fixture server and open `http://localhost:8080/?fixture=sequence` to preview idle, stamp, evidence, appeal and verdict states. Individual `?fixture=stamp`, `evidence`, `appeal` and `verdict` views are also available. This previews original UI fixtures; it does not execute the full receipt/appeal pipeline or validate real Twitch/OBS playback.

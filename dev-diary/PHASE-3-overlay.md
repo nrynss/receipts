@@ -2,7 +2,7 @@
 
 **Goal:** Make the core moment readable and controllable on a real broadcast canvas.
 
-**Status:** in-progress (0/3)
+**Status:** in-progress (1/3)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -12,7 +12,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 requires: T1.3
 fixture-ok: yes
 owns: web/src/lib/overlay/, web/src/routes/, testdata/contracts/
-status: in-progress
+status: done
 ```
 
 Build transparent idle, stamp, evidence, appeal and verdict states using Svelte 5 and Chaaya. Show the exact claim, credited viewer and receipt age. Use original visual assets and an intentional stamp animation. Provide reduced-motion behavior and readable contrast. Clip playback has a visible transcript fallback for unavailable, blocked or pending embeds. Revalidate real Twitch playback in P4; fixture playback is not evidence of embed compatibility.
@@ -56,7 +56,7 @@ Connect Keel stream to Chaaya createEventStream with snapshots and stable IDs. S
 
 ### What exists now
 
-P3 product UI has not started. T1.3 supplies tested TypeScript decoding/reconnect helpers; TA.1 supplies browser sessions. Overlay states, owner controls and OBS pairing are still pending.
+T3.1 overlay states/playback components are reviewed from `090acd8`. T1.3 supplies TypeScript decoding/reconnect helpers and TA.1–TA.2 supply hosted authorization. Streamer controls, authenticated overlay transport composition and OBS pairing/rehearsal remain later tasks.
 
 ### Evidence and decisions
 
@@ -64,4 +64,10 @@ Record task IDs, relevant revision, checks and artifact paths when work lands. N
 
 ### Notes for the next task
 
-T3.1 is ready from T1.3. T3.2 requires T2.3 and TA.2. TA.3 builds pairing/setup alongside this phase; keep read-only OBS devices separate from owner sessions.
+TA.3 onboarding/OBS pairing is ready from T3.1 and TA.2. T3.2 requires T2.3. TA.3 builds pairing/setup alongside this phase; keep read-only OBS devices separate from owner sessions.
+
+### T3.1 acceptance
+
+The principal thread independently ran the complete gate and browser harness on reviewed `090acd8`. Mounted checks passed for pending/unavailable clips, simulated iframe error/timeout, state changes through idle, exact long text with bounded scrolling, timer cleanup and snapshot recovery without stamp animation. The 640×360 run also passed with reduced motion emulated. Evidence-state screenshots were visually inspected at 640×360 and 1920×1080; no saved image artifact is claimed. Credit and fallback were readable at both sizes. See [browser evidence](../docs/evidence/t31-overlay.md).
+
+The default page stays transparent/idle; `?fixture=sequence` selects original visual fixtures. This is not the full anonymous product demo or production SSE composition. Real Twitch playback and OBS are not verified by simulated iframe events; saved claim text stays visible when an embed cannot report its cross-origin playback state. T3.3 and P4 retain live/OBS acceptance.

@@ -1,8 +1,9 @@
 import { createEventStream, type EventStream } from '@nrynss/chaaya/core';
 
-export type PublicReceipt = { id: string; claim: string; clip_url?: string; clip_status: 'pending' | 'ready' | 'unavailable'; verdict: 'undecided' | 'admitted' | 'upheld' | 'overturned' | 'context_changed' | 'inconclusive'; created_at: string };
-export type OverlaySnapshot = { epoch: string; channel: string; live: boolean; receipts: PublicReceipt[]; current_stamp?: PublicReceipt; sequence: number };
-export type OverlayEvent = { epoch: string; sequence: number; occurred_at: string; receipt?: PublicReceipt; live?: boolean };
+export type PublicReceipt = { id: string; claim: string; clip_url?: string; clip_status: 'pending' | 'ready' | 'unavailable'; verdict: 'undecided' | 'admitted' | 'upheld' | 'overturned' | 'context_changed' | 'inconclusive'; created_at: string; clipped_by?: string };
+export type PublicAppeal = { receipt_id: string; closes_at: string; uphold_votes: number; overturn_votes: number };
+export type OverlaySnapshot = { epoch: string; channel: string; live: boolean; receipts: PublicReceipt[]; current_stamp?: PublicReceipt; current_appeal?: PublicAppeal; sequence: number };
+export type OverlayEvent = { epoch: string; sequence: number; occurred_at: string; receipt?: PublicReceipt; appeal?: PublicAppeal; live?: boolean };
 export type ReviewItem = { id: string; claim: string; reason: string; created_at: string };
 export type Health = { status: string; mode: string; live_confirmed: boolean; last_event_at?: string };
 export type TranscriptSegment = { id: string; session_id: string; speaker_id: string; attribution: 'broadcaster' | 'uncertain'; start_ns: number; end_ns: number; text: string };
@@ -18,15 +19,18 @@ const record = (v: unknown): v is Record<string, unknown> => typeof v === 'objec
 const str = (v: unknown): v is string => typeof v === 'string';
 const time = (v: unknown): v is string => str(v) && Number.isFinite(Date.parse(v));
 const valid = (v: unknown, values: readonly string[]): boolean => str(v) && values.includes(v);
+function appeal(v: unknown): v is PublicAppeal {
+  return record(v) && str(v.receipt_id) && time(v.closes_at) && Number.isSafeInteger(v.uphold_votes) && Number(v.uphold_votes) >= 0 && Number.isSafeInteger(v.overturn_votes) && Number(v.overturn_votes) >= 0;
+}
 function receipt(v: unknown): v is PublicReceipt {
-  return record(v) && str(v.id) && str(v.claim) && (v.clip_url === undefined || str(v.clip_url)) && valid(v.clip_status, ['pending','ready','unavailable']) && valid(v.verdict, ['undecided','admitted','upheld','overturned','context_changed','inconclusive']) && time(v.created_at);
+  return record(v) && str(v.id) && str(v.claim) && (v.clipped_by === undefined || str(v.clipped_by)) && (v.clip_url === undefined || str(v.clip_url)) && valid(v.clip_status, ['pending','ready','unavailable']) && valid(v.verdict, ['undecided','admitted','upheld','overturned','context_changed','inconclusive']) && time(v.created_at);
 }
 export function decodeSnapshot(v: unknown): OverlaySnapshot {
-  if (!record(v) || !str(v.epoch) || !str(v.channel) || typeof v.live !== 'boolean' || !Array.isArray(v.receipts) || !v.receipts.every(receipt) || (v.current_stamp !== undefined && !receipt(v.current_stamp)) || !Number.isSafeInteger(v.sequence) || Number(v.sequence) < 0) throw new Error('invalid overlay snapshot');
+  if (!record(v) || !str(v.epoch) || !str(v.channel) || typeof v.live !== 'boolean' || !Array.isArray(v.receipts) || !v.receipts.every(receipt) || (v.current_stamp !== undefined && !receipt(v.current_stamp)) || (v.current_appeal !== undefined && !appeal(v.current_appeal)) || !Number.isSafeInteger(v.sequence) || Number(v.sequence) < 0) throw new Error('invalid overlay snapshot');
   return v as OverlaySnapshot;
 }
 export function decodeOverlayEvent(v: unknown): OverlayEvent {
-  if (!record(v) || !str(v.epoch) || !Number.isSafeInteger(v.sequence) || Number(v.sequence) <= 0 || !time(v.occurred_at) || (v.receipt !== undefined && !receipt(v.receipt)) || (v.live !== undefined && typeof v.live !== 'boolean')) throw new Error('invalid overlay event');
+  if (!record(v) || !str(v.epoch) || !Number.isSafeInteger(v.sequence) || Number(v.sequence) <= 0 || !time(v.occurred_at) || (v.receipt !== undefined && !receipt(v.receipt)) || (v.appeal !== undefined && !appeal(v.appeal)) || (v.live !== undefined && typeof v.live !== 'boolean')) throw new Error('invalid overlay event');
   return v as OverlayEvent;
 }
 export function decodeReviewQueue(v: unknown): ReviewItem[] {

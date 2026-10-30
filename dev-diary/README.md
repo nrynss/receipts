@@ -12,7 +12,7 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 | P1 | [Contracts, storage and lifecycle](PHASE-1-contracts.md) | 4 / 4 | Complete; replay driver landed; full product scenario acceptance belongs to T2.4 |
 | TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 2 / 4 | Identity and runtime isolation complete; onboarding awaits T3.1 |
 | P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 2 / 4 | Capture and detection complete; T2.3 appeals next |
-| P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 0 / 3 | Terra implementing T3.1 overlay states |
+| P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 1 / 3 | Overlay states complete; controls await T2.3 |
 | P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 0 / 4 | Not started |
 | P5 | [Live transcription and contradiction judging](PHASE-5-intelligence.md) | 0 / 4 | Not started |
 | P6 | [Live proof, operations and submission](PHASE-6-ship.md) | 0 / 4 | Not started |
@@ -76,10 +76,12 @@ T0.1 → T0.4 → T1.2 → T1.3 → T1.4 → T2.1 → T2.2 → T2.3 → T2.4 est
 | T1.4 replay foundation | `ced2280` | Strict offline dispatch, injected clock/IDs and real ledger determinism; full product demo is T2.4 |
 | TA.1 identity and sessions | `ed2c7d6` | OAuth, encrypted tokens, session/CSRF and validation lifecycle; [auth handoff](../docs/ta1-auth-handoff.md); real hosted consent remains TA.4 |
 | T2.1 receipt capture | `4150ce5` | Exact attributed evidence, durable dedup/throttles and clip jobs; live extraction/transport remain downstream |
-| TA.2 channel isolation | `7c463e1` | Reviewed runtime/API/device isolation and durable budgets; [runtime handoff](../docs/ta2-runtime-handoff.md); live activation remains P4 |
+| TA.2 channel isolation | `3b9242c` | Runtime/API/device isolation and durable budgets; [runtime handoff](../docs/ta2-runtime-handoff.md); live activation remains P4 |
+| T2.2 detection/review | `0190538` | Delayed-result guards, durable cooldown and replay/SSE recovery |
+| T3.1 overlay states | `090acd8` | Reviewed original fixture UI and mounted browser checks; authenticated SSE/OBS remain downstream |
 
 The integrated capture/isolation tree passed the full offline gate and uncached auth/API/events/runtime/settings/store/commands/startup race checks. Provider HTTP tests use an in-memory transport, so the gate requires no localhost socket permissions. No deployed multi-streamer or full receipt-loop acceptance is claimed.
 
 ## Ready next
 
-T2.1 receipt capture is reviewed and landed; T2.2 detection is reviewed and landed. Terra’s T3.1 overlay candidate is undergoing principal browser review. T4.1 authorized channel adapters is ready and unassigned. TA.2 channel authorization/runtime isolation is reviewed. The principal thread tracks the overlay candidate through review and landing; TA.3 needs T3.1. Later tasks retain their explicit dependencies. T6.1 deploys after TA.3; TA.4 verifies that deployment and gates T6.3 judge readiness.
+T2.1 receipt capture is reviewed and landed; T2.2 detection and T3.1 overlay states are reviewed and landed. T2.3 answer/appeal, TA.3 onboarding/OBS pairing and T4.1 authorized channel adapters are ready and unassigned. No implementation agent is active. Later tasks retain their explicit dependencies. T6.1 deploys after TA.3; TA.4 verifies that deployment and gates T6.3 judge readiness.

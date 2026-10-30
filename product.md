@@ -4,7 +4,7 @@
 
 Entry for the Codex × TwitchCon Hackathon (Devpost). Official submission requirements are rechecked during P6 readiness.
 
-This document describes the target product. P0/P1 foundation, T2.1 capture and TA.1–TA.2 identity/isolation are implemented; the full receipt loop and hosted onboarding are still being built. Current evidence and task status are in [the phase index](dev-diary/README.md).
+This document describes the target product. P0/P1 foundation, T2.1–T2.2 capture/detection, T3.1 overlay states and TA.1–TA.2 identity/isolation are implemented; the full receipt loop and hosted onboarding are still being built. Current evidence and task status are in [the phase index](dev-diary/README.md).
 
 ## The product
 

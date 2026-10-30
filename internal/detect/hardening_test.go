@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -292,14 +293,13 @@ func TestReplaySSEAndSnapshotRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := httptest.NewServer(api.New(api.Config{OverlayCredential: "overlay", ControlCredential: "control", Reader: snapshotReader{h}, Events: ch.Events}))
-	defer server.Close()
-	req, err := http.NewRequestWithContext(ctx, "GET", server.URL+"/api/events", nil)
+	client := &http.Client{Transport: memoryOverlayTransport{handler: api.New(api.Config{OverlayCredential: "overlay", ControlCredential: "control", Reader: snapshotReader{h}, Events: ch.Events})}}
+	req, err := http.NewRequestWithContext(ctx, "GET", "http://overlay.test/api/events", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	req.Header.Set("Authorization", "Bearer overlay")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -335,12 +335,12 @@ func TestReplaySSEAndSnapshotRecovery(t *testing.T) {
 	if !strings.Contains(frame.String(), "event: stamp") || !strings.Contains(frame.String(), `"sequence":1`) || !strings.Contains(frame.String(), at.Format(time.RFC3339)) {
 		t.Fatalf("stamp frame %q", frame.String())
 	}
-	req, err = http.NewRequest("GET", server.URL+"/api/overlay", nil)
+	req, err = http.NewRequest("GET", "http://overlay.test/api/overlay", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	req.Header.Set("Authorization", "Bearer overlay")
-	snapshotResp, err := http.DefaultClient.Do(req)
+	snapshotResp, err := client.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -356,13 +356,13 @@ func TestReplaySSEAndSnapshotRecovery(t *testing.T) {
 	// the authoritative snapshot has already incorporated sequence 1.
 	reconnectCtx, stopReconnect := context.WithTimeout(ctx, 150*time.Millisecond)
 	defer stopReconnect()
-	reconnectReq, err := http.NewRequestWithContext(reconnectCtx, "GET", server.URL+"/api/events", nil)
+	reconnectReq, err := http.NewRequestWithContext(reconnectCtx, "GET", "http://overlay.test/api/events", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	reconnectReq.Header.Set("Authorization", "Bearer overlay")
 	reconnectReq.Header.Set("Last-Event-ID", "1")
-	reconnect, err := http.DefaultClient.Do(reconnectReq)
+	reconnect, err := client.Do(reconnectReq)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -402,4 +402,40 @@ func TestReplaySSEAndSnapshotRecovery(t *testing.T) {
 		t.Fatalf("restart snapshot %+v", restored)
 	}
 
+}
+
+// The offline replay acceptance exercises the real HTTP handler and SSE
+// framing through an in-memory pipe, without needing any listener or network.
+type memoryOverlayTransport struct{ handler http.Handler }
+type memoryStreamWriter struct {
+	header http.Header
+	writer *io.PipeWriter
+}
+
+func (w *memoryStreamWriter) Header() http.Header         { return w.header }
+func (w *memoryStreamWriter) WriteHeader(int)             {}
+func (w *memoryStreamWriter) Write(p []byte) (int, error) { return w.writer.Write(p) }
+func (w *memoryStreamWriter) Flush()                      {}
+
+type memoryStreamBody struct {
+	*io.PipeReader
+	cancel context.CancelFunc
+}
+
+func (b memoryStreamBody) Close() error { b.cancel(); return b.PipeReader.Close() }
+func (t memoryOverlayTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if r.URL.Path != "/api/events" {
+		recorder := httptest.NewRecorder()
+		t.handler.ServeHTTP(recorder, r)
+		return recorder.Result(), nil
+	}
+	ctx, cancel := context.WithCancel(r.Context())
+	reader, writer := io.Pipe()
+	stop := context.AfterFunc(ctx, func() { _ = writer.CloseWithError(ctx.Err()) })
+	go func() {
+		defer stop()
+		defer writer.Close()
+		t.handler.ServeHTTP(&memoryStreamWriter{header: make(http.Header), writer: writer}, r.WithContext(ctx))
+	}()
+	return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: memoryStreamBody{PipeReader: reader, cancel: cancel}, Request: r}, nil
 }

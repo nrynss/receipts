@@ -49,3 +49,7 @@ Run `./bin/receipts replay --fixture testdata/replay/foundation.json --db /tmp/r
 ## Hosted channel limits
 
 `RECEIPTS_MAX_ACTIVE_CHANNELS` defaults to 2 (allowed 1–64). `RECEIPTS_GLOBAL_SPEND_LIMIT_USD` defaults to 3 and `RECEIPTS_CHANNEL_SPEND_LIMIT_USD` to 1.5. Limits must be positive and finite; a channel ceiling cannot exceed the global ceiling. Keel persists nanodollar accounting in the application SQLite file, with a lifetime ceiling (restart does not reset spend). These limits supplement the per-model settings. OBS credential issuance/revocation exists as an internal seam; owner-confirmed pairing UI remains TA.3. See [runtime handoff](ta2-runtime-handoff.md).
+
+## Overlay visual verification
+
+The built fixture server accepts `?fixture=sequence` and individual overlay state queries. The default route remains transparent and idle. To run mounted lifecycle checks, start `npm run dev` in `web/` and open `/tests/overlay.html`. This dev-only harness blocks all iframe requests by CSP and simulates clip error/timeouts; it must report PASS. Repeat at 640×360 and with reduced motion enabled. See [verification evidence](evidence/t31-overlay.md). Browser fixtures exercise presentation, not real Twitch playback, authenticated SSE transport or the full judge demo.
