@@ -199,6 +199,14 @@ func (a *Authority) StartWithMicrophone(ctx context.Context, identity auth.Chann
 		_ = a.Ledger.ClearLivePermission(context.Background(), identity.ChannelID, sess.ID, authority.Generation)
 		return context.Canceled
 	}
+	var lastConfirmed atomic.Int64
+	lastConfirmed.Store(status.ObservedAt.UnixNano())
+	if !channel.Go(func(runCtx context.Context) { a.monitor(runCtx, authority, status.BroadcastID, &lastConfirmed) }) || !channel.Go(func(runCtx context.Context) { a.watchdog(runCtx, authority, &lastConfirmed) }) {
+		_ = a.Runtime.Cancel(authority)
+		a.clearRuntime(authority)
+		_ = a.Ledger.ClearLivePermission(context.Background(), identity.ChannelID, sess.ID, authority.Generation)
+		return errors.New("session: runtime stopped during activation")
+	}
 	if a.Attach != nil {
 		detach, attachErr := a.Attach(channel.Context, authority)
 		if attachErr != nil {
@@ -227,13 +235,10 @@ func (a *Authority) StartWithMicrophone(ctx context.Context, identity auth.Chann
 			return errors.New("session: runtime stopped while attaching worker")
 		}
 	}
-	var lastConfirmed atomic.Int64
-	lastConfirmed.Store(status.ObservedAt.UnixNano())
-	if !channel.Go(func(runCtx context.Context) { a.monitor(runCtx, authority, status.BroadcastID, &lastConfirmed) }) || !channel.Go(func(runCtx context.Context) { a.watchdog(runCtx, authority, &lastConfirmed) }) {
-		_ = a.Runtime.Cancel(authority)
+	if _, err := a.Runtime.Resolve(authority); err != nil {
 		a.clearRuntime(authority)
 		_ = a.Ledger.ClearLivePermission(context.Background(), identity.ChannelID, sess.ID, authority.Generation)
-		return errors.New("session: runtime stopped during activation")
+		return errors.New("session: authority expired during attachment")
 	}
 	return nil
 }

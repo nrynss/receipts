@@ -3,9 +3,10 @@ package session
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
-	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -30,6 +31,33 @@ func (tokenSource) RefreshAfterUnauthorized(context.Context, string, string) (st
 	return "", nil
 }
 
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) { return f(request) }
+
+func testHTTP(handler http.Handler) (*http.Client, string) {
+	return &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		response := &responseWriter{header: make(http.Header)}
+		handler.ServeHTTP(response, request)
+		return &http.Response{StatusCode: response.status, Header: response.header, Body: io.NopCloser(strings.NewReader(response.body.String())), Request: request}, nil
+	})}, "https://provider.test"
+}
+
+type responseWriter struct {
+	header http.Header
+	status int
+	body   strings.Builder
+}
+
+func (w *responseWriter) Header() http.Header    { return w.header }
+func (w *responseWriter) WriteHeader(status int) { w.status = status }
+func (w *responseWriter) Write(body []byte) (int, error) {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	return w.body.Write(body)
+}
+
 func TestConfirmedBroadcastActivatesOwnerSessionAndOfflineCancels(t *testing.T) {
 	ctx := context.Background()
 	db, err := sqlite.Open(ctx, sqlite.Config{Path: filepath.Join(t.TempDir(), "live.db")})
@@ -52,7 +80,7 @@ func TestConfirmedBroadcastActivatesOwnerSessionAndOfflineCancels(t *testing.T) 
 	var live atomic.Bool
 	var unknown atomic.Bool
 	live.Store(true)
-	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpClient, providerURL := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/streams" {
 			http.NotFound(w, r)
 			return
@@ -67,9 +95,8 @@ func TestConfirmedBroadcastActivatesOwnerSessionAndOfflineCancels(t *testing.T) 
 			_, _ = w.Write([]byte(`{"data":[]}`))
 		}
 	}))
-	defer provider.Close()
 	manager := runtime.New(runtime.Config{MaxChannels: 1})
-	adapter := &connection.Adapter{Runtime: manager, Resolver: resolver{}, Tokens: tokenSource{}, HTTP: provider.Client(), BaseURL: provider.URL}
+	adapter := &connection.Adapter{Runtime: manager, Resolver: resolver{}, Tokens: tokenSource{}, HTTP: httpClient, BaseURL: providerURL}
 	a := &Authority{Adapter: adapter, Ledger: ledger, Runtime: manager, Freshness: time.Minute, PollInterval: time.Hour, Root: context.Background()}
 	requestCtx, cancelRequest := context.WithCancel(ctx)
 	identity := auth.ChannelContext{AccountID: "owner", ChannelID: channel.ID}
@@ -177,14 +204,13 @@ func TestStopDuringStatusProbeCancelsPendingActivation(t *testing.T) {
 		t.Fatal(err)
 	}
 	entered, release := make(chan struct{}), make(chan struct{})
-	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpClient, providerURL := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		close(entered)
 		<-release
 		_, _ = w.Write([]byte(`{"data":[{"id":"broadcast-a"}]}`))
 	}))
-	defer provider.Close()
 	manager := runtime.New(runtime.Config{MaxChannels: 1})
-	a := &Authority{Adapter: &connection.Adapter{Runtime: manager, Resolver: resolver{}, Tokens: tokenSource{}, HTTP: provider.Client(), BaseURL: provider.URL}, Ledger: ledger, Runtime: manager, Freshness: time.Minute}
+	a := &Authority{Adapter: &connection.Adapter{Runtime: manager, Resolver: resolver{}, Tokens: tokenSource{}, HTTP: httpClient, BaseURL: providerURL}, Ledger: ledger, Runtime: manager, Freshness: time.Minute}
 	identity := auth.ChannelContext{AccountID: "owner", ChannelID: channel.ID}
 	started := make(chan error, 1)
 	go func() { started <- a.Start(ctx, identity) }()
@@ -232,12 +258,11 @@ func TestStopCancelsBlockingAttachmentBeforeWaitingForActivationLock(t *testing.
 	if _, err = db.Writer().ExecContext(ctx, `INSERT INTO accounts(id,provider,provider_subject,login,channel_id,token_ciphertext,token_expires_at,scopes,status,updated_at) VALUES('owner','twitch','subject','streamer',?,X'00',?,'[]','connected',?)`, channel.ID, now.Add(time.Hour).UnixMilli(), now.UnixMilli()); err != nil {
 		t.Fatal(err)
 	}
-	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpClient, providerURL := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"data":[{"id":"broadcast-a"}]}`))
 	}))
-	defer provider.Close()
 	manager := runtime.New(runtime.Config{MaxChannels: 1})
-	a := &Authority{Adapter: &connection.Adapter{Runtime: manager, Resolver: resolver{}, Tokens: tokenSource{}, HTTP: provider.Client(), BaseURL: provider.URL}, Ledger: ledger, Runtime: manager, Freshness: time.Minute}
+	a := &Authority{Adapter: &connection.Adapter{Runtime: manager, Resolver: resolver{}, Tokens: tokenSource{}, HTTP: httpClient, BaseURL: providerURL}, Ledger: ledger, Runtime: manager, Freshness: time.Minute}
 	entered := make(chan struct{})
 	a.Attach = func(attachCtx context.Context, _ auth.ChannelContext) (func(), error) {
 		close(entered)
@@ -295,14 +320,13 @@ func TestFreshnessWatchdogCancelsHungProbeAndRejectsLateConfirmation(t *testing.
 	}
 	var calls atomic.Int32
 	probeStarted, release := make(chan struct{}), make(chan struct{})
-	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpClient, providerURL := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if calls.Add(1) > 1 {
 			close(probeStarted)
 			<-release
 		}
 		_, _ = w.Write([]byte(`{"data":[{"id":"broadcast-a"}]}`))
 	}))
-	defer provider.Close()
 	defer func() {
 		select {
 		case <-release:
@@ -311,7 +335,7 @@ func TestFreshnessWatchdogCancelsHungProbeAndRejectsLateConfirmation(t *testing.
 		}
 	}()
 	manager := runtime.New(runtime.Config{MaxChannels: 1})
-	a := &Authority{Adapter: &connection.Adapter{Runtime: manager, Resolver: resolver{}, Tokens: tokenSource{}, HTTP: provider.Client(), BaseURL: provider.URL}, Ledger: ledger, Runtime: manager, Freshness: 40 * time.Millisecond, PollInterval: 10 * time.Millisecond}
+	a := &Authority{Adapter: &connection.Adapter{Runtime: manager, Resolver: resolver{}, Tokens: tokenSource{}, HTTP: httpClient, BaseURL: providerURL}, Ledger: ledger, Runtime: manager, Freshness: 40 * time.Millisecond, PollInterval: 10 * time.Millisecond}
 	identity := auth.ChannelContext{AccountID: "owner", ChannelID: channel.ID}
 	if err = a.Start(ctx, identity); err != nil {
 		t.Fatal(err)
@@ -324,6 +348,52 @@ func TestFreshnessWatchdogCancelsHungProbeAndRejectsLateConfirmation(t *testing.
 	sessionID, broadcastID, checkedAt, mic, generation, err := ledger.CurrentLiveAuthority(ctx, "owner", channel.ID)
 	if err != nil || sessionID == "" || broadcastID != "broadcast-a" || checkedAt.UnixMilli() != 0 || mic || generation != 1 {
 		t.Fatalf("expired authority refreshed by late probe: id=%q broadcast=%q checked=%v mic=%v generation=%d err=%v", sessionID, broadcastID, checkedAt, mic, generation, err)
+	}
+}
+
+func TestFreshnessWatchdogCancelsBlockingAttachment(t *testing.T) {
+	ctx := context.Background()
+	db, err := sqlite.Open(ctx, sqlite.Config{Path: filepath.Join(t.TempDir(), "attach-freshness.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	ledger, err := store.New(ctx, db, store.Retention{}, time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	channel, err := ledger.CreateChannel(ctx, "subject", "streamer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	if _, err = db.Writer().ExecContext(ctx, `INSERT INTO accounts(id,provider,provider_subject,login,channel_id,token_ciphertext,token_expires_at,scopes,status,updated_at) VALUES('owner','twitch','subject','streamer',?,X'00',?,'[]','connected',?)`, channel.ID, now.Add(time.Hour).UnixMilli(), now.UnixMilli()); err != nil {
+		t.Fatal(err)
+	}
+	httpClient, providerURL := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":[{"id":"broadcast-a"}]}`))
+	}))
+	manager := runtime.New(runtime.Config{MaxChannels: 1})
+	a := &Authority{Adapter: &connection.Adapter{Runtime: manager, Resolver: resolver{}, Tokens: tokenSource{}, HTTP: httpClient, BaseURL: providerURL}, Ledger: ledger, Runtime: manager, Freshness: 80 * time.Millisecond, PollInterval: time.Hour}
+	attachCanceled := make(chan struct{})
+	a.Attach = func(attachCtx context.Context, _ auth.ChannelContext) (func(), error) {
+		<-attachCtx.Done()
+		close(attachCanceled)
+		return nil, attachCtx.Err()
+	}
+	identity := auth.ChannelContext{AccountID: "owner", ChannelID: channel.ID}
+	started := make(chan error, 1)
+	go func() { started <- a.Start(ctx, identity) }()
+	select {
+	case <-attachCanceled:
+	case <-time.After(time.Second):
+		t.Fatal("freshness expiry did not cancel the blocking attachment")
+	}
+	if err = <-started; err == nil {
+		t.Fatal("activation succeeded after authority freshness expired")
+	}
+	if manager.Count() != 0 {
+		t.Fatalf("active runtime count=%d", manager.Count())
 	}
 }
 
@@ -361,11 +431,10 @@ func TestCapacityRejectionPreservesExistingBroadcastAndSessionGeneration(t *test
 	if _, err = manager.Start(ctx, otherAuthority); err != nil {
 		t.Fatal(err)
 	}
-	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpClient, providerURL := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"data":[{"id":"broadcast-a"}]}`))
 	}))
-	defer provider.Close()
-	a := &Authority{Adapter: &connection.Adapter{Runtime: manager, Resolver: resolver{}, Tokens: tokenSource{}, HTTP: provider.Client(), BaseURL: provider.URL}, Ledger: ledger, Runtime: manager, Freshness: time.Minute}
+	a := &Authority{Adapter: &connection.Adapter{Runtime: manager, Resolver: resolver{}, Tokens: tokenSource{}, HTTP: httpClient, BaseURL: providerURL}, Ledger: ledger, Runtime: manager, Freshness: time.Minute}
 	if err = a.Start(ctx, auth.ChannelContext{AccountID: "owner", ChannelID: channel.ID}); !errors.Is(err, runtime.ErrCapacity) {
 		t.Fatalf("capacity start error=%v", err)
 	}
@@ -396,12 +465,11 @@ func TestUnknownProbeDoesNotCreateAuthority(t *testing.T) {
 	if _, err = db.Writer().ExecContext(ctx, `INSERT INTO accounts(id,provider,provider_subject,login,channel_id,token_ciphertext,token_expires_at,scopes,status,updated_at) VALUES('owner','twitch','subject','streamer',?,X'00',?,'[]','connected',?)`, channel.ID, time.Now().Add(time.Hour).UnixMilli(), time.Now().UnixMilli()); err != nil {
 		t.Fatal(err)
 	}
-	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpClient, providerURL := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "provider unavailable", http.StatusBadGateway)
 	}))
-	defer provider.Close()
 	manager := runtime.New(runtime.Config{MaxChannels: 1})
-	adapter := &connection.Adapter{Runtime: manager, Resolver: resolver{}, Tokens: tokenSource{}, HTTP: provider.Client(), BaseURL: provider.URL}
+	adapter := &connection.Adapter{Runtime: manager, Resolver: resolver{}, Tokens: tokenSource{}, HTTP: httpClient, BaseURL: providerURL}
 	a := &Authority{Adapter: adapter, Ledger: ledger, Runtime: manager, Freshness: time.Minute}
 	if err = a.Start(ctx, auth.ChannelContext{AccountID: "owner", ChannelID: channel.ID}); err == nil {
 		t.Fatal("unknown status activated authority")
