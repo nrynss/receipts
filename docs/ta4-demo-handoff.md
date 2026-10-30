@@ -1,6 +1,14 @@
 # TA.4 recorded demo handoff
 
-Status: **in progress; hosted acceptance pending T6.1 deployment and fresh two-owner rehearsal.** This worktree does not establish hosted readiness.
+Status: **anonymous recorded demo implemented; hosted acceptance remains pending T6.1 deployment and fresh two-owner rehearsal.** This worktree does not establish hosted readiness.
+
+## Implemented demo
+
+`/demo/` is a prerendered Svelte route with replay/reset controls. The Go API runs the original recorded capture, contradiction, vote, and lore inputs through `commands.Service`, `detect.Service`, `appeal.Service`, and `lore.Service`. It displays the resulting claim and upheld lore; recorded clip failure is explicit, and the demo makes no provider calls.
+
+Each visitor gets a separate temporary SQLite ledger and replay clock. A cryptographically random 256-bit HttpOnly, Secure, SameSite=Strict cookie binds to the server-side visitor entry by its SHA-256 digest. Fixture IDs are confined to that visitor database and are not accepted from request bodies or selectors. Active visitors are capped at 64, sessions expire after 20 minutes, each visitor is limited to 30 API operations, replay has a five-second deadline, and reset, expiry, failed replay, and shutdown close and remove the visitor database.
+
+The full offline gate passes with `./tools/check.sh`; visitor concurrency also passes `GOCACHE=/tmp/receipts-go-cache go test -race ./internal/demo ./cmd/receipts`.
 
 ## Existing offline acceptance
 

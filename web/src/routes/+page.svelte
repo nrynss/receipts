@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { resolve } from '$app/paths';
   import { onMount } from 'svelte';
   import Overlay from '$lib/overlay/Overlay.svelte';
   import { fixture } from '$lib/overlay/fixtures';
@@ -18,8 +19,11 @@
   });
 </script>
 <svelte:head><meta name="description" content="The stream remembers what you said." /></svelte:head>
-<main>{#if showSetup}<button onclick={() => { window.location.href = "/account"; }}>Set up Receipts</button>{/if}<Overlay {display} /></main>
+<main>{#if showSetup}<nav><a href={resolve('/demo/')}>Try the recorded demo</a><button onclick={() => { window.location.href = "/account"; }}>Set up Receipts</button></nav>{/if}<Overlay {display} /></main>
 <style>
   :global(html), :global(body) { margin:0; background:transparent; }
   main { min-height:100vh; display:flex; align-items:flex-end; justify-content:center; padding:3vw; box-sizing:border-box; }
+  nav { position:fixed; top:16px; right:16px; display:flex; gap:12px; align-items:center; font:14px system-ui,sans-serif; }
+  nav a { color:#f1b969; }
+  nav button { font:inherit; }
 </style>
