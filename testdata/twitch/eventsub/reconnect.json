@@ -1,0 +1,1 @@
+{"metadata":{"message_id":"reconnect-1","message_type":"session_reconnect","message_timestamp":"2026-10-30T00:00:02Z"},"payload":{"session":{"id":"event-session-1","status":"reconnecting","keepalive_timeout_seconds":null,"reconnect_url":"wss://eventsub.wss.twitch.tv/ws?keepalive_timeout_seconds=30"}}}
