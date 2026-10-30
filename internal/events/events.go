@@ -51,6 +51,7 @@ type OverlayEvent struct {
 	Epoch      string         `json:"epoch"`
 	Sequence   uint64         `json:"sequence"`
 	OccurredAt time.Time      `json:"occurred_at"`
+	Refresh    bool           `json:"refresh,omitempty"`
 	Receipt    *PublicReceipt `json:"receipt,omitempty"`
 	Live       *bool          `json:"live,omitempty"`
 	Appeal     *PublicAppeal  `json:"appeal,omitempty"`

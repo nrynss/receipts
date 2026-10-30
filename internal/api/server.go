@@ -58,6 +58,7 @@ const (
 )
 
 type ControlInput struct {
+	ActionKey       string          `json:"action_key,omitempty"`
 	ReceiptID       string          `json:"receipt_id,omitempty"`
 	ReviewID        string          `json:"review_id,omitempty"`
 	Paused          *bool           `json:"paused,omitempty"`
@@ -389,6 +390,10 @@ func (s *Server) control(action string) http.HandlerFunc {
 				err = s.cfg.Controls.VoidReceipt(r, input)
 			}
 		case "review":
+			if s.requireChannel && input.ActionKey == "" {
+				apiError(w, http.StatusBadRequest, "invalid_request", "action_key is required")
+				return
+			}
 			if input.ReviewID == "" || (input.ReviewDecision != ReviewApprove && input.ReviewDecision != ReviewReject) {
 				apiError(w, http.StatusBadRequest, "invalid_request", "review_id and an approve or reject decision are required")
 				return
@@ -400,6 +405,10 @@ func (s *Server) control(action string) http.HandlerFunc {
 				err = s.cfg.Controls.ResolveReview(r, input)
 			}
 		case "decision":
+			if s.requireChannel && input.ActionKey == "" {
+				apiError(w, http.StatusBadRequest, "invalid_request", "action_key is required")
+				return
+			}
 			if input.ReceiptID == "" || (input.ReceiptDecision != DecisionAdmit && input.ReceiptDecision != DecisionAppeal && input.ReceiptDecision != DecisionContextChanged) {
 				apiError(w, http.StatusBadRequest, "invalid_request", "receipt_id and a valid receipt_decision are required")
 				return

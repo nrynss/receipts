@@ -754,10 +754,6 @@ func (s *Store) Void(ctx context.Context, channelID, receiptID string) error {
 		}
 		return tx.Commit()
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE detections SET outcome='dismissed' WHERE receipt_id=? AND outcome='stamp'`, receiptID)
-	if err != nil {
-		return err
-	}
 	_, err = tx.ExecContext(ctx, `UPDATE reviews SET state='rejected',decided_at=? WHERE detection_id IN (SELECT id FROM detections WHERE receipt_id=?) AND state='open'`, millis(s.now()), receiptID)
 	if err != nil {
 		return err

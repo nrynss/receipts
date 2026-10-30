@@ -1,0 +1,4 @@
+{"version":1,"inputs":[
+ {"at":"2000-01-01T00:00:10Z","kind":"chat","chat":{"id":"message-one","channel_id":"00000000000000000000000000000001","session_id":"00000000000000000000000000000002","user_id":"voter-one","login":"one","role":"viewer","command":"!uphold","arguments":"","received_at":"2000-01-01T00:00:10Z"}},
+ {"at":"2000-01-01T00:00:11Z","kind":"chat","chat":{"id":"message-two","channel_id":"00000000000000000000000000000001","session_id":"00000000000000000000000000000002","user_id":"voter-two","login":"two","role":"viewer","command":"!overturn","arguments":"","received_at":"2000-01-01T00:00:11Z"}}
+]}

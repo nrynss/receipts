@@ -64,6 +64,21 @@ describe('T1.3 contract decoders', () => {
     rebaser.receive(decodeOverlayEvent({ ...stamp, sequence: 9 }));
     expect(applied).toEqual([9]);
   });
+  it('rebases status changes so a void clears the current stamp', async () => {
+    let sequence = 0;
+    let reads = 0;
+    const replaced: OverlaySnapshot[] = [];
+    const applied: number[] = [];
+    const rebaser = createOverlayRebaser(async () => { reads++; return decodeSnapshot({ epoch: 'test-epoch', channel: 'demo', live: true, receipts: [], sequence }); }, e => applied.push(e.sequence), s => replaced.push(s));
+    await rebaser.rebase();
+    sequence = 1;
+    rebaser.receive(decodeOverlayEvent({ epoch: 'test-epoch', sequence: 1, occurred_at: '2000-01-01T00:00:00Z', refresh: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(reads).toBe(2);
+    expect(replaced.at(-1)?.sequence).toBe(1);
+    expect(replaced.at(-1)?.current_stamp).toBeUndefined();
+    expect(applied).toEqual([]);
+  });
   it('applies the first post-snapshot stamp once and rebases reconnect replay', async () => {
     let sequence = 0;
     const applied: number[] = [];

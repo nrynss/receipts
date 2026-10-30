@@ -3,6 +3,9 @@ package api
 import (
 	"errors"
 	"net/http"
+	"time"
+
+	"receipts/internal/appeal"
 
 	"receipts/internal/auth"
 	channelruntime "receipts/internal/runtime"
@@ -15,8 +18,10 @@ var ErrUnimplemented = errors.New("api: application action is not implemented")
 // ledger mutation. IDs in the input are always checked by a channel-scoped
 // store operation.
 type LedgerControls struct {
-	Store   *store.Store
-	Runtime *channelruntime.Manager
+	Store          *store.Store
+	Runtime        *channelruntime.Manager
+	AppealDuration time.Duration
+	StampCooldown  time.Duration
 }
 
 func (c LedgerControls) SetPausedFor(_ *http.Request, authority auth.ChannelContext, in ControlInput) error {
@@ -26,11 +31,11 @@ func (c LedgerControls) SetPausedFor(_ *http.Request, authority auth.ChannelCont
 	return c.Runtime.SetPaused(authority, *in.Paused)
 }
 func (c LedgerControls) VoidReceiptFor(r *http.Request, authority auth.ChannelContext, in ControlInput) error {
-	return ErrUnimplemented
+	return (appeal.Service{Store: c.Store, Runtime: c.Runtime, Duration: c.AppealDuration}).Void(r.Context(), authority, in.ReceiptID)
 }
 func (c LedgerControls) ResolveReviewFor(r *http.Request, authority auth.ChannelContext, in ControlInput) error {
-	return ErrUnimplemented
+	return (appeal.ReviewService{Store: c.Store, Runtime: c.Runtime, Cooldown: c.StampCooldown}).Resolve(r.Context(), authority, in.ReviewID, in.ActionKey, in.ReviewDecision == ReviewApprove)
 }
-func (c LedgerControls) SetReceiptDecisionFor(_ *http.Request, _ auth.ChannelContext, _ ControlInput) error {
-	return ErrUnimplemented
+func (c LedgerControls) SetReceiptDecisionFor(r *http.Request, authority auth.ChannelContext, in ControlInput) error {
+	return (appeal.Service{Store: c.Store, Runtime: c.Runtime, Duration: c.AppealDuration}).Answer(r.Context(), authority, in.ReceiptID, in.ActionKey, string(in.ReceiptDecision), in.Note)
 }

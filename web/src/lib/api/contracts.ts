@@ -3,7 +3,7 @@ import { createEventStream, type EventStream } from '@nrynss/chaaya/core';
 export type PublicReceipt = { id: string; claim: string; clip_url?: string; clip_status: 'pending' | 'ready' | 'unavailable'; verdict: 'undecided' | 'admitted' | 'upheld' | 'overturned' | 'context_changed' | 'inconclusive'; created_at: string; clipped_by?: string };
 export type PublicAppeal = { receipt_id: string; closes_at: string; uphold_votes: number; overturn_votes: number };
 export type OverlaySnapshot = { epoch: string; channel: string; live: boolean; receipts: PublicReceipt[]; current_stamp?: PublicReceipt; current_appeal?: PublicAppeal; sequence: number };
-export type OverlayEvent = { epoch: string; sequence: number; occurred_at: string; receipt?: PublicReceipt; appeal?: PublicAppeal; live?: boolean };
+export type OverlayEvent = { epoch: string; sequence: number; occurred_at: string; refresh?: boolean; receipt?: PublicReceipt; appeal?: PublicAppeal; live?: boolean };
 export type ReviewItem = { id: string; claim: string; reason: string; created_at: string };
 export type Health = { status: string; mode: string; live_confirmed: boolean; last_event_at?: string };
 export type TranscriptSegment = { id: string; session_id: string; speaker_id: string; attribution: 'broadcaster' | 'uncertain'; start_ns: number; end_ns: number; text: string };
@@ -12,8 +12,8 @@ export type ClipResult = { request_id: string; clip_id: string; url: string; cre
 export type LiveSessionChange = { session_id: string; channel_id: string; state: 'live' | 'offline' | 'ended' | 'unknown'; observed_at: string; confirmed: boolean };
 export type PauseControlInput = { paused: boolean };
 export type VoidControlInput = { receipt_id: string; note?: string };
-export type ReviewControlInput = { review_id: string; decision: 'approve' | 'reject' };
-export type ReceiptDecisionInput = { receipt_id: string; receipt_decision: 'admit' | 'appeal' | 'context_changed'; note?: string };
+export type ReviewControlInput = { review_id: string; decision: 'approve' | 'reject'; action_key?: string };
+export type ReceiptDecisionInput = { receipt_id: string; receipt_decision: 'admit' | 'appeal' | 'context_changed'; note?: string; action_key?: string };
 
 const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v: unknown): v is string => typeof v === 'string';
@@ -30,7 +30,7 @@ export function decodeSnapshot(v: unknown): OverlaySnapshot {
   return v as OverlaySnapshot;
 }
 export function decodeOverlayEvent(v: unknown): OverlayEvent {
-  if (!record(v) || !str(v.epoch) || !Number.isSafeInteger(v.sequence) || Number(v.sequence) <= 0 || !time(v.occurred_at) || (v.receipt !== undefined && !receipt(v.receipt)) || (v.appeal !== undefined && !appeal(v.appeal)) || (v.live !== undefined && typeof v.live !== 'boolean')) throw new Error('invalid overlay event');
+  if (!record(v) || !str(v.epoch) || !Number.isSafeInteger(v.sequence) || Number(v.sequence) <= 0 || !time(v.occurred_at) || (v.refresh !== undefined && typeof v.refresh !== 'boolean') || (v.receipt !== undefined && !receipt(v.receipt)) || (v.appeal !== undefined && !appeal(v.appeal)) || (v.live !== undefined && typeof v.live !== 'boolean')) throw new Error('invalid overlay event');
   return v as OverlayEvent;
 }
 export function decodeReviewQueue(v: unknown): ReviewItem[] {
@@ -59,8 +59,8 @@ export function decodeLiveSessionChange(v: unknown): LiveSessionChange {
 }
 export function decodePauseControl(v: unknown): PauseControlInput { if (!record(v) || typeof v.paused !== 'boolean') throw new Error('invalid pause control'); return v as PauseControlInput; }
 export function decodeVoidControl(v: unknown): VoidControlInput { if (!record(v) || !str(v.receipt_id) || (v.note !== undefined && !str(v.note))) throw new Error('invalid void control'); return v as VoidControlInput; }
-export function decodeReviewControl(v: unknown): ReviewControlInput { if (!record(v) || !str(v.review_id) || !valid(v.decision,['approve','reject'])) throw new Error('invalid review control'); return v as ReviewControlInput; }
-export function decodeReceiptDecision(v: unknown): ReceiptDecisionInput { if (!record(v) || !str(v.receipt_id) || !valid(v.receipt_decision,['admit','appeal','context_changed']) || (v.note !== undefined && !str(v.note))) throw new Error('invalid receipt decision'); return v as ReceiptDecisionInput; }
+export function decodeReviewControl(v: unknown): ReviewControlInput { if (!record(v) || !str(v.review_id) || !valid(v.decision,['approve','reject']) || (v.action_key !== undefined && !str(v.action_key))) throw new Error('invalid review control'); return v as ReviewControlInput; }
+export function decodeReceiptDecision(v: unknown): ReceiptDecisionInput { if (!record(v) || !str(v.receipt_id) || !valid(v.receipt_decision,['admit','appeal','context_changed']) || (v.note !== undefined && !str(v.note)) || (v.action_key !== undefined && !str(v.action_key))) throw new Error('invalid receipt decision'); return v as ReceiptDecisionInput; }
 
 // OBS URLs carry no credential; reads use an Authorization header.
 export function overlayURL(origin: string): string { return new URL('/api/overlay', origin).toString(); }
@@ -104,8 +104,8 @@ export function createOverlayRebaser(fetchSnapshot: () => Promise<OverlaySnapsho
     if (!snapshot) { enqueue(event); void refresh(generation).catch(onError); return; }
     // Once a new authoritative epoch is installed, late replay from the old
     // process is obsolete and must not start another rebase.
-    if (event.epoch !== snapshot.epoch) return;
-    if (event.sequence > snapshot.sequence + 1) { snapshot = undefined; enqueue(event); void refresh(generation).catch(onError); return; }
+    if (event.epoch !== snapshot.epoch || event.sequence <= snapshot.sequence) return;
+    if (event.refresh || event.sequence > snapshot.sequence + 1) { snapshot = undefined; enqueue(event); void refresh(generation).catch(onError); return; }
     if (event.sequence > snapshot.sequence) { snapshot = { ...snapshot, sequence: event.sequence }; apply(event); }
   };
   const refresh = (requestedGeneration: number): Promise<void> => {
