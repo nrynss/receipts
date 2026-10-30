@@ -26,13 +26,13 @@ Introduce the unified **Dark Forest & Parchment Ledger** design system, the orig
 ### TU.2: Broadcast overlay polish, landing page (`/`) and recorded judge demo (`/demo/`)
 
 ```yaml
-requires: TU.1, TA.4
+requires: TU.1, T1.4, T2.4, T3.3
 fixture-ok: yes
 owns: web/src/lib/overlay/, web/src/lib/events/recovery.ts, web/src/routes/+page.svelte, web/src/routes/page.test.ts, web/src/routes/demo/, internal/demo/
 status: not-started
 ```
 
-Polish `Overlay.svelte` and `recovery.ts` so a live `stamp` arrival animates and automatically reveals the `THE EVIDENCE` column (~1.5s after landing) instead of staying stuck in a single-column view. Remove duplicate full-quote rendering in the evidence pane when a clip iframe is mounted, add a visual tug-of-war vote bar for `appeal`, truncate visually noisy UUIDs in the header while keeping the full ID accessible, and apply the broadcast-ready copy table below. Replace the blank default view on `/` (when no `?fixture` parameter is present) with the full landing page: hero, 3-step explanation strip, primary CTAs (`/demo/` and `/account`) and an interactive 4-state `<Overlay />` preview switcher. Upgrade `/demo/` to mount the real `<Overlay />` with stage tabs (`1. Stamp`, `2. Evidence`, `3. Appeal Vote`, `4. Verdict`), a structured broadcast/chat timeline, a simulated Twitch chat reply box for `!lore`, and aligned claim text.
+Build on the landed anonymous recorded-demo implementation (`431ca1e`); hosted `TA.4` acceptance remains after `T6.1` deployment. Polish `Overlay.svelte` and `recovery.ts` so a live `stamp` arrival animates and automatically reveals the `THE EVIDENCE` column (~1.5s after landing) instead of staying stuck in a single-column view. Remove duplicate full-quote rendering in the evidence pane when a clip iframe is mounted, add a visual tug-of-war vote bar for `appeal`, truncate visually noisy UUIDs in the header while keeping the full ID accessible, and apply the broadcast-ready copy table below. Replace the blank default view on `/` (when no `?fixture` parameter is present) with the full landing page: hero, 3-step explanation strip, primary CTAs (`/demo/` and `/account`) and an interactive 4-state `<Overlay />` preview switcher. Upgrade `/demo/` to mount the real `<Overlay />` with stage tabs (`1. Stamp`, `2. Evidence`, `3. Appeal Vote`, `4. Verdict`), a structured broadcast/chat timeline, a simulated Twitch chat reply box for `!lore`, and aligned claim text.
 
 **Done when:** Visiting `/` without `?fixture` renders the full landing page and interactive `<Overlay />` preview; `/?fixture=sequence|stamp|evidence|appeal|verdict` continues to run the transparent harness; `/demo/` renders the live `<Overlay />` stages and structured timeline without provider calls; `overlay-checks.ts`, `page.test.ts`, `demo/page.test.ts` and `internal/demo` tests pass.
 
@@ -49,11 +49,11 @@ Bring `/control`, `/account` and `/obs` into the Dark Forest & Parchment Ledger 
 
 1. **Start-session parity in `/control`:** Add the sole-speaker confirmation checkbox (`sole_broadcaster`) to `/control` when `statusValue === 'not_listening' && canStart` and pass `{ sole_broadcaster: soleBroadcaster }` to `POST /account-api/start` so starting a session from the OBS dock can enable live speech-to-text attribution.
 2. **Spoken contradiction evidence in `Quiet review`:** Update `Store.PendingReviews` (`internal/store/channel_reads.go`) to select `d.evidence_text` from `detections` and populate `ReviewItem.Reason` in `LedgerReader.ReviewQueueFor` (`internal/api/ledger.go`) with the spoken contradiction text (falling back to `"Possible contradiction needs review."` only if empty). Render both **THE PROMISE** (`item.claim`) and **HEARD NOW** (`item.reason`) on each review card in `/control`, with clear button hierarchy (**Approve** in `btn-stamp` and **Reject** in `btn-secondary`).
-3. **Truthful live-session status in `HealthFor`:** Update `LedgerReader.HealthFor` (`internal/api/ledger.go`) to set `LiveConfirmed: session.State == "live"` for the verified owned session so `/control` does not display `Not confirmed` during an active live session.
+3. **Verified live-status display in `/control`:** Do not treat persisted `session.State == "live"` alone as fresh Twitch verification. Instead, derive `/control`'s live status display from the existing verified `/account-api/status` observation (which enforces `LiveStatusFreshness` via `session.Authority`) and `health.live_confirmed`, preserving `Unknown` whenever the observation is stale or `unknown`.
 4. **Channel ledger & one-click Void + live appeal bar in `/control`:** Render `snapshot.receipts` in a compact **Channel Ledger** list with verdict badges, `@clipped_by` and a one-click **Void** button per receipt alongside the manual `#void-id` input form. Show a live appeal countdown and vote bar in **Current stamp** when `snapshot.current_appeal` is active.
 5. **Account & OBS setup (`/account`, `/obs`):** Organize `/account` into three styled cards (**Broadcast & Listening Status**, **OBS Browser Source Pairing** with a one-click **Copy URL** button and timestamped/ID-tagged paired sources, and **Account & Danger Zone** separating `Sign out` from crimson danger actions `Disconnect Twitch` and `Delete account`). Add the SVG brand mark and **`RECEIPTS · OBS OVERLAY`** header to the unpaired `/obs` screen.
 
-**Done when:** Starting a session from `/control` with sole-speaker checked enables transcription; pending review cards display the spoken contradiction text from `detections.evidence_text`; active receipts in `/control` support one-click voiding; `/account` provides one-click `/obs` URL copying and separated danger actions; all API, store and web tests pass.
+**Done when:** Starting a session from `/control` with sole-speaker checked enables transcription; pending review cards display the spoken contradiction text from `detections.evidence_text`; `/control` uses the verified status observation and preserves `Unknown` when stale; active receipts in `/control` support one-click voiding; `/account` provides one-click `/obs` URL copying and separated danger actions; all API, store and web tests pass.
 
 ### TU.4: Twitch chat feedback (`!receipt` & `!lore`) and full gate verification
 
@@ -197,8 +197,8 @@ Use this exact vector artwork in `web/src/lib/brand/ReceiptMark.svelte` (accepti
 | **Status: `capacity`** | `Listening capacity is full. Try again later.` | `Server capacity reached · All active channel slots are currently in use.` |
 | **Status: `not_listening`** | `Your channel is live and not listening.` | `Channel is LIVE · Ready to start listening.` |
 | **Status: `session_active`** | `Live session active. Audio capture is not attached.` | `Live session active · Waiting for broadcast audio stream.` |
-| **Status: `listening`** | `Listening.` | `LIVE & LISTENING · Stamps active.` |
-| **Status: `paused`** | `Listening; stamps paused.` | `LIVE & LISTENING · Overlay stamps paused.` |
+| **Status: `listening`** | `Listening.` | `Listening · Manual review enabled.` |
+| **Status: `paused`** | `Listening; stamps paused.` | `Listening · Overlay stamps paused.` |
 | **Sole-speaker active note** | `Transcription enabled for your sole voice.` | `Solo broadcast confirmed · Speech-to-text attribution is active.` |
 | **Sole-speaker off note** | `Audio is being monitored; transcription is off because sole-speaker confirmation was not given.` | `Speech-to-text is paused for this session because sole-speaker confirmation was not checked.` |
 | **Sole-speaker helper** | `Leave this unchecked if other voices may be heard. Microphone capture is unavailable.` | `Only check this when you are the sole voice on stream. Leave unchecked during co-streams, interviews, or voice chat.` |
@@ -211,7 +211,7 @@ Use this exact vector artwork in `web/src/lib/brand/ReceiptMark.svelte` (accepti
 | Section / Element | Current Text (Before) | Target Text (After) |
 |---|---|---|
 | **Header eyebrow & title** | `PRIVATE DOCK` / `Receipts` | `STREAMER CONTROL DOCK` / `Receipts` |
-| **Status grid** | `Live: Confirmed / Not confirmed`<br>`Audio: Listening / not listening`<br>`Stamps: On / Paused / Unavailable` | `Stream: Live / Offline / Unknown`<br>`Speech-to-Text: Active / Off`<br>`Overlay Stamps: Active / Paused / Idle` |
+| **Status grid** | `Live: Confirmed / Not confirmed`<br>`Audio: Listening / not listening`<br>`Stamps: On / Paused / Unavailable` | `Stream: Confirmed / Offline / Not confirmed / Unknown` (derived from verified status + `health.live_confirmed`, preserving `Unknown` when stale)<br>`Speech-to-Text: Active / Off`<br>`Stamps: Manual review enabled / Paused / Unavailable` |
 | **Start session controls** | `[ Start session ]` (without sole-speaker checkbox) | Sole-speaker confirmation checkbox + `[ Start session ]` (sends `{ sole_broadcaster }` to `/account-api/start`) |
 | **Current stamp empty** | `No stamp awaiting an answer.` | `No active stamp on screen.` |
 | **Context changed label** | `Why did the context change?` | `What changed? (Recorded on the ledger)` |
