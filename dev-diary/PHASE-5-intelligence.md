@@ -2,7 +2,7 @@
 
 **Goal:** Replace recorded model/audio adapters with bounded OpenAI calls and measure the behavior.
 
-**Status:** in-progress (2/4)
+**Status:** in-progress (3/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -38,7 +38,7 @@ Choose supported OpenAI extraction/judge and embedding models from current offic
 requires: T5.2, T2.2, TA.2
 fixture-ok: yes
 owns: internal/judge/, internal/budget/, testdata/models/
-status: not-started
+status: complete
 ```
 
 Judge retrieved claim/later-line pairs with structured contradicts, does-not-contradict or unsure plus evidence references. Require validated evidence and calibrated policy before stamping; a model confidence number alone is insufficient. Use Keel v0.9.0 gate/cost and durable context-aware metering for bounded concurrency, per-channel/session and installation-wide spend, with an explicit preflight live budget. Reserve before calls and reconcile actual usage. Bound retries/timeouts and distinguish unavailable service from unsure. Failed or late results never fabricate a stamp.
@@ -79,8 +79,12 @@ Record task IDs, relevant revision, checks and artifact paths when work lands. N
 
 Record unresolved blockers, contract changes and the next unblocked task.
 
-T5.1 passed the offline gate, targeted uncached race checks and a real one-request transcription/shutdown test. The conservative charge estimate was $0.0045 under a $0.02 ceiling. Timing is coarse PCM ingest with unknown HLS delay; sole-speaker attestation is per activation. T5.3 is the next unblocked task. This short test does not prove long-running hosted operation or model accuracy.
+T5.1 passed the offline gate, targeted uncached race checks and a real one-request transcription/shutdown test. The conservative charge estimate was $0.0045 under a $0.02 ceiling. Timing is coarse PCM ingest with unknown HLS delay; sole-speaker attestation is per activation. T5.4 is the next unblocked task. This short test does not prove long-running hosted operation or model accuracy.
 
 ### T5.2 implementation
 
-Owner-bound capture, conservative extraction and source sensitivity checks, durable budget admission, and explicit embedding reindexing are implemented. See [T5.2 handoff](../docs/t52-claims-handoff.md) for model contracts, operational limits and offline verification. No live-model accuracy or T5.3 judging is claimed.
+Owner-bound capture, conservative extraction and source sensitivity checks, durable budget admission, and explicit embedding reindexing are implemented. See [T5.2 handoff](../docs/t52-claims-handoff.md) for model contracts, operational limits and offline verification. This verification does not claim live-model accuracy.
+
+### T5.3 implementation
+
+The structured Judge and durable session/channel/global metering are reviewed and verified. The full offline gate and repeated targeted race checks passed. One live adapter request returned `contradicts`; reported usage priced at $0.00003735 was below the $0.025 ceiling. Automatic live stamps remain disabled until T5.4 calibration. Unresolved paid attempts block spending pending operator reconciliation. See [T5.3 handoff](../docs/t53-judge-handoff.md) and [live evidence](../docs/evidence/t53-live-judge.json).

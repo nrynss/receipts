@@ -27,6 +27,36 @@ func (s *Store) ValidateDetectionSource(ctx context.Context, a DetectionAuthorit
 	return nil
 }
 
+// ValidateJudgmentPair checks persisted chronology and eligibility before paid
+// judging. A later line must begin after both receipt creation and the end of
+// its original evidence, including when the receipt is from an earlier session.
+func (s *Store) ValidateJudgmentPair(ctx context.Context, a DetectionAuthority, candidate receipt.Receipt, evidence receipt.Evidence, source receipt.Segment) error {
+	if source.ID == "" || evidence.SourceID == "" || source.ID == evidence.SourceID || candidate.ID == "" || evidence.ReceiptID != candidate.ID {
+		return ErrNotEligible
+	}
+	var count int
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM receipts r
+ JOIN evidence e ON e.receipt_id=r.id
+ JOIN live_sessions original ON original.id=r.session_id AND original.channel_id=r.channel_id
+ JOIN live_sessions current ON current.id=? AND current.channel_id=r.channel_id
+ JOIN accounts a ON a.channel_id=r.channel_id
+ JOIN transcript_segments t ON t.id=? AND t.session_id=current.id
+ WHERE a.id=? AND a.status='connected' AND r.channel_id=? AND r.id=? AND r.version=? AND r.claim=?
+ AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?)
+ AND current.state='live' AND current.ended_at IS NULL AND (current.runtime_generation=? OR (current.runtime_generation=0 AND current.broadcast_id=''))
+ AND e.id=? AND e.source_id=? AND e.source_text=? AND e.start_ms=? AND e.end_ms=? AND e.attribution='broadcaster'
+ AND t.start_ms=? AND t.end_ms=? AND t.text=? AND t.attribution='broadcaster' AND t.speaker_id=?
+ AND t.id<>e.source_id AND current.started_at+t.start_ms>=r.created_at
+ AND current.started_at+t.start_ms>=original.started_at+e.end_ms`, a.LiveSessionID, source.ID, a.AccountID, a.ChannelID, candidate.ID, candidate.Version, candidate.Claim, millis(s.now()), a.Generation, evidence.ID, evidence.SourceID, evidence.Text, evidence.Start.Milliseconds(), evidence.End.Milliseconds(), source.Start.Milliseconds(), source.End.Milliseconds(), source.Text, source.SpeakerID).Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return ErrNotEligible
+	}
+	return nil
+}
+
 // ApplyDetection rechecks every durable authority and source row under Keel's
 // serialized writer. The caller serializes runtime authority and publication.
 type DetectionAuthority struct {
@@ -49,7 +79,7 @@ func (s *Store) ApplyDetection(ctx context.Context, a DetectionAuthority, candid
 	now := s.now().UTC()
 	var claim, clipURL, clipStatus, verdict, clippedBy string
 	var created, sessionStart int64
-	err = tx.QueryRowContext(ctx, `SELECT r.claim,r.clip_url,r.clip_status,r.verdict,r.clipped_by,r.created_at,l.started_at FROM receipts r JOIN accounts a ON a.channel_id=r.channel_id JOIN live_sessions l ON l.channel_id=r.channel_id WHERE a.id=? AND a.status='connected' AND r.channel_id=? AND r.id=? AND r.version=? AND r.claim=? AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) AND l.id=? AND l.state='live' AND l.ended_at IS NULL`, a.AccountID, a.ChannelID, candidate.ID, candidate.Version, candidate.Claim, millis(now), a.LiveSessionID).Scan(&claim, &clipURL, &clipStatus, &verdict, &clippedBy, &created, &sessionStart)
+	err = tx.QueryRowContext(ctx, `SELECT r.claim,r.clip_url,r.clip_status,r.verdict,r.clipped_by,r.created_at,l.started_at FROM receipts r JOIN accounts a ON a.channel_id=r.channel_id JOIN live_sessions l ON l.channel_id=r.channel_id WHERE a.id=? AND a.status='connected' AND r.channel_id=? AND r.id=? AND r.version=? AND r.claim=? AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) AND l.id=? AND l.state='live' AND l.ended_at IS NULL AND (l.runtime_generation=? OR (l.runtime_generation=0 AND l.broadcast_id='')) AND r.created_at <= l.started_at + ?`, a.AccountID, a.ChannelID, candidate.ID, candidate.Version, candidate.Claim, millis(now), a.LiveSessionID, a.Generation, source.End.Milliseconds()).Scan(&claim, &clipURL, &clipStatus, &verdict, &clippedBy, &created, &sessionStart)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotEligible
 	}

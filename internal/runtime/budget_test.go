@@ -68,15 +68,15 @@ func TestBudgetChannelIsolationGlobalCeilingAndRestart(t *testing.T) {
 		t.Fatalf("global ceiling: called=%v err=%v", called, err)
 	}
 }
-func TestBudgetCancellationReleasesAndLateCancellationSettles(t *testing.T) {
-	b, _ := openTestBudgets(t, filepath.Join(t.TempDir(), "budget.db"), 100, 60)
+func TestBudgetCancellationAndLateCancellationSettle(t *testing.T) {
+	b, _ := openTestBudgets(t, filepath.Join(t.TempDir(), "budget.db"), 200, 100)
 	ctx, cancel := context.WithCancel(budgetContext("a"))
 	_, err := b.Call(ctx, "a", "live", "judge", "fail", 40, func(context.Context) (cost.Usage, error) { cancel(); return cost.Usage{}, context.Canceled })
 	if !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
 	ac, g, err := b.Remaining(budgetContext("a"), "a")
-	if err != nil || ac != 60 || g != 100 {
+	if err != nil || ac != 60 || g != 160 {
 		t.Fatalf("released=%d/%d err=%v", ac, g, err)
 	}
 	ctx, cancel = context.WithCancel(budgetContext("a"))
@@ -85,7 +85,7 @@ func TestBudgetCancellationReleasesAndLateCancellationSettles(t *testing.T) {
 		t.Fatal(err)
 	}
 	ac, g, err = b.Remaining(budgetContext("a"), "a")
-	if err != nil || ac != 30 || g != 70 {
+	if err != nil || ac != 30 || g != 130 {
 		t.Fatalf("settled=%d/%d err=%v", ac, g, err)
 	}
 }
@@ -132,5 +132,140 @@ func TestBudgetRejectsDeviceAndInvalidLimits(t *testing.T) {
 	}
 	if _, err := OpenBudgets(context.Background(), db, BudgetConfig{GlobalLimit: 1, ChannelLimit: 2}); err == nil {
 		t.Fatal("accepted invalid ceilings")
+	}
+}
+
+func TestSessionCapConcurrentAndRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "session.db")
+	db, err := sqlite.Open(context.Background(), sqlite.Config{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := BudgetConfig{GlobalLimit: 100, ChannelLimit: 100, SessionLimit: 10}
+	b, err := OpenBudgets(context.Background(), db, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	results := make(chan error, 20)
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := b.Call(budgetContext("a"), "a", "live", "judge", "ref", 1, measured(1))
+			results <- err
+		}()
+	}
+	wg.Wait()
+	close(results)
+	ok := 0
+	for err := range results {
+		if err == nil {
+			ok++
+		} else if !errors.Is(err, cost.ErrOverBudget) {
+			t.Fatal(err)
+		}
+	}
+	if ok != 10 {
+		t.Fatalf("successful calls=%d", ok)
+	}
+	if err = db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err = sqlite.Open(context.Background(), sqlite.Config{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	b, err = OpenBudgets(context.Background(), db, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = b.Call(budgetContext("a"), "a", "live", "judge", "ref", 1, measured(1)); !errors.Is(err, cost.ErrOverBudget) {
+		t.Fatalf("session restart cap: %v", err)
+	}
+	if _, err = b.Call(budgetContext("a"), "a", "next", "judge", "ref", 1, measured(1)); err != nil {
+		t.Fatalf("new session: %v", err)
+	}
+	if err = b.ForgetChannel(context.Background(), "a"); err != nil {
+		t.Fatal(err)
+	}
+	_, global, err := b.Remaining(budgetContext("a"), "a")
+	if err != nil || global != 89 {
+		t.Fatalf("global after deletion=%d: %v", global, err)
+	}
+}
+
+func TestSessionAmbiguousAttemptSettlesOnce(t *testing.T) {
+	b, _ := openTestBudgets(t, filepath.Join(t.TempDir(), "ambiguous.db"), 100, 100)
+	ctx, cancel := context.WithCancel(budgetContext("a"))
+	calls := 0
+	_, err := b.Call(ctx, "a", "live", "judge", "ambiguous", 40, func(context.Context) (cost.Usage, error) { calls++; cancel(); return cost.Usage{}, nil })
+	if err != nil || calls != 1 {
+		t.Fatalf("attempts=%d err=%v", calls, err)
+	}
+	channel, global, err := b.Remaining(budgetContext("a"), "a")
+	if err != nil || channel != 60 || global != 60 {
+		t.Fatalf("remaining=%d/%d err=%v", channel, global, err)
+	}
+}
+
+func TestSettlementFailureBlocksAfterRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "failure.db")
+	db, err := sqlite.Open(context.Background(), sqlite.Config{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := BudgetConfig{GlobalLimit: 100, ChannelLimit: 100}
+	b, err := OpenBudgets(context.Background(), db, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.Call(budgetContext("a"), "a", "live", "judge", "failure", 10, func(context.Context) (cost.Usage, error) {
+		if e := db.Close(); e != nil {
+			t.Fatal(e)
+		}
+		return cost.Usage{Price: 3, Measured: true}, nil
+	})
+	if err == nil {
+		t.Fatal("settlement unexpectedly succeeded")
+	}
+	db, err = sqlite.Open(context.Background(), sqlite.Config{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	b, err = OpenBudgets(context.Background(), db, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	called := false
+	_, err = b.Call(budgetContext("a"), "a", "live", "judge", "next", 1, func(context.Context) (cost.Usage, error) { called = true; return cost.Usage{}, nil })
+	if err == nil || called {
+		t.Fatalf("unresolved settlement: called=%v err=%v", called, err)
+	}
+}
+
+func TestLegacySessionCannotGetFreshAllowance(t *testing.T) {
+	b, _ := openTestBudgets(t, filepath.Join(t.TempDir(), "legacy.db"), 100, 100)
+	ctx := budgetContext("a")
+	if err := b.authorize(ctx, "a"); err != nil {
+		t.Fatal(err)
+	}
+	account, err := b.keyed.Owner(ctx, "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	meter, err := cost.NewContextMeter(account, b.store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = meter.Call(ctx, 10, "judge", `["a","live","old"]`, measured(10)); err != nil {
+		t.Fatal(err)
+	}
+	called := false
+	_, err = b.Call(ctx, "a", "live", "judge", "new", 1, func(context.Context) (cost.Usage, error) { called = true; return cost.Usage{}, nil })
+	if err == nil || called {
+		t.Fatalf("legacy session called=%v err=%v", called, err)
 	}
 }

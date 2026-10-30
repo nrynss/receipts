@@ -168,3 +168,13 @@ func TestModeMustBeExplicit(t *testing.T) {
 		t.Fatalf("error = %v, want explicit mode error", err)
 	}
 }
+
+func TestSessionSpendLimitOverride(t *testing.T) {
+	s, err := Load(context.Background(), env(map[string]string{"RECEIPTS_MODE": "fixture", "RECEIPTS_SESSION_SPEND_LIMIT_USD": "0.25"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.SessionSpendLimitUSD != 0.25 {
+		t.Fatalf("session limit=%v", s.SessionSpendLimitUSD)
+	}
+}

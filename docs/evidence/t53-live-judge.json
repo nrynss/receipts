@@ -1,0 +1,16 @@
+{
+  "task": "T5.3",
+  "test": "TestLiveOneCase",
+  "result": "passed",
+  "provider_requests": 1,
+  "retries": 0,
+  "model": "gpt-4o-mini-2024-07-18",
+  "verdict": "contradicts",
+  "budget_ceiling_usd": 0.025,
+  "provider_reported_tokens_priced_usd": 3.735e-05,
+  "pricing_basis": "pinned standard uncached token rates; not a provider invoice",
+  "duration_seconds": 2.67,
+  "automatic_live_stamps_enabled": false,
+  "scope": "single adapter case; not corpus accuracy or full Twitch rehearsal",
+  "raw_provider_response_retained": false
+}

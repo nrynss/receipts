@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -11,12 +12,20 @@ import (
 	"github.com/nrynss/keel/sqlite"
 	"receipts/internal/auth"
 	"receipts/internal/commands"
+	"receipts/internal/detect"
+	"receipts/internal/judge"
 	"receipts/internal/ports"
 	"receipts/internal/receipt"
 	"receipts/internal/retrieval"
 	runtime "receipts/internal/runtime"
 	"receipts/internal/store"
 )
+
+type judgeFunc func(context.Context, receipt.Receipt, receipt.Evidence, receipt.Segment) (judge.Result, error)
+
+func (f judgeFunc) Judge(ctx context.Context, r receipt.Receipt, e receipt.Evidence, s receipt.Segment) (judge.Result, error) {
+	return f(ctx, r, e, s)
+}
 
 type extractFunc func(context.Context, []receipt.Segment) (commands.Extraction, error)
 
@@ -39,8 +48,10 @@ func TestCaptureReindexAndRetrieveWithDurableBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	now := time.Now().UTC().Add(-10 * time.Second).Truncate(time.Millisecond)
-	ledger, err := store.New(ctx, db, store.Retention{}, func() time.Time { return now })
+	sessionStart := time.Now().UTC().Truncate(time.Millisecond).Add(-10 * time.Second)
+	var clock atomic.Int64
+	clock.Store(sessionStart.UnixMilli())
+	ledger, err := store.New(ctx, db, store.Retention{}, func() time.Time { return time.UnixMilli(clock.Load()).UTC() })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,11 +59,11 @@ func TestCaptureReindexAndRetrieveWithDurableBudget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.Writer().ExecContext(ctx, `INSERT INTO accounts(id,provider,provider_subject,login,channel_id,token_ciphertext,token_expires_at,scopes,status,updated_at) VALUES('owner','twitch','streamer','streamer',?,X'00',?,'[]','connected',?)`, c.ID, now.Add(time.Hour).UnixMilli(), now.UnixMilli())
+	_, err = db.Writer().ExecContext(ctx, `INSERT INTO accounts(id,provider,provider_subject,login,channel_id,token_ciphertext,token_expires_at,scopes,status,updated_at) VALUES('owner','twitch','streamer','streamer',?,X'00',?,'[]','connected',?)`, c.ID, sessionStart.Add(time.Hour).UnixMilli(), sessionStart.UnixMilli())
 	if err != nil {
 		t.Fatal(err)
 	}
-	activation, err := ledger.StartOwnedLiveSession(ctx, "owner", c.ID, "broadcast", now, false)
+	activation, err := ledger.StartOwnedLiveSession(ctx, "owner", c.ID, "broadcast", sessionStart, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,14 +82,15 @@ func TestCaptureReindexAndRetrieveWithDurableBudget(t *testing.T) {
 	if err = ledger.AddLiveSegment(ctx, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation, original); err != nil {
 		t.Fatal(err)
 	}
-	now = time.Now().UTC().Truncate(time.Millisecond)
+	captureTime := sessionStart.Add(10 * time.Second)
+	clock.Store(captureTime.UnixMilli())
 	calls := 0
 	sourceChecks := 0
 	svc := &Service{Authority: a, Meter: manager, Ledger: ledger, Index: ledger, Space: retrieval.Space{Model: retrieval.DefaultModel, Version: "v1", Dimensions: 2}, ExtractionModel: "gpt-4o-mini-2024-07-18", Extractor: extractFunc(func(_ context.Context, segs []receipt.Segment) (commands.Extraction, error) {
 		calls++
 		return commands.Extraction{Claim: segs[0].Text, SourceIDs: []string{segs[0].ID}}, nil
 	}), Sensitive: sensitiveFunc(func(_ context.Context, text string) (bool, error) { sourceChecks++; return false, nil }), Embedder: embedFunc(func(context.Context, string) ([]float64, error) { return []float64{1, 0}, nil })}
-	cmd := ports.ChatCommand{ID: "command", UserID: "viewer", Login: "viewer", Command: "!receipt", ReceivedAt: now}
+	cmd := ports.ChatCommand{ID: "command", UserID: "viewer", Login: "viewer", Command: "!receipt", ReceivedAt: captureTime}
 	result, err := svc.Handle(ctx, commands.Authority{ChannelID: c.ID, SessionID: a.LiveSessionID}, cmd)
 	if err != nil || result.Code != commands.ReplyCaptured || sourceChecks != 2 {
 		t.Fatalf("capture=%#v checks=%d err=%v", result, sourceChecks, err)
@@ -90,13 +102,55 @@ func TestCaptureReindexAndRetrieveWithDurableBudget(t *testing.T) {
 	if err = svc.Reindex(ctx); err != nil {
 		t.Fatal(err)
 	}
-	later := receipt.Segment{ID: "later", SessionID: a.LiveSessionID, Start: 3 * time.Second, End: 4 * time.Second, Text: "I will play this map.", SpeakerID: c.ID, Attribution: "broadcaster", TimingBasis: "coarse_pcm_ingest_hls_delay_unknown"}
+	clock.Store(sessionStart.Add(15 * time.Second).UnixMilli())
+	later := receipt.Segment{ID: "later", SessionID: a.LiveSessionID, Start: 11 * time.Second, End: 12 * time.Second, Text: "I will play this map.", SpeakerID: c.ID, Attribution: "broadcaster", TimingBasis: "coarse_pcm_ingest_hls_delay_unknown"}
 	if err = ledger.AddLiveSegment(ctx, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation, later); err != nil {
 		t.Fatal(err)
 	}
 	matches, err := svc.Nearest(ctx, later, 3)
 	if err != nil || len(matches) != 1 || matches[0].Receipt.ID != result.Receipt.ID {
 		t.Fatalf("matches=%#v err=%v", matches, err)
+	}
+	svc.DetectionStore = ledger
+	judgeCalls := 0
+	svc.Judge = judgeFunc(func(_ context.Context, _ receipt.Receipt, e receipt.Evidence, src receipt.Segment) (judge.Result, error) {
+		judgeCalls++
+		return judge.Result{Verdict: detect.Contradicts, ClaimSourceID: e.SourceID, LaterSourceID: src.ID}, nil
+	})
+	earlier := receipt.Segment{ID: "earlier", SessionID: a.LiveSessionID, Start: 3 * time.Second, End: 4 * time.Second, Text: "Earlier words.", SpeakerID: c.ID, Attribution: "broadcaster", TimingBasis: "coarse_pcm_ingest_hls_delay_unknown"}
+	if err = ledger.AddLiveSegment(ctx, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation, earlier); err != nil {
+		t.Fatal(err)
+	}
+	for _, src := range []receipt.Segment{original, earlier} {
+		if err = svc.JudgeSource(ctx, src); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if judgeCalls != 0 {
+		t.Fatalf("paid calls for own or earlier source: %d", judgeCalls)
+	}
+	if err = svc.JudgeSource(ctx, later); err != nil {
+		t.Fatalf("judge source: %v", err)
+	}
+	var outcome string
+	if err = db.Reader().QueryRowContext(ctx, `SELECT outcome FROM detections WHERE receipt_id=? AND source_id=?`, result.Receipt.ID, later.ID).Scan(&outcome); err != nil || outcome != "review" {
+		t.Fatalf("uncalibrated outcome=%q err=%v", outcome, err)
+	}
+	later2 := receipt.Segment{ID: "later2", SessionID: a.LiveSessionID, Start: 13 * time.Second, End: 14 * time.Second, Text: "I will play again.", SpeakerID: c.ID, Attribution: "broadcaster", TimingBasis: "coarse_pcm_ingest_hls_delay_unknown"}
+	if err = ledger.AddLiveSegment(ctx, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation, later2); err != nil {
+		t.Fatal(err)
+	}
+	canceled, cancel := context.WithCancel(ctx)
+	svc.Judge = judgeFunc(func(_ context.Context, _ receipt.Receipt, e receipt.Evidence, src receipt.Segment) (judge.Result, error) {
+		cancel()
+		return judge.Result{Verdict: detect.Contradicts, ClaimSourceID: e.SourceID, LaterSourceID: src.ID}, nil
+	})
+	if err = svc.JudgeSource(canceled, later2); err == nil {
+		t.Fatal("late judgment succeeded")
+	}
+	var count int
+	if err = db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM detections WHERE source_id=?`, later2.ID).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("late detections=%d err=%v", count, err)
 	}
 	_, err = ledger.CreateReceipt(ctx, receipt.ReceiptInput{ChannelID: c.ID, SessionID: a.LiveSessionID, Claim: "Another promise", ClippedBy: "viewer", Evidence: []receipt.EvidenceInput{{SourceID: original.ID, Text: original.Text, Start: original.Start, End: original.End, Attribution: original.Attribution}}})
 	if err != nil {

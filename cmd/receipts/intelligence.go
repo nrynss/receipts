@@ -12,6 +12,8 @@ import (
 	"receipts/internal/auth"
 	"receipts/internal/claims"
 	"receipts/internal/intelligence"
+	"receipts/internal/judge"
+	"receipts/internal/receipt"
 	"receipts/internal/retrieval"
 	runtime "receipts/internal/runtime"
 	"receipts/internal/store"
@@ -25,8 +27,10 @@ type intelligenceAttachment struct {
 	runtime                                                   *runtime.Manager
 	adapter                                                   *connection.Adapter
 	apiKey, extractionModel, embeddingModel, embeddingVersion string
+	judgeModel                                                string
 	embeddingDimensions                                       int
 	services                                                  sync.Map
+	judgeQueues                                               sync.Map
 }
 
 // One worker serializes receipt processing without blocking the EventSub reader.
@@ -115,20 +119,29 @@ func (a *intelligenceAttachment) attach(ctx context.Context, authority auth.Chan
 	if embedding == "" {
 		embedding = retrieval.DefaultModel
 	}
-	if model != claims.DefaultModel || embedding != retrieval.DefaultModel {
+	if model != claims.DefaultModel || embedding != retrieval.DefaultModel || a.judgeModel != judge.Model {
 		return nil, errors.New("intelligence: unsupported metered model")
 	}
 	extractor := claims.Client{APIKey: a.apiKey, Model: model}
 	space := retrieval.Space{Model: embedding, Version: a.embeddingVersion, Dimensions: a.embeddingDimensions}
-	svc := &intelligence.Service{Authority: authority, Meter: a.runtime, Ledger: a.ledger, Extractor: extractor, Sensitive: extractor, Embedder: retrieval.Client{APIKey: a.apiKey, Space: space}, Index: a.ledger, Space: space, ExtractionModel: model}
-	a.services.Store(authority.ChannelID, svc)
-	router := &chat.Router{Authority: authority, ChannelPlatformID: grant.ChannelPlatformID, Capture: svc}
+	svc := &intelligence.Service{Authority: authority, Meter: a.runtime, Ledger: a.ledger, Extractor: extractor, Sensitive: extractor, Embedder: retrieval.Client{APIKey: a.apiKey, Space: space}, Index: a.ledger, Space: space, ExtractionModel: model, Judge: judge.Client{APIKey: a.apiKey, Model: a.judgeModel}, DetectionStore: a.ledger}
 	run, cancel := context.WithCancel(ctx)
+	a.services.Store(authority.ChannelID, svc)
+	queue := newJudgeQueue(run, authority, 16, svc.JudgeSource)
+	a.judgeQueues.Store(authority.ChannelID, queue)
+	router := &chat.Router{Authority: authority, ChannelPlatformID: grant.ChannelPlatformID, Capture: svc}
 	sink := newCaptureSink(run, router, captureQueueSize)
 	client := &eventsub.Client{Helix: eventsub.Adapter{Connection: a.adapter}, Sink: sink, OnAuthorizationLost: func(error) { _ = a.runtime.Cancel(authority) }}
 	done := make(chan struct{})
 	go func() { defer close(done); _ = client.Run(run, authority) }()
-	return func() { cancel(); <-done; sink.stop(); a.services.CompareAndDelete(authority.ChannelID, svc) }, nil
+	return func() {
+		cancel()
+		<-done
+		sink.stop()
+		a.judgeQueues.CompareAndDelete(authority.ChannelID, queue)
+		queue.wait()
+		a.services.CompareAndDelete(authority.ChannelID, svc)
+	}, nil
 }
 
 // reindex requires the existing owner session, CSRF/origin validation and
@@ -158,4 +171,50 @@ func (a *intelligenceAttachment) reindex(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// judgeQueue serializes paid work; overload drops new segments and cancellation
+// discards queued work. The authority is captured with the queue generation.
+type judgeQueue struct {
+	ctx       context.Context
+	authority auth.ChannelContext
+	segments  chan receipt.Segment
+	done      chan struct{}
+}
+
+func newJudgeQueue(ctx context.Context, authority auth.ChannelContext, capacity int, handle func(context.Context, receipt.Segment) error) *judgeQueue {
+	q := &judgeQueue{ctx: ctx, authority: authority, segments: make(chan receipt.Segment, capacity), done: make(chan struct{})}
+	go func() {
+		defer close(q.done)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case seg := <-q.segments:
+				if ctx.Err() != nil {
+					return
+				}
+				_ = handle(ctx, seg)
+			}
+		}
+	}()
+	return q
+}
+func (q *judgeQueue) enqueue(authority auth.ChannelContext, seg receipt.Segment) {
+	if authority != q.authority || q.ctx.Err() != nil {
+		return
+	}
+	select {
+	case <-q.ctx.Done():
+	case q.segments <- seg:
+	default:
+	}
+}
+func (q *judgeQueue) wait() { <-q.done }
+func (a *intelligenceAttachment) enqueue(authority auth.ChannelContext, seg receipt.Segment) {
+	v, ok := a.judgeQueues.Load(authority.ChannelID)
+	if !ok {
+		return
+	}
+	v.(*judgeQueue).enqueue(authority, seg)
 }

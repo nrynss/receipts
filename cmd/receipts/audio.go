@@ -12,6 +12,7 @@ import (
 
 	"receipts/internal/audio"
 	"receipts/internal/auth"
+	"receipts/internal/receipt"
 	runtime "receipts/internal/runtime"
 	"receipts/internal/store"
 	"receipts/internal/transcribe"
@@ -25,6 +26,7 @@ type audioAttachment struct {
 	apiKey      string
 	streamlink  string
 	transcriber transcribe.Transcriber
+	onSegment   func(auth.ChannelContext, receipt.Segment)
 	active      sync.Map
 	capture     func(context.Context, string, string, string, func(context.Context, audio.IngestChunk) error) error
 }
@@ -85,7 +87,11 @@ func (a *audioAttachment) attach(ctx context.Context, authority auth.ChannelCont
 	if transcriber == nil {
 		transcriber = transcribe.Client{APIKey: a.apiKey}
 	}
-	worker := transcribe.Worker{Authority: authority, Transcriber: transcriber, Meter: a.runtime, Ledger: a.ledger, SoleBroadcaster: sole, NowOffset: func() time.Duration { return time.Since(started) }}
+	worker := transcribe.Worker{OnSegment: func(seg receipt.Segment) {
+		if a.onSegment != nil {
+			a.onSegment(authority, seg)
+		}
+	}, Authority: authority, Transcriber: transcriber, Meter: a.runtime, Ledger: a.ledger, SoleBroadcaster: sole, NowOffset: func() time.Duration { return time.Since(started) }}
 	go func() {
 		defer close(done)
 		defer os.RemoveAll(dir)

@@ -14,7 +14,7 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 | P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 4 / 4 | Complete; capture, detection, appeals, lore and full offline replay verified |
 | P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 3 / 3 | Complete; recovery and owner-reported real OBS rehearsal passed |
 | P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 4 / 4 | Complete; authorized adapters, chat, local clip fallback and real stream-end authority/capture exit verified |
-| P5 | [Live transcription and contradiction judging](PHASE-5-intelligence.md) | 2 / 4 | T5.1 verified; T5.2 extraction/retrieval offline verified |
+| P5 | [Live transcription and contradiction judging](PHASE-5-intelligence.md) | 3 / 4 | T5.3 judge/metering verified; T5.4 evaluation ready |
 | P6 | [Live proof, operations and submission](PHASE-6-ship.md) | 0 / 4 | Not started |
 
 ## Dependency map
@@ -96,4 +96,4 @@ The integrated capture/isolation tree passed the full offline gate and uncached 
 
 ## Ready next
 
-T3.3 recovery and actual local OBS rehearsal are complete. T4.2 EventSub/chat transport is complete. T4.3 clip jobs and local OBS fallback acceptance are complete; video/deployed playback and actual feedback checks remain release acceptance. TA.4 anonymous recorded demo is implemented; full hosted acceptance waits for T6.1. T4.4 live-session authority and real capture shutdown acceptance are complete. T5.1 production broadcast audio/transcription is attached and passed its bounded live test; T5.2 extraction/retrieval is offline verified; contradiction judging and clip worker activation remain downstream. TA.3 local OBS acceptance and T4.1 bounded live capability acceptance passed. T6.1 deploys after TA.3; TA.4 verifies the deployed experience and gates T6.3 judge readiness.
+T3.3 recovery and actual local OBS rehearsal are complete. T4.2 EventSub/chat transport is complete. T4.3 clip jobs and local OBS fallback acceptance are complete; video/deployed playback and actual feedback checks remain release acceptance. TA.4 anonymous recorded demo is implemented; full hosted acceptance waits for T6.1. T4.4 live-session authority and real capture shutdown acceptance are complete. T5.1 production broadcast audio/transcription is attached and passed its bounded live test; T5.2 extraction/retrieval is offline verified; T5.3 judging/metering is verified with a bounded live adapter case. Automatic stamps await T5.4 calibration; clip worker activation remains downstream. TA.3 local OBS acceptance and T4.1 bounded live capability acceptance passed. T6.1 deploys after TA.3; TA.4 verifies the deployed experience and gates T6.3 judge readiness.

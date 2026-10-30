@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"receipts/internal/providerusage"
 )
 
 // Sensitive is an independent fail-closed classification of the exact text.
@@ -56,6 +58,7 @@ func (c Client) Sensitive(ctx context.Context, text string) (bool, error) {
 	if len(raw) > 1<<20 {
 		return false, errors.New("claims: response too large")
 	}
+	providerusage.Chat(ctx, raw)
 	var envelope struct {
 		Choices []struct {
 			Message struct {

@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"receipts/internal/providerusage"
+
 	"receipts/internal/commands"
 	"receipts/internal/receipt"
 )
@@ -99,6 +101,7 @@ func (c Client) Extract(ctx context.Context, segments []receipt.Segment) (comman
 	if len(raw) > 1<<20 {
 		return commands.Extraction{}, errors.New("claims: response too large")
 	}
+	providerusage.Chat(ctx, raw)
 	var envelope struct {
 		Choices []struct {
 			Message struct {

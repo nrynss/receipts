@@ -3,8 +3,10 @@ package claims
 import (
 	"context"
 	"encoding/json"
+	"github.com/nrynss/keel/cost"
 	"io"
 	"net/http"
+	"receipts/internal/providerusage"
 	"receipts/internal/receipt"
 	"strings"
 	"testing"
@@ -70,5 +72,19 @@ func TestSensitivityFailsClosedOnMalformedOrRefusal(t *testing.T) {
 				t.Fatalf("sensitive=%v error=%v", got, err)
 			}
 		})
+	}
+}
+
+func TestSensitivityReportsProviderUsageOnRefusal(t *testing.T) {
+	var got cost.Usage
+	ctx := providerusage.WithCollector(context.Background(), func(v cost.Usage) { got = v })
+	c := Client{APIKey: "test", HTTP: &http.Client{Transport: roundTrip(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"model":"gpt-4o-mini-2024-07-18","service_tier":"default","usage":{"prompt_tokens":100,"completion_tokens":10,"total_tokens":110},"choices":[{"finish_reason":"stop","message":{"refusal":"declined"}}]}`)), Header: make(http.Header)}, nil
+	})}}
+	if _, err := c.Sensitive(ctx, "I will try again."); err == nil {
+		t.Fatal("refusal succeeded")
+	}
+	if !got.Measured || got.Price != 21000 {
+		t.Fatalf("usage=%+v", got)
 	}
 }

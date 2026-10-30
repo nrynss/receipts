@@ -38,9 +38,15 @@ func (m *fakeMeter) WithActive(_ auth.ChannelContext, fn func(*runtime.Channel) 
 	return fn(nil)
 }
 
-type fakeLedger struct{ segments []receipt.Segment }
+type fakeLedger struct {
+	segments []receipt.Segment
+	err      error
+}
 
 func (l *fakeLedger) AddLiveSegment(_ context.Context, _, _, _ string, _ uint64, s receipt.Segment) error {
+	if l.err != nil {
+		return l.err
+	}
 	l.segments = append(l.segments, s)
 	return nil
 }
@@ -176,4 +182,44 @@ func TestWorkerRejectsUnverifiedDurationAndFuture(t *testing.T) {
 
 func (l *fakeLedger) ClaimAudioChunk(context.Context, string, string, string, uint64, time.Duration, time.Duration) error {
 	return nil
+}
+
+func TestWorkerNotifiesOnlyPersistedBroadcasterSegments(t *testing.T) {
+	m := &fakeMeter{active: true}
+	l := &fakeLedger{}
+	var notified []receipt.Segment
+	w := Worker{Authority: auth.ChannelContext{ChannelID: "one", LiveSessionID: "s", Generation: 1}, Meter: m, Ledger: l, SoleBroadcaster: true, NowOffset: func() time.Duration { return time.Hour }, Transcriber: fakeTranscriber(func(context.Context, []byte) (string, error) { return "speech", nil }), OnSegment: func(s receipt.Segment) {
+		if len(l.segments) != 1 || l.segments[0] != s {
+			t.Fatal("callback before persistence")
+		}
+		notified = append(notified, s)
+	}}
+	c := Chunk{Sequence: 1, Start: time.Second, End: 2 * time.Second, WAV: testWAV()}
+	if err := w.Submit(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	if len(notified) != 1 || len(l.segments) != 1 || notified[0].ID == "" || notified[0] != l.segments[0] {
+		t.Fatalf("persisted=%+v notified=%+v", l.segments, notified)
+	}
+	l.err = errors.New("write failed")
+	c.Sequence++
+	c.Start = c.End
+	c.End += time.Second
+	if err := w.Submit(context.Background(), c); err == nil {
+		t.Fatal("failed persistence succeeded")
+	}
+	if len(notified) != 1 {
+		t.Fatal("notified failed persistence")
+	}
+	l.err = nil
+	w.SoleBroadcaster = false
+	c.Sequence++
+	c.Start = c.End
+	c.End += time.Second
+	if err := w.Submit(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	if len(notified) != 1 {
+		t.Fatal("notified uncertain speech")
+	}
 }
