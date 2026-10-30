@@ -13,7 +13,7 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 | TA | [Accounts and judge onboarding](PHASE-A-accounts.md) | 3 / 4 | Identity, isolation and onboarding/OBS pairing complete; hosted judge acceptance remains |
 | P2 | [Offline receipt and appeal loop](PHASE-2-receipt-loop.md) | 4 / 4 | Complete; capture, detection, appeals, lore and full offline replay verified |
 | P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 3 / 3 | Complete; recovery and owner-reported real OBS rehearsal passed |
-| P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 2 / 4 | Authorized adapters and live chat transport complete; clip worker acceptance and session authority remain |
+| P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 3 / 4 | Authorized adapters, chat transport and local clip fallback acceptance complete; live-session authority in progress |
 | P5 | [Live transcription and contradiction judging](PHASE-5-intelligence.md) | 0 / 4 | Not started |
 | P6 | [Live proof, operations and submission](PHASE-6-ship.md) | 0 / 4 | Not started |
 
@@ -95,4 +95,4 @@ The integrated capture/isolation tree passed the full offline gate and uncached 
 
 ## Ready next
 
-T3.3 recovery and actual local OBS rehearsal are complete. T4.2 EventSub/chat transport is complete. T4.3 clip jobs are implemented pending acceptance. TA.4 anonymous recorded demo is implemented; full hosted acceptance waits for T6.1. T4.4 live-session authority unlocks actual listening activation. TA.3 local OBS acceptance and T4.1 bounded live capability acceptance passed. T6.1 deploys after TA.3; TA.4 verifies the deployed experience and gates T6.3 judge readiness.
+T3.3 recovery and actual local OBS rehearsal are complete. T4.2 EventSub/chat transport is complete. T4.3 clip jobs and local OBS fallback acceptance are complete; video/deployed playback and actual feedback checks remain release acceptance. TA.4 anonymous recorded demo is implemented; full hosted acceptance waits for T6.1. T4.4 live-session authority is being implemented; audio/transcription activation remains dependent on T5.1. TA.3 local OBS acceptance and T4.1 bounded live capability acceptance passed. T6.1 deploys after TA.3; TA.4 verifies the deployed experience and gates T6.3 judge readiness.

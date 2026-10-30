@@ -7,11 +7,14 @@
   "fresh_synthetic_database": true,
   "saved_claim_visible_in_database": true,
   "existing_clip_reference_attached": true,
-  "obs_pairing": "pending owner rehearsal",
+  "obs_pairing": "owner source paired; setup list independently verified after loading",
   "obs_video_verified": false,
   "obs_audio_verified": false,
   "obs_scene_routing_verified": false,
   "playback_verified": false,
   "deployed_origin_verified": false,
-  "result": "Production /obs route served successfully; actual OBS playback and audio remain pending owner confirmation"
+  "result": "Actual local OBS transcript fallback is readable while video playback remains unverified; local fallback criterion passed. Deployed playback and real capture feedback remain T6.1/T6.2.",
+  "obs_saved_claim_readable": true,
+  "local_fallback_criterion_passed": true,
+  "owner_observation": "Saved claim visible with paused/blocked player; owner could not identify a Play control. No successful video/audio playback is claimed."
 }

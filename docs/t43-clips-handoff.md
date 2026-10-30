@@ -27,3 +27,7 @@
 - Current `/obs` playback, routing to the intended OBS scene, and audio behavior require owner confirmation in actual OBS. Do not record a successful playback/audio result from an iframe load or a browser-only check.
 - Deployed-origin embed behavior remains T6.1/TA.4. Production feedback with capture remains T6.2 after T5.1. Do not infer transcript completeness from a clip that becomes ready later.
 - `attempts` is create-attempt count; `polls` is readiness-poll count. Consumers should not treat the former as a combined request count.
+
+## Principal local acceptance
+
+The owner confirmed the saved claim remains readable in actual paired OBS while the player is paused/blocked; the Play control could not be identified, so video and audio playback are explicitly unverified. This passes T4.3's documented local transcript-fallback alternative. The plan assigns deployed-origin playback to T6.1 and actual capture/overlay feedback checks to T6.2, avoiding the prior deployment dependency cycle. See [OBS evidence](evidence/t43-obs.json).

@@ -18,7 +18,7 @@ Build and run the current server using the [development instructions](docs/devel
 | TA — Accounts and onboarding | 3/4 | Identity, isolation and OBS pairing verified; anonymous recorded demo implemented; hosted judge acceptance pending |
 | P2 — Offline receipt loop | 4/4 | Capture, detection, appeals, lore and deterministic full-loop replay verified |
 | P3 — Overlay/controls | 3/3 | Overlay, owner controls and actual local OBS/SSE recovery verified |
-| P4 — Twitch integration | 2/4 | Authorized adapters and real chat commands verified; clip acceptance and session authority pending |
+| P4 — Twitch integration | 3/4 | Authorized adapters, real chat and local clip fallback verified; session authority in progress |
 | P5 — Intelligence | 0/4 | Live transcription, extraction, judging and evaluation pending |
 | P6 — Release | Planned | Deployment, live proof and judge readiness |
 

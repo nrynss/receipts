@@ -2,7 +2,7 @@
 
 **Goal:** Replace recorded Twitch adapters while keeping the proven product loop and explicit failure states.
 
-**Status:** in-progress (2/4)
+**Status:** in-progress (3/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -38,7 +38,7 @@ Implement verified welcome/subscription, keepalive, reconnect and revocation beh
 requires: T4.1, T2.1, T3.1
 fixture-ok: yes
 owns: internal/twitch/clips/, internal/receipt/, testdata/twitch/
-status: in-progress
+status: done
 ```
 
 Use the proven clip API contract. Persist pending work, poll with bounded retries and represent ready, unavailable and failed separately. Correlate clip timing with transcript evidence; never imply a late clip contains words it missed. Verify the local OBS embed or a truthful transcript fallback and document audio routing that prevents feedback. T6.1 owns deployed-origin embed acceptance; T6.2 verifies feedback behavior with the actual T5.1 capture pipeline.
@@ -87,6 +87,8 @@ T4.2 transport and T4.3 clip jobs are assigned to separate Luna worktrees from `
 
 T4.2 is reviewed from `b2c2ac8`. The principal ran the offline five-service acceptance and a real bounded EventSub run: the owner typed all five commands, and capture, vote, pause, resume and lore assertions passed. See [live transport evidence](../docs/evidence/t42-live-transport.json). Recorded transcript input and an isolated synthetic ledger avoid claiming live audio/model activation; T4.4 still owns that activation.
 
-T4.3 implementation is reviewed from `99cc2ed`, `0b0572a` and `0b6685a`: durable one-job leases and create intents prevent duplicate remote creation after uncertain failures/restart, scoped final commits fence stale results, retries/deadlines are bounded, and transcript evidence remains authoritative. Real SQLite integration tests exposed and fixed create-attempt accounting for 429 responses. The principal read-only check found Twitch's channel-path clip URL format; the corrected adapter accepts safe supported formats and verifies broadcaster identity. Subsequent existing-clip readiness passed with two requests; [evidence](../docs/evidence/t43-live-readiness.json). Actual OBS/deployed-origin playback and feedback/audio routing remain unverified, so T4.3 remains in-progress. `Worker.Attach` is ready for T4.4 trusted activation; no unverified runtime is enabled here.
+T4.3 implementation is reviewed from `99cc2ed`, `0b0572a` and `0b6685a`: durable one-job leases and create intents prevent duplicate remote creation after uncertain failures/restart, scoped final commits fence stale results, retries/deadlines are bounded, and transcript evidence remains authoritative. Real SQLite integration tests exposed and fixed create-attempt accounting for 429 responses. The principal read-only check found Twitch's channel-path clip URL format; the corrected adapter accepts safe supported formats and verifies broadcaster identity. Subsequent existing-clip readiness passed with two requests; [evidence](../docs/evidence/t43-live-readiness.json). Actual local OBS transcript-fallback acceptance subsequently passed. Video/audio and deployed-origin playback remain unverified; release checks are assigned to T6.1/T6.2. `Worker.Attach` is ready for T4.4 trusted activation; no unverified runtime is enabled here.
 
 T4.4 authority and T4.3 local OBS acceptance are assigned to separate Luna worktrees from `a2f54f4`. T4.3 local acceptance precedes deployment; deployed-origin playback belongs to T6.1, and real capture/overlay feedback verification belongs to T6.2 after T5.1. This removes the T4.3/T6.1 acceptance cycle without treating local tests as deployment evidence.
+
+T4.3 local fallback acceptance passed against the production-built paired OBS route: the owner reported a readable saved claim beside a paused/blocked player and could not identify a Play control. Video/audio playback remains unverified and is not claimed. The local fallback criterion is satisfied; safe routing is documented, deployed-origin playback belongs to T6.1 and actual capture-feedback rehearsal to T6.2. See [local OBS evidence](../docs/evidence/t43-obs.json). Principal reviewed implementation revision: `71088c2`.
