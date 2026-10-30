@@ -41,9 +41,10 @@ func (s *Store) VerifyLiveSession(ctx context.Context, accountID, channelID, ses
 }
 
 type PendingChannelReview struct {
-	ID        string
-	Claim     string
-	CreatedAt time.Time
+	ID           string
+	Claim        string
+	EvidenceText string
+	CreatedAt    time.Time
 }
 
 // PendingReviews omits voided, sensitive and expired claims even in the
@@ -52,7 +53,7 @@ func (s *Store) PendingReviews(ctx context.Context, accountID, channelID string,
 	if limit <= 0 || limit > 100 {
 		limit = 100
 	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT v.id,r.claim,v.created_at FROM reviews v JOIN detections d ON d.id=v.detection_id JOIN receipts r ON r.id=d.receipt_id JOIN accounts a ON a.channel_id=r.channel_id WHERE a.id=? AND a.status='connected' AND r.channel_id=? AND d.channel_id=r.channel_id AND v.state='open' AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) ORDER BY v.created_at,v.id LIMIT ?`, accountID, channelID, millis(s.now()), limit)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT v.id,r.claim,d.evidence_text,v.created_at FROM reviews v JOIN detections d ON d.id=v.detection_id JOIN receipts r ON r.id=d.receipt_id JOIN accounts a ON a.channel_id=r.channel_id WHERE a.id=? AND a.status='connected' AND r.channel_id=? AND d.channel_id=r.channel_id AND v.state='open' AND r.validity='valid' AND r.sensitive=0 AND (r.expires_at IS NULL OR r.expires_at>?) ORDER BY v.created_at,v.id LIMIT ?`, accountID, channelID, millis(s.now()), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +62,7 @@ func (s *Store) PendingReviews(ctx context.Context, accountID, channelID string,
 	for rows.Next() {
 		var v PendingChannelReview
 		var at int64
-		if err = rows.Scan(&v.ID, &v.Claim, &at); err != nil {
+		if err = rows.Scan(&v.ID, &v.Claim, &v.EvidenceText, &at); err != nil {
 			return nil, err
 		}
 		v.CreatedAt = time.UnixMilli(at).UTC()

@@ -2,7 +2,7 @@
 
 **Goal:** Unify the visual identity around the "Broadcast Ledger / Pro-Wrestling Receipt" aesthetic, fix streamer-dock and overlay UX gaps, and polish all user-facing copy before P6 deployment.
 
-**Status:** not-started (0/4)
+**Status:** in-progress (3/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -29,7 +29,7 @@ Introduce the unified **Dark Forest & Parchment Ledger** design system, the orig
 requires: TU.1, T1.4, T2.4, T3.3
 fixture-ok: yes
 owns: web/src/lib/overlay/, web/src/lib/events/recovery.ts, web/src/routes/+page.svelte, web/src/routes/page.test.ts, web/src/routes/demo/, internal/demo/
-status: not-started
+status: complete
 ```
 
 Build on the landed anonymous recorded-demo implementation (`431ca1e`); hosted `TA.4` acceptance remains after `T6.1` deployment. Polish `Overlay.svelte` and `recovery.ts` so a live `stamp` arrival animates and automatically reveals the `THE EVIDENCE` column (~1.5s after landing) instead of staying stuck in a single-column view. Remove duplicate full-quote rendering in the evidence pane when a clip iframe is mounted, add a visual tug-of-war vote bar for `appeal`, truncate visually noisy UUIDs in the header while keeping the full ID accessible, and apply the broadcast-ready copy table below. Replace the blank default view on `/` (when no `?fixture` parameter is present) with the full landing page: hero, 3-step explanation strip, primary CTAs (`/demo/` and `/account`) and an interactive 4-state `<Overlay />` preview switcher. Upgrade `/demo/` to mount the real `<Overlay />` with stage tabs (`1. Stamp`, `2. Evidence`, `3. Appeal Vote`, `4. Verdict`), a structured broadcast/chat timeline, a simulated Twitch chat reply box for `!lore`, and aligned claim text.
@@ -42,7 +42,7 @@ Build on the landed anonymous recorded-demo implementation (`431ca1e`); hosted `
 requires: TU.1, T3.2, TA.3
 fixture-ok: yes
 owns: web/src/routes/control/, web/src/lib/control/, web/src/routes/account/, web/src/routes/obs/, internal/api/ledger.go, internal/store/channel_reads.go
-status: not-started
+status: complete
 ```
 
 Bring `/control`, `/account` and `/obs` into the Dark Forest & Parchment Ledger design system and resolve five concrete UX gaps:

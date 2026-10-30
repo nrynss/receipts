@@ -1,11 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { clipEmbed, receiptAge, type Display } from './model';
-  let { display }: { display: Display } = $props();
+  let { display, recordedPreview = false }: { display: Display; recordedPreview?: boolean } = $props();
   let now = $state(Date.now());
   let hostname = $state('');
   let clipFailed = $state(false);
   let clipLoaded = $state(false);
+  let revealEvidence = $state(false);
+  $effect(() => {
+    revealEvidence = false;
+    if (display.state === 'stamp' && display.animate) {
+      const timer = window.setTimeout(() => { revealEvidence = true; }, 1500);
+      return () => window.clearTimeout(timer);
+    }
+  });
   let url = $derived(display.receipt?.clip_status === 'ready' ? clipEmbed(display.receipt.clip_url, hostname) : undefined);
   onMount(() => {
     hostname = window.location.hostname;
@@ -16,36 +24,37 @@
     const currentURL = url; clipFailed = false; clipLoaded = false;
     if (currentURL) { const timer = setTimeout(() => { if (!clipLoaded) clipFailed = true; }, 8000); return () => clearTimeout(timer); }
   });
-  const verdictLabel: Record<string, string> = { admitted: 'Admitted', upheld: 'Upheld', overturned: 'Overturned', context_changed: 'Context changed', inconclusive: 'Inconclusive', undecided: 'Awaiting a decision' };
-  let remaining = $derived(display.appeal ? Math.max(0, Math.ceil((Date.parse(display.appeal.closes_at) - now) / 1000)) : 0);
+  const verdictLabel: Record<string, string> = { admitted: 'Promise Broken (Admitted)', upheld: 'Upheld by Chat', overturned: 'Overturned by Chat', context_changed: 'Context Changed', inconclusive: 'Inconclusive', undecided: 'Awaiting Decision' };
+  let remaining = $derived(display.appeal ? Math.max(0, Math.ceil((Date.parse(display.appeal.closes_at) - (recordedPreview ? Date.parse(display.receipt?.created_at ?? '') : now)) / 1000)) : 0);
+  function formatDuration(seconds: number) { const minutes = Math.floor(seconds / 60); return minutes ? `${minutes}m ${seconds % 60}s` : `${seconds}s`; }
 </script>
 
 {#if display.state !== 'idle' && display.receipt}
   <section class:long={display.receipt.claim.length > 180 || (display.receipt.clipped_by?.length ?? 0) > 40 || display.receipt.id.length > 40} class:arrive={display.state === 'stamp' && display.animate} class="receipt" aria-label="Receipt overlay">
-    <div class="topline"><span class="brand">THE STREAM REMEMBERS</span><span class="number">#{display.receipt.id}</span></div>
+    <div class="topline"><span class="brand">THE STREAM REMEMBERS</span><span class="number" title={display.receipt.id} aria-label={`Receipt ${display.receipt.id}`}>RECEIPT #{display.receipt.id.slice(0, 8)}<span class="sr-only"> {display.receipt.id}</span></span></div>
     <div class="content">
       <div class="copy">
         <div class="stamp">RECEIPT<span class="stamp-dot">.</span></div>
         <p class="label">THE PROMISE</p>
         <blockquote>“{display.receipt.claim}”</blockquote>
-        <p class="credit">{display.receipt.clipped_by ? `Caught by @${display.receipt.clipped_by}` : 'Viewer credit unavailable'} <span>·</span> {receiptAge(display.receipt.created_at, now)}</p>
+        <p class="credit">{display.receipt.clipped_by ? `Caught by @${display.receipt.clipped_by}` : 'Caught by chat'} <span>·</span> {recordedPreview ? `Recorded preview · sample timestamp ${display.receipt.created_at.replace('T', ' ').replace(/(?:\.\d+)?Z$/, ' UTC')}` : receiptAge(display.receipt.created_at, now)}</p>
       </div>
-      {#if display.state !== 'stamp'}
+      {#if display.state !== 'stamp' || revealEvidence}
         <div class="side">
           {#if display.state === 'appeal' && display.appeal}
             <p class="label">CHAT IS THE JURY</p><h2>Appeal in progress</h2>
-            <div class="votes"><span>UPHOLD <b>{display.appeal.uphold_votes}</b></span><span>OVERTURN <b>{display.appeal.overturn_votes}</b></span></div>
-            <p class="hint">Vote in chat: !uphold or !overturn</p><p class="hint">{remaining > 0 ? `${remaining}s remaining` : 'Voting closed'}</p>
+            <div class="vote-bar" role="img" aria-label={`${display.appeal.uphold_votes} uphold votes and ${display.appeal.overturn_votes} overturn votes`}><span style={`width:${(display.appeal.uphold_votes + display.appeal.overturn_votes) ? display.appeal.uphold_votes * 100 / (display.appeal.uphold_votes + display.appeal.overturn_votes) : 50}%`}></span></div><div class="votes"><span>UPHOLD <b>{display.appeal.uphold_votes}</b></span><span>OVERTURN <b>{display.appeal.overturn_votes}</b></span></div>
+            <p class="hint">Type !uphold or !overturn in chat</p><p class="hint">{recordedPreview ? `Recorded vote · ${formatDuration(remaining)} remaining at stage start` : remaining > 0 ? `${remaining}s remaining` : 'Voting closed'}</p>
           {:else if display.state === 'verdict'}
             <p class="label">ON THE RECORD</p><h2>{verdictLabel[display.receipt.verdict] ?? 'Decision recorded'}</h2>
-            <p class="hint">The verdict is in.</p>
+            <p class="hint">The verdict is on the record.</p>
           {:else}
             <p class="label">THE EVIDENCE</p>
             <div class="media">
               {#if url && !clipFailed}
                 <iframe src={url} title="Receipt clip" allow="autoplay; fullscreen" onload={() => { clipLoaded = true; }} onerror={() => { clipFailed = true; }}></iframe>
               {/if}
-              <div class="fallback"><span>{display.receipt.clip_status === 'pending' ? 'CLIP PENDING' : url && !clipFailed ? (clipLoaded ? 'CLIP FRAME LOADED · VERIFY PLAYBACK' : 'LOADING CLIP') : 'CLIP EMBED UNAVAILABLE'}</span><p>“{display.receipt.claim}”</p><small>Saved claim · the clip may omit words; transcript evidence remains authoritative.</small></div>
+              <div class="fallback"><span>{display.receipt.clip_status === 'pending' ? 'CLIP PENDING · TRANSCRIPT ON FILE' : url && !clipFailed ? (clipLoaded ? 'CLIP FRAME LOADED · VERIFY PLAYBACK' : 'LOADING TWITCH CLIP…') : 'CLIP EMBED UNAVAILABLE · TRANSCRIPT ON FILE'}</span>{#if !(url && !clipFailed)}<p>“{display.receipt.claim}”</p>{/if}<small>Saved claim from live transcript · transcript evidence remains authoritative if clip timing shifts.</small></div>
             </div>
           {/if}
         </div>
@@ -69,6 +78,8 @@
   .long blockquote { font-size:clamp(15px,2vw,26px); }
   .long .fallback p { font-size:clamp(13px,1.3vw,17px); }
   .footer { padding:8px 24px; color:#f1b969; }
+  .vote-bar { height:14px; margin:16px 0 10px; background:#b42e25; border:2px solid #171d1a; }.vote-bar span { display:block; height:100%; max-width:100%; background:#f1b969; border-right:2px solid #171d1a; }
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   @media(max-width:650px) { .content { padding:18px; gap:16px; }.side { padding-left:15px; }.topline,.footer { padding:8px 16px; font-size:10px; }.credit { font-size:13px; }.label { margin-top:16px; }.fallback { padding:10px; }.fallback p { font-size:13px; } }
   @media(prefers-reduced-motion:reduce) { .arrive { animation:none; } }
 </style>

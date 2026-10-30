@@ -8,5 +8,5 @@ const receipt: DisplayReceipt = {
 export function fixture(state: OverlayState): Display {
   if (state === 'idle') return { state };
   return { state, receipt: state === 'verdict' ? { ...receipt, verdict: 'upheld' } : receipt,
-    animate: state === 'stamp', appeal: state === 'appeal' ? { receipt_id: receipt.id, uphold_votes: 28, overturn_votes: 12, closes_at: '2099-01-01T00:00:00Z' } : undefined };
+    animate: state === 'stamp', appeal: state === 'appeal' ? { receipt_id: receipt.id, uphold_votes: 28, overturn_votes: 12, closes_at: '2025-01-01T00:01:21Z' } : undefined };
 }

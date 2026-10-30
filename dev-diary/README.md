@@ -15,8 +15,8 @@ Build one complete moment early: a promise is captured, a spoken contradiction p
 | P3 | [OBS overlay and streamer controls](PHASE-3-overlay.md) | 3 / 3 | Complete; recovery and owner-reported real OBS rehearsal passed |
 | P4 | [Live Twitch chat and evidence](PHASE-4-twitch.md) | 4 / 4 | Complete; authorized adapters, chat, local clip fallback and real stream-end authority/capture exit verified |
 | P5 | [Live transcription and contradiction judging](PHASE-5-intelligence.md) | 4 / 4 | Evaluation and human label review complete; review-only policy retained |
-| PU | [UI, UX and copy overhaul](PHASE-U-ui-overhaul.md) | 1 / 4 | TU.1 landed; TU.2 and TU.3 ready in parallel |
-| P6 | [Live proof, operations and submission](PHASE-6-ship.md) | 1 / 4 | TU.1 landed; TU.2 and TU.3 ready in parallel |
+| PU | [UI, UX and copy overhaul](PHASE-U-ui-overhaul.md) | 3 / 4 | Brand, overlay/demo and streamer setup complete; TU.4 chat feedback remains |
+| P6 | [Live proof, operations and submission](PHASE-6-ship.md) | 0 / 4 | Deployment waits for TU.4 |
 
 ## Dependency map
 

@@ -74,7 +74,7 @@ func TestLedgerReaderScopesStoredDataAndFiltersPrivateClaims(t *testing.T) {
 		t.Fatal("overlay leaked foreign or internal evidence")
 	}
 	reviews, err := reader.ReviewQueueFor(request(a), a)
-	if err != nil || len(reviews) != 1 || reviews[0].Claim != ra.Claim {
+	if err != nil || len(reviews) != 1 || reviews[0].Claim != ra.Claim || reviews[0].Reason != "I will never take that shortcut again." {
 		t.Fatalf("reviews=%+v err=%v", reviews, err)
 	}
 	if _, err := reader.OverlaySnapshotFor(request(a), b); err == nil {

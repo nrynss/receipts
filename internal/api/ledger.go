@@ -66,7 +66,11 @@ func (l LedgerReader) ReviewQueueFor(r *http.Request, a auth.ChannelContext) ([]
 	}
 	out := make([]events.ReviewItem, 0, len(values))
 	for _, v := range values {
-		out = append(out, events.ReviewItem{ID: v.ID, Claim: v.Claim, Reason: "uncertain contradiction", CreatedAt: v.CreatedAt})
+		reason := v.EvidenceText
+		if reason == "" {
+			reason = "Possible contradiction needs review."
+		}
+		out = append(out, events.ReviewItem{ID: v.ID, Claim: v.Claim, Reason: reason, CreatedAt: v.CreatedAt})
 	}
 	return out, r.Context().Err()
 }

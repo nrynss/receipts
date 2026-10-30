@@ -20,7 +20,8 @@ Build and run the current server using the [development instructions](docs/devel
 | P3 — Overlay/controls | 3/3 | Overlay, owner controls and actual local OBS/SSE recovery verified |
 | P4 — Twitch integration | 4/4 | Authorized adapters, chat, local clip fallback and real stream-end capture exit verified |
 | P5 — Intelligence | 4/4 | Evaluation and human label review complete; automatic stamps remain disabled by policy |
-| P6 — Release | Planned | Deployment, live proof and judge readiness |
+| PU: UI and copy | 3/4 | Brand, overlay/demo and streamer setup complete; chat feedback remains |
+| P6: Release | 0/4 | Deployment, live proof and judge readiness |
 
 [TA implementation phase and acceptance criteria](dev-diary/PHASE-A-accounts.md), with [account scope](docs/accounts-scope.md). TA.1 identity/sessions and TA.2 channel isolation are implemented, TA.3 joins the overlay work, and TA.4 verifies the deployed judge experience before submission preparation.
 
@@ -35,7 +36,7 @@ The replay database path must be new. The CLI replay persists transcript fixture
 
 ## Planned streamer experience
 
-Twitch sign-in and OBS pairing for the owner’s channel are implemented. Owners reach the private control dock at `/control` from account setup. Local OBS pairing/recovery acceptance passed. The anonymous recorded demo is available at `/demo/`. Verified session lifecycle is implemented; actual audio/intelligence activation and hosted judge acceptance remain open.
+Twitch sign-in and OBS pairing for the owner’s channel are implemented. Owners reach the private control dock at `/control` from account setup. Local OBS pairing/recovery acceptance passed. The anonymous recorded demo is available at `/demo/`. Verified session lifecycle and audio/intelligence integration are implemented. Contradictions require owner approval before a stamp appears. Hosted judge acceptance remains open.
 
 Add the overlay to OBS as a browser source. Chat commands: `!receipt`, `!lore`, `!uphold`, `!overturn`; the streamer and mods also have `!receipts off` and `!void`.
 
