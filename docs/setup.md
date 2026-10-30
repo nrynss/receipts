@@ -37,5 +37,22 @@ at most one Twitch token validation request and one `GET /helix/streams`
 request, with a five-second client timeout and a 15-second overall deadline.
 It has no chat, clip, EventSub subscription, model, or spend side effects. It
 requires explicit `RECEIPTS_LIVE_CONNECTION=1` plus `TWITCH_CLIENT_ID`,
-`TWITCH_ACCESS_TOKEN`, and `TWITCH_BROADCASTER_ID`. It is intentionally not
-part of `tools/check.sh` and has not been run as part of this change.
+`TWITCH_ACCESS_TOKEN`, and `TWITCH_BROADCASTER_ID`.
+
+`TestLiveAdapterWrites` is a separate, explicitly opted-in acceptance check.
+While the broadcaster is live, it validates the token and matching broadcaster,
+checks required scopes and live status through the channel-bound adapter, then
+sends exactly one fixed `Receipts capability test` chat message and creates one
+clip through that adapter. Its 45-second overall deadline and eight-request
+cap includes token validation and Helix calls; the test token provider refuses
+refresh, so a 401 stops the probe without retry. It makes no EventSub, model
+or other service calls. If the channel is offline, it stops before either
+write. The validated token identity must match `TWITCH_BROADCASTER_ID`, the
+configured Twitch client, and the nrynss login. The harness supplies that
+validated grant through an in-memory resolver and token provider; it exercises
+the channel-bound adapter requests, not hosted account persistence or live
+refresh. EventSub subscription and receive transport remain separate T4.2
+acceptance because the user authorized only one chat message and one clip here.
+Run only with the owner's approval for those exact effects and
+`RECEIPTS_LIVE_ADAPTER_WRITES=1`, plus the same three Twitch variables. It is
+intentionally not part of `tools/check.sh`.

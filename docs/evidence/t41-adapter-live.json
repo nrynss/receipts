@@ -1,0 +1,12 @@
+{
+  "channel": "nrynss",
+  "probe": "TestLiveAdapterWrites",
+  "token_validation": true,
+  "client_and_broadcaster_match": true,
+  "required_scopes_present": true,
+  "adapter_stream_live": false,
+  "chat_attempted": false,
+  "clip_attempted": false,
+  "twitch_requests": 2,
+  "result": "Stopped at offline-channel precondition before either write"
+}
