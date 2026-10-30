@@ -5,6 +5,7 @@
   import { decodeSnapshot } from '$lib/api/contracts';
   import { createOverlayRecovery } from '$lib/events/recovery';
   import { type Display } from '$lib/overlay/model';
+  import ReceiptMark from '$lib/brand/ReceiptMark.svelte';
   let display = $state<Display>({state:'idle'});
   let paired = $state(false);
   let code = $state('');
@@ -56,12 +57,14 @@
   });
 </script>
 <svelte:head><title>Receipts OBS source</title></svelte:head>
-<main class:paired>{#if paired}<Overlay {display} />{:else}<section class="pairing"><p>{status}</p>{#if code}<strong>{code}</strong>{/if}</section>{/if}</main>
+<main class:paired>{#if paired}<Overlay {display} />{:else}<section class="pairing"><ReceiptMark size={72} /><p class="eyebrow">RECEIPTS · OBS OVERLAY</p><p>{status}</p>{#if code}<strong>{code}</strong>{/if}</section>{/if}</main>
 <style>
   :global(html), :global(body) { margin:0; background:transparent; }
   main { box-sizing:border-box; width:100%; height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem; font:1.3rem system-ui; }
   main.paired { align-items:flex-end; }
-  .pairing { box-sizing:border-box; max-width:min(40rem,100%); padding:2rem 3rem; text-align:center; color:#f4eedc; background:#171d1a; border:3px solid #f1b969; }
+  .pairing { box-sizing:border-box; max-width:min(40rem,100%); padding:2rem 3rem; text-align:center; color:#f4eedc; background:#171d1a; border:3px solid #f1b969; box-shadow:8px 8px 0 #080b09; }
+  .pairing :global(svg) { display:block; margin:0 auto .75rem; }
   .pairing p { margin:0 0 1rem; }
+  .pairing .eyebrow { color:#f1b969; font-size:.8rem; font-weight:800; letter-spacing:.14em; }
   .pairing strong { display:block; font-size:clamp(1.5rem,4vw,3rem); letter-spacing:.12em; overflow-wrap:anywhere; }
 </style>
