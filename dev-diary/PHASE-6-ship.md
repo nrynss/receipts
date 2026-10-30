@@ -15,7 +15,7 @@ owns: deploy/, docs/operations.md, cmd/receipts/
 status: not-started
 ```
 
-Package one binary with the overlay and document ffmpeg/streamlink prerequisites. Deploy to the selected host with HTTPS, persistent SQLite, private controls and read-only overlay access. Check current host configuration before changing shared services. Bound disk/transcript retention, test backup restore and token revocation, and expose health without credentials or claim content. Configure the real embed origin.
+Package one binary with the overlay and document ffmpeg/streamlink prerequisites. Deploy to the selected host with HTTPS, persistent SQLite, private controls and read-only overlay access. Check current host configuration before changing shared services. Bound disk/transcript retention, test backup restore and token revocation, and expose health without credentials or claim content. Configure the real embed origin and verify the Twitch clip embed or its truthful transcript fallback in OBS on that deployed origin.
 
 **Done when:** A clean setup can follow the docs. Restart retains receipts and closes expired appeals once; restore recovers the ledger. Public access cannot reach control endpoints or private transcripts.
 
@@ -28,7 +28,7 @@ owns: docs/evidence/, docs/obs.md
 status: not-started
 ```
 
-Run the original script on our channel: spoken promise, viewer !receipt, real clip, unrelated speech, spoken contradiction, stamp, streamer appeal, chat votes and !lore. Include pause/void, offline stop and one graceful failure. Record capture-to-receipt and contradiction-to-stamp latency, spend and any manual intervention. Keep fixture replay clearly labelled and separate from the real run.
+Run the original script on our channel: spoken promise, viewer !receipt, real clip, unrelated speech, spoken contradiction, stamp, streamer appeal, chat votes and !lore. Include pause/void, offline stop and one graceful failure. Verify overlay clip audio cannot feed back into the real listening source; this check requires the T5.1 capture pipeline. Record capture-to-receipt and contradiction-to-stamp latency, spend and any manual intervention. Keep fixture replay clearly labelled and separate from the real run.
 
 **Done when:** Evidence demonstrates the entire real Twitch path, actual viewer-visible overlay and correct verdict. Any manual speaker restriction or transcript fallback is disclosed.
 
