@@ -201,6 +201,8 @@ func scopeFor(method, endpoint string) string {
 		return "user:write:chat"
 	case endpoint == "/clips" && method == http.MethodPost:
 		return "clips:edit"
+	case endpoint == "/clips" && method == http.MethodGet:
+		return "-"
 	case endpoint == "/eventsub/subscriptions" && method == http.MethodPost:
 		return "user:read:chat"
 	case endpoint == "/streams" && method == http.MethodGet:

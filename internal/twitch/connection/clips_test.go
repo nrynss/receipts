@@ -16,7 +16,7 @@ func TestGetClipReadinessUsesBoundHelixAndValidatesReturnedURL(t *testing.T) {
 		name, fixture string
 		ready         bool
 		bad           bool
-	}{{"processing", "processing.json", false, false}, {"ready", "ready.json", true, false}, {"hostile URL", "hostile-url.json", false, true}} {
+	}{{"processing", "processing.json", false, false}, {"ready channel URL", "ready.json", true, false}, {"ready clips host URL", "ready-canonical.json", true, false}, {"hostile URL", "hostile-url.json", false, true}, {"wrong broadcaster", "wrong-broadcaster.json", false, true}} {
 		t.Run(tc.name, func(t *testing.T) {
 			body, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "twitch", "clips", tc.fixture))
 			if err != nil {

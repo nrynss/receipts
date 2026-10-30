@@ -247,6 +247,12 @@ func TestProbeStreamStatusWorksWithoutRuntimeAndUsesObservedIdentity(t *testing.
 	}
 }
 
+func TestGetClipsBindingNeedsNoAdditionalScope(t *testing.T) {
+	if got := scopeFor(http.MethodGet, "/clips"); got != "-" {
+		t.Fatalf("GET /clips scope=%q, want no extra scope", got)
+	}
+}
+
 func TestRuntimeCancellationReachesMetadataLookup(t *testing.T) {
 	a := auth.ChannelContext{AccountID: "owner", ChannelID: "local", LiveSessionID: "live", Generation: 1}
 	manager := channelruntime.New(channelruntime.Config{})
