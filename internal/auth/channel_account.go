@@ -70,3 +70,27 @@ func (s *Service) DisconnectProviderAuthorization(ctx context.Context, accountID
 	}
 	return nil
 }
+
+// RevokeProviderAuthorizationIfCurrent marks a rejected token for reconnect
+// only if it is still the token stored for this account. It prevents a late
+// Helix 401 from revoking a grant that has since been reconnected.
+func (s *Service) RevokeProviderAuthorizationIfCurrent(ctx context.Context, accountID, rejectedAccessToken string) error {
+	if rejectedAccessToken == "" {
+		return ErrUnauthorized
+	}
+	subject, err := s.accountSubject(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	lock := s.accountLock(subject)
+	lock.Lock()
+	defer lock.Unlock()
+	row, tokens, err := s.loadAccountTokens(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	if row.Status != "connected" || tokens.Access != rejectedAccessToken {
+		return nil
+	}
+	return s.markReconnectLocked(ctx, accountID)
+}

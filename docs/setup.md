@@ -15,6 +15,8 @@ and create clips. Stream status lookup does not require another scope. The
 adapter binds every Helix operation to the persisted Twitch subject and its
 matching channel platform ID. A logged-in account by itself does not activate a
 live runtime; activation requires trusted live-session authority.
+The owner dashboard can use the bounded stream-status probe before runtime
+activation; its online/offline observation is not proof that capture may start.
 
 The service encrypts credentials at rest and shares TA.1's refresh and token
 validation lifecycle. A single Helix 401 can trigger one refresh and retry. A

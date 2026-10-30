@@ -747,3 +747,27 @@ func TestAccountForChannelReturnsOnlyPersistedMatchingMetadata(t *testing.T) {
 		t.Fatalf("foreign channel metadata error=%v", err)
 	}
 }
+
+func TestLateUnauthorizedCannotRevokeReconnectedGrant(t *testing.T) {
+	f := newAuthFixture(t, filepath.Join(t.TempDir(), "late-unauthorized.db"), nil)
+	_, _, account := login(t, f.service)
+	f.provider.mu.Lock()
+	f.provider.tokens = Tokens{AccessToken: "fresh-access", RefreshToken: "fresh-refresh", ExpiresIn: time.Hour}
+	f.provider.mu.Unlock()
+	_, _, reconnected := login(t, f.service)
+	if reconnected.ID != account.ID {
+		t.Fatalf("reconnected account changed identity: %s != %s", reconnected.ID, account.ID)
+	}
+	if err := f.service.RevokeProviderAuthorizationIfCurrent(context.Background(), account.ID, "old-token"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := f.service.AccessToken(context.Background(), account.ID); err != nil || got != "fresh-access" {
+		t.Fatalf("fresh grant was revoked: %v", err)
+	}
+	if err := f.service.RevokeProviderAuthorizationIfCurrent(context.Background(), account.ID, "fresh-access"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.service.AccessToken(context.Background(), account.ID); !errors.Is(err, ErrReconnect) {
+		t.Fatalf("current rejected grant status=%v", err)
+	}
+}

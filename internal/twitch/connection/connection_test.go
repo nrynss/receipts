@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"receipts/internal/auth"
 	channelruntime "receipts/internal/runtime"
@@ -20,12 +21,15 @@ func (f resolverFunc) Resolve(ctx context.Context, a auth.ChannelContext) (Grant
 }
 
 type tokenFixture struct {
-	calls     atomic.Int32
-	refresh   atomic.Int32
-	accessErr error
+	calls        atomic.Int32
+	refresh      atomic.Int32
+	accessErr    error
+	refreshToken string
+	lost         atomic.Int32
 }
 
 func (f *tokenFixture) AccessToken(context.Context, string) (string, error) {
+	f.calls.Add(1)
 	return "access-a", f.accessErr
 }
 func (f *tokenFixture) RefreshAfterUnauthorized(_ context.Context, _ string, rejected string) (string, error) {
@@ -33,7 +37,14 @@ func (f *tokenFixture) RefreshAfterUnauthorized(_ context.Context, _ string, rej
 	if rejected != "access-a" {
 		return "", auth.ErrReconnect
 	}
+	if f.refreshToken != "" {
+		return f.refreshToken, nil
+	}
 	return "access-b", nil
+}
+func (f *tokenFixture) RevokeProviderAuthorizationIfCurrent(context.Context, string, string) error {
+	f.lost.Add(1)
+	return nil
 }
 
 type rtFunc func(*http.Request) (*http.Response, error)
@@ -78,6 +89,9 @@ func TestStreamLiveBindsIdentityAndRefreshesOnce(t *testing.T) {
 	if tokens.refresh.Load() != 1 {
 		t.Fatalf("refresh calls = %d", tokens.refresh.Load())
 	}
+	if tokens.calls.Load() != 1 {
+		t.Fatalf("access token calls=%d, want one", tokens.calls.Load())
+	}
 }
 
 func TestRepeatedUnauthorizedReportsReconnectWithoutTokenLeak(t *testing.T) {
@@ -85,15 +99,19 @@ func TestRepeatedUnauthorizedReportsReconnectWithoutTokenLeak(t *testing.T) {
 	runtime := channelruntime.New(channelruntime.Config{})
 	_, _ = runtime.Start(context.Background(), a)
 	transport := rtFunc(func(*http.Request) (*http.Response, error) { return response(401, "secret-token-echo"), nil })
+	tokens := &tokenFixture{refreshToken: "access-a"}
 	adapter := Adapter{Runtime: runtime, Resolver: resolverFunc(func(context.Context, auth.ChannelContext) (Grant, error) {
 		return Grant{ClientID: "client", SubjectID: "twitch", ChannelPlatformID: "twitch", Scopes: RequiredScopes()}, nil
-	}), Tokens: &tokenFixture{}, HTTP: &http.Client{Transport: transport}, BaseURL: "https://unit.invalid"}
+	}), Tokens: tokens, HTTP: &http.Client{Transport: transport}, BaseURL: "https://unit.invalid"}
 	_, err := adapter.StreamLive(context.Background(), a)
 	if !errors.Is(err, ErrLost) || strings.Contains(err.Error(), "secret-token") {
 		t.Fatalf("unexpected failure: %v", err)
 	}
 	if _, err := runtime.Resolve(a); err == nil {
 		t.Fatal("authorization loss did not stop the channel runtime")
+	}
+	if tokens.refresh.Load() != 1 || tokens.lost.Load() != 1 {
+		t.Fatalf("refresh/loss calls=%d/%d", tokens.refresh.Load(), tokens.lost.Load())
 	}
 }
 
@@ -153,6 +171,108 @@ func TestStoppingOneChannelLeavesOtherActive(t *testing.T) {
 	}
 	if _, err := manager.Resolve(b); err != nil {
 		t.Fatalf("channel B stopped with A: %v", err)
+	}
+}
+
+func TestUnauthorizedFromRegisteredWorkerCancelsWithoutSelfDeadlock(t *testing.T) {
+	a := auth.ChannelContext{AccountID: "owner", ChannelID: "local", LiveSessionID: "live", Generation: 1}
+	manager := channelruntime.New(channelruntime.Config{})
+	run, err := manager.Start(context.Background(), a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokens := &tokenFixture{refreshToken: "access-a"}
+	adapter := Adapter{Runtime: manager, Resolver: resolverFunc(func(context.Context, auth.ChannelContext) (Grant, error) {
+		return Grant{ClientID: "client", SubjectID: "twitch", ChannelPlatformID: "twitch", Scopes: RequiredScopes()}, nil
+	}), Tokens: tokens, HTTP: &http.Client{Transport: rtFunc(func(*http.Request) (*http.Response, error) { return response(401, "unauthorized"), nil })}, BaseURL: "https://unit.invalid"}
+	done := make(chan struct{})
+	if !run.Go(func(ctx context.Context) { defer close(done); _, _ = adapter.StreamLive(ctx, a) }) {
+		t.Fatal("worker did not start")
+	}
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("worker deadlocked while handling authorization loss")
+	}
+	if !errors.Is(run.Context.Err(), context.Canceled) {
+		t.Fatalf("runtime cancellation=%v", run.Context.Err())
+	}
+	if tokens.lost.Load() != 1 {
+		t.Fatalf("loss handler calls=%d", tokens.lost.Load())
+	}
+}
+
+func TestStaleAuthorizationLossCannotRevokeReplacementRuntime(t *testing.T) {
+	manager := channelruntime.New(channelruntime.Config{})
+	old := auth.ChannelContext{AccountID: "owner", ChannelID: "local", LiveSessionID: "old-live", Generation: 1}
+	if _, err := manager.Start(context.Background(), old); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Stop(old); err != nil {
+		t.Fatal(err)
+	}
+	current := auth.ChannelContext{AccountID: "owner", ChannelID: "local", LiveSessionID: "new-live", Generation: 2}
+	if _, err := manager.Start(context.Background(), current); err != nil {
+		t.Fatal(err)
+	}
+	tokens := &tokenFixture{}
+	adapter := Adapter{Runtime: manager, Tokens: tokens}
+	_ = adapter.authorizationLost(context.Background(), old, "old-token", ErrLost)
+	if tokens.lost.Load() != 0 {
+		t.Fatal("stale response invoked authorization-loss callback")
+	}
+	if _, err := manager.Resolve(current); err != nil {
+		t.Fatalf("stale response canceled replacement: %v", err)
+	}
+}
+
+func TestProbeStreamStatusWorksWithoutRuntimeAndUsesObservedIdentity(t *testing.T) {
+	tokens := &tokenFixture{}
+	var calls atomic.Int32
+	adapter := Adapter{Resolver: resolverFunc(func(context.Context, auth.ChannelContext) (Grant, error) {
+		return Grant{ClientID: "client", SubjectID: "twitch-id", ChannelPlatformID: "twitch-id"}, nil
+	}), Tokens: tokens, HTTP: &http.Client{Transport: rtFunc(func(r *http.Request) (*http.Response, error) {
+		calls.Add(1)
+		if r.URL.Query().Get("user_id") != "twitch-id" {
+			t.Errorf("query user_id=%q", r.URL.Query().Get("user_id"))
+		}
+		return response(200, `{"data":[{"id":"stream"}]}`), nil
+	})}, BaseURL: "https://unit.invalid"}
+	status, err := adapter.ProbeStreamStatus(context.Background(), auth.ChannelContext{AccountID: "owner", ChannelID: "local-channel"})
+	if err != nil || !status.Known || !status.Live || status.ObservedAt.IsZero() {
+		t.Fatalf("status=%#v err=%v", status, err)
+	}
+	if calls.Load() != 1 || tokens.calls.Load() != 1 {
+		t.Fatalf("Helix/token calls=%d/%d", calls.Load(), tokens.calls.Load())
+	}
+}
+
+func TestRuntimeCancellationReachesMetadataLookup(t *testing.T) {
+	a := auth.ChannelContext{AccountID: "owner", ChannelID: "local", LiveSessionID: "live", Generation: 1}
+	manager := channelruntime.New(channelruntime.Config{})
+	run, _ := manager.Start(context.Background(), a)
+	started := make(chan struct{})
+	finished := make(chan error, 1)
+	adapter := Adapter{Runtime: manager, Tokens: &tokenFixture{}, Resolver: resolverFunc(func(ctx context.Context, _ auth.ChannelContext) (Grant, error) {
+		close(started)
+		<-ctx.Done()
+		return Grant{}, ctx.Err()
+	})}
+	go func() { _, err := adapter.StreamLive(context.Background(), a); finished <- err }()
+	<-started
+	if err := manager.Cancel(a); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-finished:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("lookup error=%v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("runtime cancellation did not cancel metadata lookup")
+	}
+	if run.Context.Err() == nil {
+		t.Fatal("runtime context remained active")
 	}
 }
 
