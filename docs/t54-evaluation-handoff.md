@@ -9,3 +9,17 @@ For a reproducible evaluation, first collect and retain sanitized, source-ID-bou
 Before collecting a corpus, coordinate a spend cap. The existing live one-case command in [T5.3](t53-judge-handoff.md) makes exactly one judge request and reports measured usage. Inspect that cost before authorizing any bounded larger run. A corpus collector with cumulative preflight reservations and failure-closed usage accounting still needs to be built; the one-case test is not such a collector. No paid calls were made for this handoff.
 
 Identifiers at this checkpoint: dataset SHA-256 `d8f11499801ed93d96a975069bec8d5ad5bb3a232822820e1bb7b22492f049fa`; judge source including prompt SHA-256 `e444df7a8d94d5ef0117107e58ddac0c8271ca619cc7a67ef87cb6b48dcb8022`; retrieval source SHA-256 `c6c2c50d6f39aadfb1783458ea3f86c6275bdcb6a51cbb8d2b0e72e39e92402c`; policy source SHA-256 `26cd2090e77c7e3bdbd4ec86af0485db026ed6ab065c6c72c8d9cadadd35a09b`. The judge model is `gpt-4o-mini-2024-07-18`; the production embedding model is `text-embedding-3-small`.
+
+## Experimental collector and replay
+
+`go run ./cmd/receipts-eval -recording /path/to/bundle.json` reports a complete partition offline. Its fixed `review-only-v1` decision accepts no threshold. It rejects missing or extra cases and wrong source IDs. The manifest binds the original dataset hash, split, models and source hashes. A `null` rate means its denominator is zero. Errors are counted separately and included as abstentions; case records retain only a stage code, elapsed time and accounted cost, never provider bodies or keys. If usage is ambiguous, the collector accounts the conservative reservation and stops; inspect provider usage before any further run.
+
+**Limits:** this first replay indexes only each pair's own candidate. Top-three success here is tautological and does not estimate real retrieval recall; it also cannot reproduce capture eligibility or speaker verification because the original corpus lacks session and attribution metadata. The live collector supplies broadcaster attribution solely to exercise the adapter, so its pair verdicts are not a production accuracy measurement. It does not execute the full owner/session/store pipeline. The report therefore must not be used to enable stamping. `testdata/eval/sessions.json` adds separate original Codex-authored session-shaped routing fixtures with distractors and quoted, uncertain and sensitive examples. They are not independently reviewed labels or evidence of model accuracy. They are not yet wired into the collector or report. Their SHA-256 is `734826b070e27e9de96ef3b4b2f4607de52e5ccefe2d241cea44989c538b1216`.
+
+After explicit budget coordination, collect one development case (up to five calls, reserved ceiling $0.077):
+
+```sh
+RECEIPTS_EVAL_SPLIT=dev RECEIPTS_EVAL_CASES=1 RECEIPTS_EVAL_BUDGET_NANO_USD=77000000 RECEIPTS_EVAL_OUTPUT=/tmp/receipts-eval-one.json go test -tags live ./internal/evaluation -run '^TestCollectLive$' -count=1 -v
+```
+
+Inspect the recorded measured usage and the provider account before proceeding. A full development collection repeats that first case; its maximum reservation-based budget is $2.618 for 34 cases. The held-out partition has 10 cases and a separate $0.77 ceiling. These ceilings are conservative reservations, not expected spend. Stop on any error or unmeasured usage, and do not merge incomplete runs into an accuracy report. The collector is deliberately behind the `live` tag and is not part of the offline gate. No corpus collection has been run.
