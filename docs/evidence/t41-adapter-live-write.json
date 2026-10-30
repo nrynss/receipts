@@ -1,0 +1,15 @@
+{
+  "channel": "nrynss",
+  "probe": "TestLiveAdapterWrites",
+  "token_validation": true,
+  "client_and_broadcaster_match": true,
+  "required_scopes_present": true,
+  "adapter_stream_live": true,
+  "chat_message": "Receipts capability test",
+  "chat_accepted": true,
+  "clip_created": true,
+  "clip_ready_verified": false,
+  "twitch_requests": 4,
+  "model_spend": 0,
+  "result": "Adapter-bound chat and clip creation capabilities passed"
+}

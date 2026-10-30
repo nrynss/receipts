@@ -2,7 +2,7 @@
 
 **Goal:** Replace recorded Twitch adapters while keeping the proven product loop and explicit failure states.
 
-**Status:** in-progress (0/4)
+**Status:** in-progress (1/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -12,7 +12,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 requires: T0.2, T1.3, TA.2
 fixture-ok: yes
 owns: internal/twitch/connection/, internal/api/, testdata/twitch/, docs/setup.md
-status: in-progress
+status: complete
 ```
 
 Consume TA.1 OAuth credentials through TA.2 validated channel context and runtime supervision. Do not implement a second login/token store. Bind each EventSub/Helix adapter to the verified broadcaster, use the shared refresh/validation lifecycle and report connection health and authorization loss. The owner uses their own broadcaster identity in the initial release; a shared bot is deferred. TA.3 owns setup and OBS pairing.
@@ -77,8 +77,8 @@ Record task IDs, relevant revision, checks and artifact paths when work lands. N
 
 ### Notes for the next task
 
-T4.1 waits for TA.2. Reuse `internal/auth` token access and unauthorized-refresh hooks. Never bypass channel authorization using caller-supplied IDs.
+T4.1 consumes TA.2 through `internal/auth` token access and unauthorized-refresh hooks. Never bypass channel authorization using caller-supplied IDs.
 
-T4.1 implementation is reviewed and integrated in `2627aea`: scoped Helix/EventSub requests, bounded owner status observation, one refresh retry and generation/token-safe authorization loss pass offline and race checks. Live adapter acceptance remains incomplete pending a live-channel run that proves the authorized writes.
+T4.1 implementation is reviewed and integrated in `2627aea`: scoped Helix/EventSub requests, bounded owner status observation, one refresh retry and generation/token-safe authorization loss pass offline and race checks. The authorized live adapter writer probe also passed: validation matched nrynss and required scopes, the channel was live, one chat message was accepted, and one clip ID was returned in four Twitch requests. Sanitized success evidence is in `docs/evidence/t41-adapter-live-write.json`; clip readiness was not polled. The preceding offline attempt is retained in `docs/evidence/t41-adapter-live.json`.
 
-The opt-in adapter-bound writer acceptance validates the grant (including the nrynss login) and channel binding, confirms live status, then permits exactly one fixed chat message and one clip creation under an eight-request cap. The authorized run validated the nrynss identity and required scopes, but Twitch reported the channel offline; it stopped after the read-only token validation and stream lookup without either write. Sanitized evidence is in `docs/evidence/t41-adapter-live.json`. The live harness uses an in-memory resolver/token provider and does not establish hosted account persistence or live refresh; offline tests cover those paths. EventSub subscription and receive transport remain T4.2 acceptance. T4.1 remains in-progress until the same probe runs while nrynss is live and proves both adapter writes.
+The opt-in adapter-bound writer acceptance validates the grant (including the nrynss login) and channel binding, confirms live status, then permits exactly one fixed chat message and one clip creation under an eight-request cap. The live harness uses an in-memory resolver/token provider and does not establish hosted account persistence or live refresh; offline tests cover those paths. EventSub subscription and receive transport remain T4.2 acceptance.
