@@ -1,10 +1,10 @@
 # Hosted deployment evidence
 
 Receipts is deployed at https://receipts.nryn.dev using the existing shared
-Hetzner Docker proxy network and Traefik labels. The running application image
-was built from source `002a742`; deployment scripts use the plain Docker pattern
-introduced in `f110d93`, with required transcription and embedding settings
-added after the initial startup validation identified their absence.
+Hetzner Docker proxy network and Traefik labels. The initial application image was built from source `002a742`; the current
+image is `receipts:b7cdb68`, which includes four-character pairing codes.
+Deployment uses the plain Docker pattern introduced in `f110d93`, with required
+transcription and embedding settings added after initial startup validation.
 
 - Private configuration was transferred over SSH standard input into a root-owned
   mode-0600 env file. The server generated its own token-encryption key.
@@ -28,3 +28,12 @@ pending. The four-character pairing-code change is implemented separately with b
 allocation and confirmation attempts; existing paired devices remain valid.
 No paid model calls, stream capture or chat messages were performed during
 these deployment checks. Automatic stamps remain disabled.
+
+The four-character change passed the full offline gate and auth race checks.
+The local mounted pairing fixture displayed the four-character sample and
+two-minute expiry. A protected backup preceded the image switch; the previous
+image is retained for rollback. The deployed pairing-start endpoint returned
+exactly four characters from the readable alphabet, public health returned 200,
+and private health returned 401. The existing active OBS device record remained
+present after the update. No fresh owner/OBS pairing rehearsal is claimed for
+this code change.
