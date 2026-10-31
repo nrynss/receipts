@@ -67,7 +67,10 @@ No synthetic accounts, direct authorization injection, paid calls, Twitch chat,
 stream capture or production receipt edits were used. Temporary test cookie
 jars were removed after revocation verification.
 
-Remaining acceptance includes populated channel-data isolation and actual
-hosted OBS playback or truthful fallback. A temporary HTTP source verifies
+The owner confirmed the hosted recorded OBS fixture displays the promise and
+truthful transcript fallback. Remaining acceptance includes populated live
+channel-data isolation. A temporary HTTP source verifies
 device authorization but does not establish a second owner's real OBS playback.
-The T6.1 prerequisite remains binding for full TA.4 completion.
+T6.1 subsequently completed its hosted deployment, fixture fallback and actual
+backup/restore checks. Populated channel-data isolation remains outstanding
+for full TA.4 completion.

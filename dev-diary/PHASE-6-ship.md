@@ -2,7 +2,7 @@
 
 **Goal:** Deliver a reproducible Twitch experience and evidence that it was built with Codex.
 
-**Status:** in-progress
+**Status:** in-progress (1/4)
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -12,7 +12,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 requires: T3.3, T4.3, T5.4, TA.3, TU.4
 fixture-ok: yes
 owns: deploy/, docs/operations.md, cmd/receipts/
-status: in-progress
+status: done
 ```
 
 Package one binary with the overlay and document ffmpeg/streamlink prerequisites. Deploy to the selected host with HTTPS, persistent SQLite, private controls and read-only overlay access. Check current host configuration before changing shared services. Bound disk/transcript retention, test backup restore and token revocation, and expose health without credentials or claim content. Configure the real embed origin and verify the Twitch clip embed or its truthful transcript fallback in OBS on that deployed origin.
@@ -80,7 +80,7 @@ has been performed during deployment checks.
 
 ### Evidence and decisions
 
-Record task IDs, relevant revision, checks and artifact paths when work lands. Never record secrets. Host inventory is confirmed by read-only SSH: nine containers were running, the `proxy` network exists, and the root filesystem had 29 GiB free at inspection. This is a shared host; existing tenants include Traefik, Postgres, serp-relay, beforeyes, reprise, thutapi, mosaic, cerebros and FoleyFlow. The approved proxied `receipts.nryn.dev` DNS record is configured. The host has Python 3. The Compose plugin installed during preparation is unused; Receipts uses plain Docker like the existing tenants. Independent full gate and local SQLite recovery, traversal rejection, permission and unhealthy-start rollback fixtures passed. The hosted service is healthy over HTTPS, origin TLS is valid, private unauthenticated endpoints return 401, and owner OAuth sign-in succeeded. Hosted OBS and remaining recovery acceptance are pending.
+Record task IDs, relevant revision, checks and artifact paths when work lands. Never record secrets. Host inventory is confirmed by read-only SSH: nine containers were running, the `proxy` network exists, and the root filesystem had 29 GiB free at inspection. This is a shared host; existing tenants include Traefik, Postgres, serp-relay, beforeyes, reprise, thutapi, mosaic, cerebros and FoleyFlow. The approved proxied `receipts.nryn.dev` DNS record is configured. The host has Python 3. The Compose plugin installed during preparation is unused; Receipts uses plain Docker like the existing tenants. Independent full gate and local SQLite recovery, traversal rejection, permission and unhealthy-start rollback fixtures passed. The hosted service is healthy over HTTPS, origin TLS is valid, private unauthenticated endpoints return 401, and owner OAuth sign-in succeeded. Owner-confirmed hosted OBS recorded fallback and actual hosted backup/restore acceptance passed. Both owner accounts and the current device-revocation state survived restore. T6.1 is complete; real Twitch clip/audio feedback remains T6.2. See [hosted deployment evidence](../docs/evidence/t61-hosted-deployment.md).
 
 ### Notes for the next task
 

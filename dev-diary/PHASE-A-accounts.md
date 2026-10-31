@@ -103,5 +103,7 @@ TA.4 anonymous hosted smoke verified recorded demo replay/reset behavior and
 private API protection. Results, completed two-owner device checks and remaining acceptance are
 in [hosted smoke evidence](../docs/evidence/ta4-hosted-smoke.md). The principal
 verified hosted nrynss sign-in and owner-confirmed OBS pairing separately.
-TA.4 remains in progress; the T6.1 prerequisite and remaining hosted owner
-isolation, revocation and playback/fallback acceptance still apply.
+TA.4 remains in progress for populated channel-data isolation. Hosted
+owner-to-device binding and revocation passed for nrynproton while the original
+nrynss source remained active. T6.1 completed hosted deployment, recorded OBS
+fallback and actual backup/restore acceptance; it no longer blocks TA.4.
