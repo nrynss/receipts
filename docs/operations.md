@@ -17,6 +17,11 @@ available in Cloudflare, add its proxied A record to the host, then verify
 Traefik has issued a certificate. Do not alter Traefik, the firewall, or other
 tenant configuration to install Receipts.
 
+The older Hetzner inventory says the Docker Compose CLI plugin was unavailable
+when that snapshot was taken. Current Compose availability has not been
+verified. The deployment requires `docker compose`; confirm it is available
+before proceeding, and arrange a reviewed Compose installation if it is not.
+
 The container has only one public check: `GET /healthz` returns
 `{"status":"ok"}`. It contains no account, claim, transcript, or credential
 fields. `/api/health` remains owner authenticated. The overlay and demo routes
@@ -47,7 +52,12 @@ directory:
 ```sh
 install -d -o 10001 -g 10001 -m 0750 /srv/receipts/data
 install -d -o root -g root -m 0700 /srv/receipts/backups
-install -o root -g root -m 0600 /dev/null /srv/receipts/receipts.env
+if [ ! -e /srv/receipts/receipts.env ]; then
+  install -o root -g root -m 0600 /dev/null /srv/receipts/receipts.env
+else
+  chown root:root /srv/receipts/receipts.env
+  chmod 0600 /srv/receipts/receipts.env
+fi
 # Populate the env file from the names and origin described above using a
 # protected editor. Never put credential values in shell history.
 docker compose -f deploy/compose.yaml build
@@ -63,31 +73,43 @@ to one channel and prunes transcript data after 30 minutes. The SQLite ledger
 and embeddings can still grow as receipts accumulate; review `du -sh
 /srv/receipts/data` and `df -h /` during operations. Keep at least 5 GiB free
 on the host. Backups stop above 1 GiB and retain at most seven archives.
+The restore verifier rejects archives with more than 4 GiB of expanded SQLite
+files. The env bootstrap preserves an existing file's contents.
 
 ## Backup and restore
 
 Run `deploy/backup.sh` on the host. It briefly stops Receipts for a consistent
 SQLite and WAL copy, starts it again even if archive creation fails, writes a
 SHA-256 sidecar, enforces a 1 GiB compressed archive limit, and keeps the
-seven newest archives. Backups contain encrypted Twitch tokens and private
-ledger data. Keep the backup directory mode 0700 and include it in the
-operator's protected off-host backup policy if one exists.
+seven newest archives. It sets a private umask before creating temporary files
+and atomically renames complete archives into place. Backups contain encrypted
+Twitch tokens and private ledger data. Keep the backup directory mode 0700 and
+include it in the operator's protected off-host backup policy if one exists.
 
 To restore, first retain the current data directory, then run
 `deploy/restore.sh /srv/receipts/backups/receipts-<stamp>.tar.gz`. It checks
-the sidecar, stages and validates the archive before stopping the service,
-retains the pre-restore directory, and starts the restored container. Confirm
-`/healthz`, sign in, and check the ledger and appeal countdowns before
-resuming capture. Restore rolls back account disconnects and source revocations
-that happened after the backup. After any restore, revoke affected OBS devices
-and disconnect/reconnect Twitch in setup to force fresh authorization.
+the sidecar, rejects links and unexpected archive paths, stages the database,
+runs SQLite `integrity_check`, and preserves the existing data directory's
+numeric owner and mode before stopping the service. It keeps the pre-restore
+directory, waits up to three minutes for the restored container's Docker
+health check, and rolls back to the prior directory if the container fails to
+start or report healthy. Run it as root when the target data directory belongs
+to uid 10001. It recreates the container after swapping the directory so the
+bind mount attaches to the restored directory inode. Python 3 with its standard
+`tarfile` and `sqlite3` modules, GNU tar, and `sha256sum` are required on the
+host. Confirm `/healthz`, sign in, and check the ledger and appeal countdowns
+before resuming capture. Restore rolls back account disconnects and source
+revocations that happened after the backup. After any restore, revoke affected
+OBS devices and disconnect/reconnect Twitch in setup to force fresh
+authorization.
 
-For an isolated restore rehearsal, use a disposable host with a copy of an
-archive, an isolated Compose project name and a separate data path. Verify the
-restored `/healthz`, then inspect the synthetic fixture ledger. Never connect
-the rehearsal to Twitch or OpenAI. The offline tests exercise startup recovery
-of overdue appeals and authorization revocation; they do not count as a
-deployed restore or live token-revocation acceptance.
+Run `tools/test-deploy.sh` from the repository for a local fixture rehearsal.
+It creates a synthetic receipt in a real SQLite database, verifies archive
+permissions and SHA-256, rejects a traversal archive, corrupts and restores the
+database, confirms SQLite integrity and receipt readability, checks the
+restored data from a non-root container, and forces an unhealthy restore to
+exercise rollback. It uses no Twitch or OpenAI credentials. These checks do not
+count as a deployed restore or live token-revocation acceptance.
 
 ## Recovery and token revocation
 
