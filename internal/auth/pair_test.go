@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/nrynss/keel/sqlite"
 )
@@ -29,9 +30,12 @@ func TestPairBrowserBoundSingleUseAndCSRF(t *testing.T) {
 	if err := json.Unmarshal(out.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
+	if len(body.Code) != 4 {
+		t.Fatalf("pair code length = %d", len(body.Code))
+	}
 	pairCookie := out.Result().Cookies()[0]
 	confirm := func(withCSRF bool) int {
-		req := httptest.NewRequest(http.MethodPost, "https://receipts.example/auth/pair/confirm", strings.NewReader(`{"code":"`+body.Code+`"}`))
+		req := httptest.NewRequest(http.MethodPost, "https://receipts.example/auth/pair/confirm", strings.NewReader(`{"code":"`+strings.ToLower(body.Code)+`"}`))
 		req.AddCookie(session)
 		req.AddCookie(csrf)
 		req.Header.Set("Origin", "https://receipts.example")
@@ -281,5 +285,69 @@ func testRevokedBeforePoll(t *testing.T, disconnect bool) {
 		if c.Name == DeviceCookie && c.Value != "" {
 			t.Fatal("issued revoked cookie")
 		}
+	}
+}
+
+func TestFourCharacterPairCodeAllocation(t *testing.T) {
+	for i := 0; i < 128; i++ {
+		code, err := randomPairCode()
+		if err != nil || len(code) != 4 || strings.Trim(code, pairAlphabet) != "" {
+			t.Fatalf("invalid readable pairing code: length=%d err=%v", len(code), err)
+		}
+	}
+	original := &pairRequest{browserHash: "original-browser"}
+	pairs := map[string]*pairRequest{"K7MX": original}
+	calls := 0
+	code, err := uniquePairCode(pairs, func() (string, error) {
+		calls++
+		if calls == 1 {
+			return "K7MX", nil
+		}
+		return "R2VN", nil
+	})
+	if err != nil || code != "R2VN" || calls != 2 || pairs["K7MX"] != original {
+		t.Fatalf("collision was not retried safely: code=%q calls=%d err=%v", code, calls, err)
+	}
+	calls = 0
+	_, err = uniquePairCode(pairs, func() (string, error) { calls++; return "K7MX", nil })
+	if err == nil || calls != 32 || pairs["K7MX"] != original {
+		t.Fatal("allocation must fail boundedly without replacing a source")
+	}
+}
+
+func TestPairGuessLimitsAndRecovery(t *testing.T) {
+	f := newAuthFixture(t, filepath.Join(t.TempDir(), "guess.db"), nil)
+	session, csrf, account := login(t, f.service)
+	confirm := func() int {
+		req := httptest.NewRequest(http.MethodPost, "https://receipts.example/auth/pair/confirm", strings.NewReader(`{"code":"zzzz"}`))
+		req.AddCookie(session)
+		req.AddCookie(csrf)
+		req.Header.Set("Origin", "https://receipts.example")
+		req.Header.Set("X-CSRF-Token", csrf.Value)
+		res := httptest.NewRecorder()
+		f.service.Handler().ServeHTTP(res, req)
+		return res.Code
+	}
+	for i := 0; i < 5; i++ {
+		if got := confirm(); got != 404 {
+			t.Fatalf("guess %d: %d", i, got)
+		}
+	}
+	if got := confirm(); got != 429 {
+		t.Fatalf("account limit: %d", got)
+	}
+	// A new browser login for the same owner must not reset the guess allowance.
+	session, csrf, _ = login(t, f.service)
+	if got := confirm(); got != 429 {
+		t.Fatalf("rotated session bypassed account limit: %d", got)
+	}
+	f.clock.Add(time.Minute)
+	if got := confirm(); got != 404 {
+		t.Fatalf("window did not recover: %d", got)
+	}
+	delete(f.service.pairAttempts, account.ID)
+	f.service.pairAttempts[""] = pairLimit{count: 20, until: f.service.now().Add(time.Minute)}
+	if got := confirm(); got != 429 {
+		t.Fatalf("global limit: %d", got)
 	}
 }

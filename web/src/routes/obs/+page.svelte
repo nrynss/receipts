@@ -40,7 +40,7 @@
         if (!start.ok) throw new Error();
         const started = await start.json();
         if (stopped) return;
-        code = started.code; status='Enter this code in your Receipts setup.';
+        code = started.code; status='Enter this four-character code in Receipts setup. Expires in 2 minutes.';
         async function poll() {
           if (stopped) return;
           const result = await fetch('/auth/pair/status');
@@ -52,7 +52,7 @@
         timer=setTimeout(poll,2000);
       } catch { if (!stopped) status='Pairing unavailable. Refresh this source to try again.'; }
     }
-    if (import.meta.env.DEV) { const mode = new URLSearchParams(window.location.search).get('fixture'); if (mode === 'pairing') { code='SAMPLE123456'; status='Enter this code in your Receipts setup.'; return; } if (mode === 'paired') { paired=true; display=fixture('evidence'); return; } }
+    if (import.meta.env.DEV) { const mode = new URLSearchParams(window.location.search).get('fixture'); if (mode === 'pairing') { code='K7MX'; status='Enter this four-character code in Receipts setup. Expires in 2 minutes.'; return; } if (mode === 'paired') { paired=true; display=fixture('evidence'); return; } }
     void check(); return () => { stopped=true; clearTimeout(timer); events?.close(); recovery?.dispose(); };
   });
 </script>

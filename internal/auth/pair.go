@@ -1,14 +1,20 @@
 package auth
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 	"time"
 )
 
 const pairCookie = "receipts_pair"
-const pairLifetime = 5 * time.Minute
+const pairLifetime = 2 * time.Minute
+const pairAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+const pairCodeLength = 4
+const maxPendingPairs = 32
 
 type pairLimit struct {
 	count int
@@ -33,12 +39,6 @@ func (s *Service) startPair(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unavailable", 500)
 		return
 	}
-	code, err := randomToken()
-	if err != nil {
-		http.Error(w, "Unavailable", 500)
-		return
-	}
-	code = code[:12]
 	s.pairMu.Lock()
 	defer s.pairMu.Unlock()
 	now := s.now().UTC()
@@ -47,14 +47,16 @@ func (s *Service) startPair(w http.ResponseWriter, r *http.Request) {
 			delete(s.pairs, k)
 		}
 	}
-	if len(s.pairs) >= 256 {
+	if len(s.pairs) >= maxPendingPairs {
 		http.Error(w, "Try again later", http.StatusTooManyRequests)
 		return
 	}
-	if _, exists := s.pairs[code]; exists {
+	code, err := uniquePairCode(s.pairs, randomPairCode)
+	if err != nil {
 		http.Error(w, "Try again", http.StatusServiceUnavailable)
 		return
 	}
+
 	s.pairs[code] = &pairRequest{browserHash: hex.EncodeToString(digest(browser)), expires: now.Add(pairLifetime)}
 	http.SetCookie(w, s.cookie(pairCookie, browser, pairLifetime, true))
 	w.Header().Set("Content-Type", "application/json")
@@ -71,21 +73,27 @@ func (s *Service) confirmPair(w http.ResponseWriter, r *http.Request) {
 		Code string `json:"code"`
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1024)
-	if json.NewDecoder(r.Body).Decode(&input) != nil || len(input.Code) != 12 {
+	if json.NewDecoder(r.Body).Decode(&input) != nil {
 		http.Error(w, "Invalid code", 400)
+		return
+	}
+	input.Code = strings.ToUpper(strings.TrimSpace(input.Code))
+	if len(input.Code) != pairCodeLength || strings.Trim(input.Code, pairAlphabet) != "" {
+		http.Error(w, "Invalid code", http.StatusBadRequest)
 		return
 	}
 	s.pairMu.Lock()
 	defer s.pairMu.Unlock()
 	now := s.now().UTC()
-	key := hex.EncodeToString(hash)
+	key := account.ID
 	for k, limit := range s.pairAttempts {
 		if !limit.until.After(now) {
 			delete(s.pairAttempts, k)
 		}
 	}
 	limit := s.pairAttempts[key]
-	if limit.count >= 10 {
+	global := s.pairAttempts[""]
+	if limit.count >= 5 || global.count >= 20 {
 		http.Error(w, "Try again later", http.StatusTooManyRequests)
 		return
 	}
@@ -94,6 +102,11 @@ func (s *Service) confirmPair(w http.ResponseWriter, r *http.Request) {
 	}
 	limit.count++
 	s.pairAttempts[key] = limit
+	if global.count == 0 {
+		global.until = now.Add(time.Minute)
+	}
+	global.count++
+	s.pairAttempts[""] = global
 	p := s.pairs[input.Code]
 	if p == nil || !p.expires.After(s.now().UTC()) || p.credential != "" {
 		http.Error(w, "Code expired or unavailable", 404)
@@ -149,4 +162,29 @@ func (s *Service) pairStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Error(w, "Code expired", 410)
+}
+
+// The 32-symbol alphabet maps five random bits per character without bias.
+func randomPairCode() (string, error) {
+	var raw [pairCodeLength]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", err
+	}
+	for i := range raw {
+		raw[i] = pairAlphabet[raw[i]&31]
+	}
+	return string(raw[:]), nil
+}
+
+func uniquePairCode(pairs map[string]*pairRequest, generate func() (string, error)) (string, error) {
+	for attempt := 0; attempt < 32; attempt++ {
+		code, err := generate()
+		if err != nil {
+			return "", err
+		}
+		if _, exists := pairs[code]; !exists {
+			return code, nil
+		}
+	}
+	return "", errors.New("auth: pairing code allocation exhausted")
 }

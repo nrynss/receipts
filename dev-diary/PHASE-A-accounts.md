@@ -86,12 +86,15 @@ TA.3 implementation is reviewed from `cb0bd7a` and `6b6c63c`: account/OBS setup,
 
 TA.4 anonymous demo implementation is reviewed and integrated in `431ca1e`: separate bounded disposable visitor ledgers run real recorded product services without provider clients, and replay/reset/keyboard browser checks pass. Regression tests cover two-visitor isolation, no provider calls with credentials configured, expiry during a request, contention and shutdown. Full TA.4 completion remains dependent on T6.1 and fresh deployed-owner/two-owner acceptance.
 
-### Open UX follow-up: four-character OBS pairing code
+### Four-character OBS pairing code
 
-Owner feedback from hosted setup: the current pairing code is too long. Replace
-it with exactly four easy-to-distinguish characters. Keep the code short-lived,
-single-use and bound to its requesting OBS browser. Bound failed confirmation
-attempts and handle active-code collisions so the smaller code space does not
-allow guessing or pair the wrong source. This is recorded work, not implemented
-or accepted yet. The owner confirmed entering the hosted code and successfully pairing the
-source. Hosted playback acceptance is still pending.
+Owner feedback from hosted setup: the pairing code was too long. Codes now
+contain exactly four readable uppercase letters/digits, excluding I, O, 0 and 1.
+Setup accepts lowercase input. Codes expire after two minutes and remain
+single-use and bound to the requesting OBS browser. Allocation retries active
+code collisions without replacing an existing source. At most 32 requests may
+be pending; confirmation is limited to five attempts per owner account and
+20 globally per minute. Browser-session rotation does not reset the owner limit.
+Existing durable paired devices remain valid. Regression checks cover code
+format, collisions/exhaustion, expiry, browser binding, CSRF, single use,
+account limits, session rotation and recovery after the rate-limit window.
