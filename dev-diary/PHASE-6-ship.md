@@ -25,7 +25,7 @@ Package one binary with the overlay and document ffmpeg/streamlink prerequisites
 requires: T6.1, T4.2
 fixture-ok: no
 owns: docs/evidence/, docs/obs.md
-status: not-started
+status: in-progress
 ```
 
 Run the original script on our channel: spoken promise, viewer !receipt, real clip, unrelated speech, spoken contradiction, stamp, streamer appeal, chat votes and !lore. Include pause/void, offline stop and one graceful failure. Verify overlay clip audio cannot feed back into the real listening source; this check requires the T5.1 capture pipeline. Record capture-to-receipt and contradiction-to-stamp latency, spend and any manual intervention. Keep fixture replay clearly labelled and separate from the real run.
@@ -85,3 +85,9 @@ Record task IDs, relevant revision, checks and artifact paths when work lands. N
 ### Notes for the next task
 
 Record unresolved blockers, contract changes and the next unblocked task.
+
+The first hosted T6.2 rehearsal stopped at a no-eligible-claim result. Audio
+and transcription worked; no receipt or clip was created. Final durable
+accounting was $0.2389302 under the approved $0.25 cap, with zero unresolved
+attempts. Further paid work is locked pending offline diagnosis and renewed
+approval. See [partial pilot evidence](../docs/evidence/t62-hosted-pilot.md).
