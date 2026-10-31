@@ -79,14 +79,29 @@ func (w *Worker) Run(ctx context.Context, a auth.ChannelContext) error {
 // Attach registers one runner with the currently active channel runtime. The
 // runtime drains it on stop; a later runtime can recover unexpired job leases.
 func (w *Worker) Attach(a auth.ChannelContext) bool {
+	_, ok := w.AttachAndWait(a)
+	return ok
+}
+
+// AttachAndWait registers one runner with the current channel generation and
+// returns a join function. Call the join function after cancelling the runtime
+// to ensure no clip request or event publication remains in flight.
+func (w *Worker) AttachAndWait(a auth.ChannelContext) (func(), bool) {
 	if w == nil || w.Runtime == nil {
-		return false
+		return nil, false
 	}
 	ch, err := w.Runtime.Resolve(a)
 	if err != nil {
-		return false
+		return nil, false
 	}
-	return ch.Go(func(ctx context.Context) { _ = w.Run(ctx, a) })
+	done := make(chan struct{})
+	if !ch.Go(func(ctx context.Context) {
+		defer close(done)
+		_ = w.Run(ctx, a)
+	}) {
+		return nil, false
+	}
+	return func() { <-done }, true
 }
 
 func (w *Worker) RunOnce(ctx context.Context, a auth.ChannelContext) error {

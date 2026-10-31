@@ -1,6 +1,6 @@
 # TA.4 recorded demo handoff
 
-Status: **anonymous recorded demo implemented; hosted acceptance remains pending T6.1 deployment and fresh two-owner rehearsal.** This worktree does not establish hosted readiness.
+Status: **anonymous recorded demo and hosted T6.1 checks are complete; populated live channel-data isolation and T6.2 live capture remain outstanding.** This candidate does not establish full TA.4 acceptance.
 
 ## Implemented demo
 
@@ -22,6 +22,20 @@ The T2.4 replay fixtures carry deterministic channel/session IDs (`...01` and `.
 
 ## Hosted acceptance boundary
 
-TA.4 remains incomplete until the candidate is deployed after T6.1 and passes HTTPS checks, lifecycle/deletion acceptance, a fresh Twitch-account rehearsal, and two-owner isolation rehearsal. Offline tests can establish recorded-service behavior, visitor isolation and zero provider calls; they do not establish hosted readiness.
+TA.4 remains incomplete until populated channel-data isolation and required
+hosted owner lifecycle checks pass. The anonymous hosted smoke, two-owner
+device binding/revocation, recorded OBS fallback and T6.1 restore checks are
+documented in `docs/evidence/ta4-hosted-smoke.md` and
+`docs/evidence/t61-hosted-deployment.md`; the second owner's channel was offline,
+so those checks do not demonstrate populated receipt isolation.
+
+A production-composition audit found the live receipt path was not attaching
+the existing Twitch clip worker. The current candidate wires one runner to each
+active channel generation and joins it on teardown. Its offline SQLite and
+mock-Helix integration test checks queued receipt processing, one clip create,
+readiness/completion events, restart deduplication, stale-generation rejection
+and channel scoping. Earlier worker unit/SQLite acceptance remains valid. No
+live clip, chat, model or stream test has been performed for this candidate;
+actual clip playback and overlay-audio feedback remain T6.2 acceptance.
 
 Principal browser review verified replay, reset and keyboard replay on the built fixture-mode server. The page showed the actual upheld verdict, failed recorded clip and reconciled lore. No saved browser screenshot artifact is claimed. Abrupt process termination can leave temporary visitor files; T6.1 must define ephemeral-volume/startup cleanup before hosting.

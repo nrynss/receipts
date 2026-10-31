@@ -20,6 +20,7 @@ import (
 	runtime "receipts/internal/runtime"
 	"receipts/internal/store"
 	"receipts/internal/twitch/chat"
+	"receipts/internal/twitch/clips"
 	"receipts/internal/twitch/connection"
 	"receipts/internal/twitch/eventsub"
 )
@@ -31,6 +32,7 @@ type intelligenceAttachment struct {
 	apiKey, extractionModel, embeddingModel, embeddingVersion string
 	judgeModel                                                string
 	embeddingDimensions                                       int
+	eventSubDialer                                            eventsub.Dialer
 	services                                                  sync.Map
 	judgeQueues                                               sync.Map
 }
@@ -123,12 +125,24 @@ func (a *intelligenceAttachment) attach(ctx context.Context, authority auth.Chan
 	a.judgeQueues.Store(authority.ChannelID, queue)
 	router := newRuntimeChatRouter(authority, grant.ChannelPlatformID, svc, a.ledger, a.runtime, a.adapter)
 	sink := newCaptureSink(run, router, captureQueueSize)
-	client := &eventsub.Client{Helix: eventsub.Adapter{Connection: a.adapter}, Sink: sink, OnAuthorizationLost: func(error) { _ = a.runtime.Cancel(authority) }}
+	client := &eventsub.Client{Dialer: a.eventSubDialer, Helix: eventsub.Adapter{Connection: a.adapter}, Sink: sink, OnAuthorizationLost: func(error) { _ = a.runtime.Cancel(authority) }}
 	done := make(chan struct{})
 	go func() { defer close(done); _ = client.Run(run, authority) }()
+	clipWorker := &clips.Worker{Ledger: a.ledger, Twitch: a.adapter, Runtime: a.runtime}
+	stopClipWorker, attached := clipWorker.AttachAndWait(authority)
+	if !attached {
+		cancel()
+		<-done
+		sink.stop()
+		a.judgeQueues.CompareAndDelete(authority.ChannelID, queue)
+		queue.wait()
+		a.services.CompareAndDelete(authority.ChannelID, svc)
+		return nil, errors.New("clip worker: runtime attachment unavailable")
+	}
 	return func() {
 		cancel()
 		<-done
+		stopClipWorker()
 		sink.stop()
 		a.judgeQueues.CompareAndDelete(authority.ChannelID, queue)
 		queue.wait()
