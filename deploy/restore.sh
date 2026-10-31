@@ -5,7 +5,6 @@ umask 077
 if [ "$#" -ne 1 ]; then echo "usage: restore.sh /srv/receipts/backups/receipts-<stamp>.tar.gz" >&2; exit 2; fi
 archive=$1
 data_dir=${RECEIPTS_DATA_DIR:-/srv/receipts/data}
-compose_file=${RECEIPTS_COMPOSE_FILE:-/opt/receipts/deploy/compose.yaml}
 script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 parent=$(dirname "$data_dir")
 base=$(basename "$data_dir")
@@ -56,12 +55,13 @@ if [ -e "$current" ] || [ -e "$failed" ]; then
   echo "restore safety path already exists" >&2
   exit 1
 fi
+export RECEIPTS_IMAGE=${RECEIPTS_IMAGE:-$(docker inspect --format '{{.Image}}' receipts)}
 state=prepared
 rollback() {
-  docker compose -f "$compose_file" stop receipts >/dev/null 2>&1 || true
+  docker stop receipts >/dev/null 2>&1 || true
   if [ -e "$data_dir" ]; then mv "$data_dir" "$failed" || return 1; fi
   if [ -e "$current" ]; then mv "$current" "$data_dir" || return 1; fi
-  docker compose -f "$compose_file" up -d --no-deps --force-recreate receipts || return 1
+  sh "$script_dir/docker-run.sh" || return 1
   state=running
 }
 cleanup() {
@@ -69,7 +69,7 @@ cleanup() {
   rm -rf "$tmp"
   case "$state" in
     stopped)
-      if ! docker compose -f "$compose_file" start receipts >/dev/null; then
+      if ! docker start receipts >/dev/null; then
         echo "could not restart Receipts after restore preparation failed" >&2
         result=1
       fi
@@ -79,7 +79,7 @@ cleanup() {
         echo "could not restore the previous data directory" >&2
         result=1
       fi
-      if ! docker compose -f "$compose_file" start receipts >/dev/null; then
+      if ! docker start receipts >/dev/null; then
         echo "could not restart Receipts after restore preparation failed" >&2
         result=1
       fi
@@ -95,7 +95,7 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 state=stopped
 trap 'exit 143' TERM
-if ! docker compose -f "$compose_file" stop receipts; then
+if ! docker stop receipts; then
   echo "could not stop Receipts for restore" >&2
   exit 1
 fi
@@ -110,7 +110,7 @@ if ! mv "$staged" "$data_dir"; then
   exit 1
 fi
 state=swapped
-if ! docker compose -f "$compose_file" up -d --no-deps --force-recreate receipts; then
+if ! sh "$script_dir/docker-run.sh"; then
   rollback || echo "automatic rollback could not restart Receipts; inspect $current and $failed" >&2
   echo "restored service did not start; prior data was restored" >&2
   exit 1

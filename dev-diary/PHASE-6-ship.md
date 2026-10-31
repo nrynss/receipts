@@ -70,8 +70,8 @@ Recheck current official event rules and submission fields, registration, reposi
 ### What exists now
 
 T6.1 deployment preparation is implemented and independently verified: `deploy/Dockerfile` packages the Go server and
-overlay with ffmpeg and streamlink, `deploy/compose.yaml` describes one
-isolated Traefik tenant, and `deploy/backup.sh` / `deploy/restore.sh` manage
+overlay with ffmpeg and streamlink, `deploy/docker-run.sh` starts one
+isolated Traefik tenant with the existing plain Docker pattern, and `deploy/backup.sh` / `deploy/restore.sh` manage
 bounded backups and restore. `docs/operations.md` documents setup, recovery,
 token revocation, disk limits and hosted OBS acceptance. Public `/healthz`
 exposes only process liveness. No deployment, DNS change, live credential use,
@@ -79,7 +79,7 @@ token revocation or hosted OBS acceptance has been performed.
 
 ### Evidence and decisions
 
-Record task IDs, relevant revision, checks and artifact paths when work lands. Never record secrets. Host inventory is confirmed by read-only SSH: nine containers were running, the `proxy` network exists, and the root filesystem had 29 GiB free at inspection. This is a shared host; existing tenants include Traefik, Postgres, serp-relay, beforeyes, reprise, thutapi, mosaic, cerebros and FoleyFlow. Public DNS returned no record for `receipts.nryn.dev` during inspection. The host has Python 3 but no Docker Compose plugin. Independent full gate and local SQLite recovery, traversal rejection, permission and unhealthy-start rollback fixtures passed. Compose installation, DNS and hosted acceptance remain pending.
+Record task IDs, relevant revision, checks and artifact paths when work lands. Never record secrets. Host inventory is confirmed by read-only SSH: nine containers were running, the `proxy` network exists, and the root filesystem had 29 GiB free at inspection. This is a shared host; existing tenants include Traefik, Postgres, serp-relay, beforeyes, reprise, thutapi, mosaic, cerebros and FoleyFlow. Public DNS returned no record for `receipts.nryn.dev` during inspection. The host has Python 3. The Compose plugin installed during preparation is unused; Receipts uses plain Docker like the existing tenants. Independent full gate and local SQLite recovery, traversal rejection, permission and unhealthy-start rollback fixtures passed. DNS, Twitch client-secret configuration and hosted acceptance remain pending.
 
 ### Notes for the next task
 

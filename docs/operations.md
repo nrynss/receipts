@@ -17,10 +17,10 @@ available in Cloudflare, add its proxied A record to the host, then verify
 Traefik has issued a certificate. Do not alter Traefik, the firewall, or other
 tenant configuration to install Receipts.
 
-Read-only inspection confirmed that the Docker Compose CLI plugin is absent.
-Python 3 is available. The deployment requires `docker compose`; arrange a
-reviewed installation from the official Docker package source before running
-the deployment commands. No existing tenant needs to restart for this prerequisite.
+The tenant uses plain `docker run` with Traefik labels, matching the other
+projects on this host. Docker Compose is not required. Python 3 is needed
+only by the backup archive validator. The Compose plugin installed during
+preparation is unused; no existing service was migrated to it.
 
 The container has only one public check: `GET /healthz` returns
 `{"status":"ok"}`. It contains no account, claim, transcript, or credential
@@ -38,15 +38,15 @@ tokens or credentials in command arguments, deployment logs, or this repo.
 Set `RECEIPTS_PUBLIC_ORIGIN=https://receipts.nryn.dev`; Twitch's registered
 OAuth callback must be
 `https://receipts.nryn.dev/auth/twitch/callback`. Authentication must remain
-enabled. The compose file fixes live mode, the persistent database path, one
+enabled. The run script fixes live mode, the persistent database path, one
 active channel, and 30 minute transcript retention. Configure provider spend
 ceilings in the env file before enabling paid model calls.
 
 ## Install and update
 
 Stage this repository at `/opt/receipts`, create the data and backup
-directories owned by uid 10001, and prepare the env file. Review the compose
-file and image source revision before running these commands from the staged
+directories owned by uid 10001, and prepare the env file. Review the run script
+and image source revision before running these commands from the staged
 directory:
 
 ```sh
@@ -60,14 +60,14 @@ else
 fi
 # Populate the env file from the names and origin described above using a
 # protected editor. Never put credential values in shell history.
-docker compose -f deploy/compose.yaml build
-docker compose -f deploy/compose.yaml up -d
-docker compose -f deploy/compose.yaml ps
+docker build -f deploy/Dockerfile -t receipts:<reviewed-commit> .
+RECEIPTS_IMAGE=receipts:<reviewed-commit> sh deploy/docker-run.sh
+docker ps --filter name=^/receipts$
 curl -fsS https://receipts.nryn.dev/healthz
 ```
 
 The root filesystem is read-only apart from `/data` and a 32 MiB temporary
-filesystem. Container logs rotate at 10 MiB across three files. Compose caps
+filesystem. Container logs rotate at 10 MiB across three files. The run script caps
 the container at one CPU and 768 MiB memory. The service limits live capture
 to one channel and prunes transcript data after 30 minutes. The SQLite ledger
 and embeddings can still grow as receipts accumulate; review `du -sh
@@ -121,9 +121,11 @@ Those actions stop active runtime access; a backup from before the action can
 restore prior encrypted credentials and device records, so repeat revocation
 after restoring an older backup.
 
-For rollback to a prior application version, stop Receipts, retain the current
-image tag, deploy the previously reviewed image, and keep the same data
-directory. Take a backup before changing schema versions. If the old binary
+For rollback to a prior application version, retain the current image ID,
+then run `RECEIPTS_IMAGE=receipts:<previous-commit> sh deploy/docker-run.sh`
+with the same data directory. Use immutable commit tags or image digests.
+Backup uses `docker stop` and `docker start`; restore pins the current image
+ID before recreating the container against the restored directory. Take a backup before changing schema versions. If the old binary
 cannot read a newer schema, restore the matching pre-upgrade archive and retain
 the newer data directory for investigation.
 

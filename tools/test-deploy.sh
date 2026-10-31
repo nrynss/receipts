@@ -27,11 +27,12 @@ export PATH="$tmp/bin:$PATH"
 export GOCACHE=${GOCACHE:-/tmp/receipts-go-cache}
 export RECEIPTS_DATA_DIR="$tmp/data"
 export RECEIPTS_BACKUP_DIR="$tmp/backups"
-export RECEIPTS_COMPOSE_FILE="$tmp/compose.yaml"
+export RECEIPTS_ENV_FILE="$tmp/receipts.env"
 export RECEIPTS_UID=$(id -u)
 export RECEIPTS_GID=$(id -g)
 export MOCK_DOCKER_LOG="$tmp/docker.log"
-touch "$RECEIPTS_COMPOSE_FILE"
+touch "$RECEIPTS_ENV_FILE"
+chmod 600 "$RECEIPTS_ENV_FILE"
 touch "$MOCK_DOCKER_LOG"
 
 go run "$root/tools/deploy-fixture" create "$tmp/data/receipts.db"
@@ -93,4 +94,18 @@ go run "$root/tools/deploy-fixture" verify "$tmp/data/receipts.db" "Current ledg
   sh -ec 'chown -R 10001:10001 /data'
 "$real_docker" run --rm --user 10001:10001 --volume "$tmp/data:/data:ro" \
   alpine:3.22 sh -ec 'test -r /data/receipts.db'
-echo 'SQLite backup, restore, permissions, traversal and rollback fixtures passed'
+# Deployment must retain isolation and resource bounds without Compose or a host port.
+for argument in '--network proxy' '--read-only' '--cpus 1' '--memory 768m' 'traefik.http.routers.receipts.rule=Host(`receipts.nryn.dev`)'; do
+  grep -F -- "$argument" "$MOCK_DOCKER_LOG" >/dev/null
+done
+if grep -E -- 'compose|--publish| -p ' "$MOCK_DOCKER_LOG" >/dev/null; then
+  echo 'deployment used Compose or published a host port' >&2
+  exit 1
+fi
+before=$(wc -l < "$MOCK_DOCKER_LOG")
+if RECEIPTS_IMAGE=receipts:test RECEIPTS_ENV_FILE="$tmp/missing.env" sh "$root/deploy/docker-run.sh" >/dev/null 2>&1; then
+  echo 'deployment accepted a missing private env file' >&2
+  exit 1
+fi
+test "$(wc -l < "$MOCK_DOCKER_LOG")" = "$before"
+echo 'Plain Docker deployment, SQLite recovery, permissions and rollback fixtures passed'

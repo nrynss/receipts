@@ -4,7 +4,6 @@ umask 077
 
 data_dir=${RECEIPTS_DATA_DIR:-/srv/receipts/data}
 backup_dir=${RECEIPTS_BACKUP_DIR:-/srv/receipts/backups}
-compose_file=${RECEIPTS_COMPOSE_FILE:-/opt/receipts/deploy/compose.yaml}
 stamp=$(date -u +%Y%m%dT%H%M%SZ)-$$
 archive="$backup_dir/receipts-$stamp.tar.gz"
 partial="$backup_dir/.receipts-$stamp.tar.gz.partial"
@@ -35,7 +34,7 @@ cleanup() {
   result=$?
   rm -f "$partial" "$sum_partial"
   if [ "$published" = 0 ]; then rm -f "$archive" "$archive.sha256"; fi
-  if [ "$stopped" = 1 ]; then docker compose -f "$compose_file" start receipts >/dev/null || true; fi
+  if [ "$stopped" = 1 ]; then docker start receipts >/dev/null || true; fi
   exit "$result"
 }
 trap cleanup EXIT
@@ -44,7 +43,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 stopped=1
-if ! docker compose -f "$compose_file" stop receipts; then
+if ! docker stop receipts; then
   echo "could not stop Receipts for backup" >&2
   exit 1
 fi
@@ -64,7 +63,7 @@ chmod 600 "$archive" "$archive.sha256"
 published=1
 find "$backup_dir" -maxdepth 1 -type f -name 'receipts-*.tar.gz' -printf '%T@ %p\n' \
   | sort -rn | awk 'NR > 7 {print $2}' | while IFS= read -r old; do rm -f "$old" "$old.sha256"; done
-docker compose -f "$compose_file" start receipts
+docker start receipts
 stopped=0
 trap - EXIT HUP INT TERM
 echo "Created $archive"
