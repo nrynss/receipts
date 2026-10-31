@@ -8,6 +8,7 @@ Chat types `!receipt` when a streamer promises something on stream. Receipts cli
 
 Implementation phases, task dependencies and acceptance criteria are in the [development diary](dev-diary/README.md).
 Build and run the current server using the [development instructions](docs/development.md).
+Hosted setup, backup and recovery are documented in the [operations guide](docs/operations.md).
 
 ## Implementation tracks
 

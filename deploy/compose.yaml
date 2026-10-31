@@ -1,0 +1,48 @@
+services:
+  receipts:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: receipts:local
+    container_name: receipts
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,noexec,nosuid,nodev
+    volumes:
+      - /srv/receipts/data:/data
+    env_file:
+      - /srv/receipts/receipts.env
+    environment:
+      RECEIPTS_MODE: live
+      RECEIPTS_AUTH_ENABLED: "true"
+      RECEIPTS_HTTP_ADDRESS: :8080
+      RECEIPTS_DATABASE_PATH: /data/receipts.db
+      RECEIPTS_PUBLIC_ORIGIN: https://receipts.nryn.dev
+      RECEIPTS_TRANSCRIPT_RETENTION: 30m
+      RECEIPTS_MAX_ACTIVE_CHANNELS: "1"
+    expose:
+      - "8080"
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: proxy
+      traefik.http.routers.receipts.rule: Host(`receipts.nryn.dev`)
+      traefik.http.routers.receipts.entrypoints: websecure
+      traefik.http.routers.receipts.tls.certresolver: letsencrypt
+      traefik.http.services.receipts.loadbalancer.server.port: "8080"
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 768M
+networks:
+  proxy:
+    external: true

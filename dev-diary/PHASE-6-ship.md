@@ -12,7 +12,7 @@ Read [the phase index](README.md), [product spec](../product.md) and [agent prot
 requires: T3.3, T4.3, T5.4, TA.3, TU.4
 fixture-ok: yes
 owns: deploy/, docs/operations.md, cmd/receipts/
-status: not-started
+status: in-progress
 ```
 
 Package one binary with the overlay and document ffmpeg/streamlink prerequisites. Deploy to the selected host with HTTPS, persistent SQLite, private controls and read-only overlay access. Check current host configuration before changing shared services. Bound disk/transcript retention, test backup restore and token revocation, and expose health without credentials or claim content. Configure the real embed origin and verify the Twitch clip embed or its truthful transcript fallback in OBS on that deployed origin.
@@ -69,11 +69,17 @@ Recheck current official event rules and submission fields, registration, reposi
 
 ### What exists now
 
-Planning only. No implementation is claimed.
+T6.1 deployment preparation is implemented and independently verified: `deploy/Dockerfile` packages the Go server and
+overlay with ffmpeg and streamlink, `deploy/compose.yaml` describes one
+isolated Traefik tenant, and `deploy/backup.sh` / `deploy/restore.sh` manage
+bounded backups and restore. `docs/operations.md` documents setup, recovery,
+token revocation, disk limits and hosted OBS acceptance. Public `/healthz`
+exposes only process liveness. No deployment, DNS change, live credential use,
+token revocation or hosted OBS acceptance has been performed.
 
 ### Evidence and decisions
 
-Record task IDs, relevant revision, checks and artifact paths when work lands. Never record secrets.
+Record task IDs, relevant revision, checks and artifact paths when work lands. Never record secrets. Host inventory is confirmed by read-only SSH: nine containers were running, the `proxy` network exists, and the root filesystem had 29 GiB free at inspection. This is a shared host; existing tenants include Traefik, Postgres, serp-relay, beforeyes, reprise, thutapi, mosaic, cerebros and FoleyFlow. Public DNS returned no record for `receipts.nryn.dev` during inspection. The host has Python 3 but no Docker Compose plugin. Independent full gate and local SQLite recovery, traversal rejection, permission and unhealthy-start rollback fixtures passed. Compose installation, DNS and hosted acceptance remain pending.
 
 ### Notes for the next task
 
