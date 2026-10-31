@@ -44,3 +44,17 @@ response, private cookies or transcript dumps are committed.
 
 T6.2 and the remaining TA.4 populated-data acceptance are incomplete. Offline
 diagnosis and fixes precede any new request for bounded live-test approval.
+
+## Offline validator follow-up
+
+Independent review found that the validator rejected contracted promises and
+required the claim to equal the entire transcript segment. It now accepts one
+complete, exact promise sentence from a segment, including straight and curly
+`I'll` contractions. Returned text and source identity remain unchanged;
+paraphrases, partial sentences, joined claims, quotations and unsafe adjacent
+context remain rejected. The full offline gate and targeted claims, commands
+and intelligence race tests passed.
+
+This fixes a demonstrated compatibility gap, not a proven cause of the hosted
+failure: the actual extraction request and response were not retained. No live
+retry has run, and the paid allowance remains zero.

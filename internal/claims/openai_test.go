@@ -25,6 +25,15 @@ func TestExtractionFailsClosed(t *testing.T) {
 	}{
 		{"promise", "I will never play this map.", "broadcaster", `{"eligible":true,"claim":"I will never play this map.","source_id":"s","topic":"promise","sensitive":false}`, true, false},
 		{"explicit promise", "I promise I will never pick the blue map again.", "broadcaster", `{"eligible":true,"claim":"I promise I will never pick the blue map again.","source_id":"s","topic":"promise","sensitive":false}`, true, false},
+		{"contracted promise", "I promise I'll choose the green tile.", "broadcaster", `{"eligible":true,"claim":"I promise I'll choose the green tile.","source_id":"s","topic":"promise","sensitive":false}`, true, false},
+		{"typographic contracted promise", "I promise I’ll choose the green tile.", "broadcaster", `{"eligible":true,"claim":"I promise I’ll choose the green tile.","source_id":"s","topic":"promise","sensitive":false}`, true, false},
+		{"bare typographic contraction", "I’ll choose the green tile.", "broadcaster", `{"eligible":true,"claim":"I’ll choose the green tile.","source_id":"s","topic":"promise","sensitive":false}`, true, false},
+		{"curly quoted promise", "“I’ll choose the green tile.”", "broadcaster", `{"eligible":true,"claim":"I’ll choose the green tile.","source_id":"s","topic":"promise","sensitive":false}`, false, false},
+		{"paraphrase rejected", "I’ll choose the green tile.", "broadcaster", `{"eligible":true,"claim":"I will choose the green tile.","source_id":"s","topic":"promise","sensitive":false}`, false, false},
+		{"subsentence rejected", "Well, I’ll choose the green tile.", "broadcaster", `{"eligible":true,"claim":"I’ll choose the green tile.","source_id":"s","topic":"promise","sensitive":false}`, false, false},
+		{"one promise from multi-sentence segment", "That was close. I promise I'll choose the green tile. Then we can continue.", "broadcaster", `{"eligible":true,"claim":"I promise I'll choose the green tile.","source_id":"s","topic":"promise","sensitive":false}`, true, false},
+		{"multi-sentence blob is not one claim", "I promise I'll choose the green tile. Then we can continue.", "broadcaster", `{"eligible":true,"claim":"I promise I'll choose the green tile. Then we can continue.","source_id":"s","topic":"promise","sensitive":false}`, false, false},
+		{"claim must match complete source sentence", "I promise I'll choose the green tile. Then we can continue.", "broadcaster", `{"eligible":true,"claim":"I promise I'll choose the green tile.","source_id":"s","topic":"promise","sensitive":false}`, true, false},
 		{"ambiguous promise", "I promise I might pick the blue map.", "broadcaster", `{"eligible":true,"claim":"I promise I might pick the blue map.","source_id":"s","topic":"promise","sensitive":false}`, false, false},
 		{"malformed", "I will never play this map.", "broadcaster", `{`, false, true},
 		{"quote", `She said "I will never play this map."`, "broadcaster", `{"eligible":true,"claim":"I will never play this map.","source_id":"s","topic":"promise","sensitive":false}`, false, false},
@@ -45,6 +54,26 @@ func TestExtractionFailsClosed(t *testing.T) {
 				t.Fatalf("got %#v, %v", got, err)
 			}
 		})
+	}
+}
+
+func TestExtractionPreservesCurlyContractionAndRejectsUnsafeAdjacentContext(t *testing.T) {
+	claim := "I promise I’ll choose the green tile."
+	content := `{"eligible":true,"claim":"I promise I’ll choose the green tile.","source_id":"s","topic":"promise","sensitive":false}`
+	client := Client{APIKey: "test", Model: LegacyModel, HTTP: &http.Client{Transport: roundTrip(func(*http.Request) (*http.Response, error) {
+		b, _ := jsonEnvelope(content)
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(b)), Header: make(http.Header)}, nil
+	})}}
+	segments := []receipt.Segment{{ID: "s", Text: claim, Attribution: "broadcaster", End: time.Second}}
+	got, err := client.Extract(context.Background(), segments)
+	if err != nil || got.Claim != claim || len(got.SourceIDs) != 1 || got.SourceIDs[0] != "s" {
+		t.Fatalf("claim bytes/source changed: got %#v, %v", got, err)
+	}
+
+	segments = append(segments, receipt.Segment{ID: "context", Text: "The player said this earlier.", Attribution: "broadcaster", Start: time.Second, End: 2 * time.Second})
+	got, err = client.Extract(context.Background(), segments)
+	if err != nil || got.Claim != "" {
+		t.Fatalf("unsafe adjacent context was accepted: got %#v, %v", got, err)
 	}
 }
 
