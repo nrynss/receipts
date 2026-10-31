@@ -2,7 +2,7 @@
 
 **Goal:** Deliver a reproducible Twitch experience and evidence that it was built with Codex.
 
-**Status:** not-started
+**Status:** in-progress
 
 Read [the phase index](README.md), [product spec](../product.md) and [agent protocol](../AGENTS.md) first. Task-level dependencies below are binding.
 
@@ -74,12 +74,13 @@ overlay with ffmpeg and streamlink, `deploy/docker-run.sh` starts one
 isolated Traefik tenant with the existing plain Docker pattern, and `deploy/backup.sh` / `deploy/restore.sh` manage
 bounded backups and restore. `docs/operations.md` documents setup, recovery,
 token revocation, disk limits and hosted OBS acceptance. Public `/healthz`
-exposes only process liveness. No deployment, DNS change, live credential use,
-token revocation or hosted OBS acceptance has been performed.
+exposes only process liveness. Deployment and DNS are configured. Owner OAuth sign-in succeeded. No paid
+model calls, stream capture, live token revocation or hosted OBS acceptance
+has been performed during deployment checks.
 
 ### Evidence and decisions
 
-Record task IDs, relevant revision, checks and artifact paths when work lands. Never record secrets. Host inventory is confirmed by read-only SSH: nine containers were running, the `proxy` network exists, and the root filesystem had 29 GiB free at inspection. This is a shared host; existing tenants include Traefik, Postgres, serp-relay, beforeyes, reprise, thutapi, mosaic, cerebros and FoleyFlow. Public DNS returned no record for `receipts.nryn.dev` during inspection. The host has Python 3. The Compose plugin installed during preparation is unused; Receipts uses plain Docker like the existing tenants. Independent full gate and local SQLite recovery, traversal rejection, permission and unhealthy-start rollback fixtures passed. DNS, Twitch client-secret configuration and hosted acceptance remain pending.
+Record task IDs, relevant revision, checks and artifact paths when work lands. Never record secrets. Host inventory is confirmed by read-only SSH: nine containers were running, the `proxy` network exists, and the root filesystem had 29 GiB free at inspection. This is a shared host; existing tenants include Traefik, Postgres, serp-relay, beforeyes, reprise, thutapi, mosaic, cerebros and FoleyFlow. The approved proxied `receipts.nryn.dev` DNS record is configured. The host has Python 3. The Compose plugin installed during preparation is unused; Receipts uses plain Docker like the existing tenants. Independent full gate and local SQLite recovery, traversal rejection, permission and unhealthy-start rollback fixtures passed. The hosted service is healthy over HTTPS, origin TLS is valid, private unauthenticated endpoints return 401, and owner OAuth sign-in succeeded. Hosted OBS and remaining recovery acceptance are pending.
 
 ### Notes for the next task
 

@@ -31,6 +31,8 @@ exec docker run -d --name receipts --restart unless-stopped --init \
   --env RECEIPTS_HTTP_ADDRESS=:8080 --env RECEIPTS_DATABASE_PATH=/data/receipts.db \
   --env RECEIPTS_PUBLIC_ORIGIN=https://receipts.nryn.dev \
   --env RECEIPTS_TRANSCRIPT_RETENTION=30m --env RECEIPTS_MAX_ACTIVE_CHANNELS=1 \
+  --env RECEIPTS_TRANSCRIPTION_MODEL=gpt-transcribe \
+  --env RECEIPTS_EMBEDDING_MODEL=text-embedding-3-small \
   --cpus 1 --memory 768m --memory-swap 768m \
   --log-driver json-file --log-opt max-size=10m --log-opt max-file=3 \
   --label traefik.enable=true --label traefik.docker.network=proxy \

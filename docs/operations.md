@@ -38,7 +38,8 @@ tokens or credentials in command arguments, deployment logs, or this repo.
 Set `RECEIPTS_PUBLIC_ORIGIN=https://receipts.nryn.dev`; Twitch's registered
 OAuth callback must be
 `https://receipts.nryn.dev/auth/twitch/callback`. Authentication must remain
-enabled. The run script fixes live mode, the persistent database path, one
+enabled. The run script supplies the required transcription and embedding model settings
+and fixes live mode, the persistent database path, one
 active channel, and 30 minute transcript retention. Configure provider spend
 ceilings in the env file before enabling paid model calls.
 
