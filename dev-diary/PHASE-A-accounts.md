@@ -86,6 +86,20 @@ TA.3 implementation is reviewed from `cb0bd7a` and `6b6c63c`: account/OBS setup,
 
 TA.4 anonymous demo implementation is reviewed and integrated in `431ca1e`: separate bounded disposable visitor ledgers run real recorded product services without provider clients, and replay/reset/keyboard browser checks pass. Regression tests cover two-visitor isolation, no provider calls with credentials configured, expiry during a request, contention and shutdown. Full TA.4 completion remains dependent on T6.1 and fresh deployed-owner/two-owner acceptance.
 
+Hosted anonymous smoke, the two-owner device-binding/revocation check, hosted
+recorded OBS fallback and T6.1 backup/restore acceptance are recorded in
+`docs/evidence/ta4-hosted-smoke.md` and
+`docs/evidence/t61-hosted-deployment.md`. The owner-reported device flow passed,
+but populated live channel-data isolation remains unverified because the
+second owner's channel was offline. A production audit then found that live
+receipt capture persisted clip jobs without attaching the existing Twitch clip
+worker. The TA.4 candidate now attaches one generation-bound clip runner per
+active channel and joins it during teardown. Its offline SQLite/Helix-mock
+composition test checks one create, readiness and completion events, restart
+deduplication, stale-generation rejection and a second owner's queued job
+remaining untouched. This does not replace the existing clip-worker unit and
+SQLite tests, and it is not T6.2 live clip or audio-feedback acceptance.
+
 ### Four-character OBS pairing code
 
 Owner feedback from hosted setup: the pairing code was too long. Codes now
