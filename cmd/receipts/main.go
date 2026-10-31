@@ -74,6 +74,7 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 	demoServer := demo.New("", 64)
 	defer demoServer.Close()
 	mux := http.NewServeMux()
+	registerHealthz(mux)
 	mux.Handle("/demo/api/", demoServer)
 	assets := http.FileServer(http.FS(static))
 	mux.Handle("/", staticFallback(static, assets))
@@ -140,6 +141,7 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 			<-maintenanceDone
 		}()
 		mux := http.NewServeMux()
+		registerHealthz(mux)
 		mux.Handle("/demo/api/", demoServer)
 		mux.Handle("/auth/", authService.Handler())
 		adapter := &connection.Adapter{Runtime: supervisor, Resolver: connection.ServiceResolverFunc{Service: authService}, Tokens: authService, LossHandler: authService}
@@ -171,6 +173,15 @@ func run(ctx context.Context, lookup func(string) (string, bool), serve func(str
 		handler = mux
 	}
 	return serve(cfg.HTTPAddress, handler)
+}
+
+// registerHealthz adds a public liveness response with no private ledger data.
+func registerHealthz(mux *http.ServeMux) {
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
 }
 
 // staticFallback serves generated Svelte assets directly and uses adapter-static's

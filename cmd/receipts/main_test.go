@@ -72,6 +72,14 @@ func TestFixtureStartupNeedsNoCredentials(t *testing.T) {
 		if addr != ":8080" {
 			t.Errorf("address = %q", addr)
 		}
+		health := httptest.NewRecorder()
+		handler.ServeHTTP(health, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+		if health.Code != http.StatusOK || health.Body.String() != `{"status":"ok"}` {
+			t.Errorf("public liveness response = %d %q", health.Code, health.Body.String())
+		}
+		if strings.Contains(health.Body.String(), "claim") || strings.Contains(health.Body.String(), "credential") {
+			t.Fatal("liveness response disclosed private data")
+		}
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/", nil))
 		if response.Code != http.StatusOK {
@@ -122,6 +130,13 @@ func TestHostedAuthStartupNeedsNoSharedChannelToken(t *testing.T) {
 		cookies := response.Result().Cookies()
 		if len(cookies) != 1 || !cookies[0].Secure || !cookies[0].HttpOnly {
 			t.Fatalf("OAuth browser-binding cookie = %#v", cookies)
+		}
+		for _, route := range []struct{ path, method string }{{"/api/health", http.MethodGet}, {"/api/control/pause", http.MethodPost}} {
+			private := httptest.NewRecorder()
+			handler.ServeHTTP(private, httptest.NewRequest(route.method, route.path, nil))
+			if private.Code != http.StatusUnauthorized {
+				t.Errorf("unauthenticated private route %s = %d", route.path, private.Code)
+			}
 		}
 		return want
 	})
