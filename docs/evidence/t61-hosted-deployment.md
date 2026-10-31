@@ -2,7 +2,8 @@
 
 Receipts is deployed at https://receipts.nryn.dev using the existing shared
 Hetzner Docker proxy network and Traefik labels. The initial application image was built from source `002a742`; the current
-image is `receipts:b7cdb68`, which includes four-character pairing codes.
+image is `receipts:99d550d`, which includes four-character pairing codes and
+the generation-bound clip worker.
 Deployment uses the plain Docker pattern introduced in `f110d93`, with required
 transcription and embedding settings added after initial startup validation.
 
@@ -52,3 +53,12 @@ nrynproton retained zero active devices after revocation. The pre-restore
 directory and previous image were retained for rollback. This verifies the
 hosted account/device ledger; receipt and overdue-appeal recovery are covered
 by the offline application and real-SQLite fixtures.
+
+The production clip-worker composition gap was fixed and deployed from
+`99d550d` after independent full-gate and uncached startup/clip race checks.
+Integration tests use real SQLite and mock Helix/EventSub for creation,
+readiness, completion events, channel scope, restart deduplication and bounded
+attachment cleanup. A protected backup preceded the update; the old image is
+retained. The new container is healthy, with no active live session, no queued
+clip jobs and no recorded paid charges. Real clip creation is not claimed by
+these offline or deployment checks.
