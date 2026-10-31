@@ -22,6 +22,9 @@ added after the initial startup validation identified their absence.
 The raw Python HTTP client encountered Cloudflare's 403 challenge; curl and the
 normal browser verified the service without weakening Cloudflare protections.
 
-Hosted OBS pairing, playback/fallback and revocation acceptance remain pending.
+The owner confirmed adding the hosted OBS source, entering its code and
+confirming pairing. Hosted playback/fallback and revocation acceptance remain
+pending. The owner also requested a four-character pairing code; that UX
+follow-up is recorded in the accounts phase and is not implemented yet.
 No paid model calls, stream capture or chat messages were performed during
 these deployment checks. Automatic stamps remain disabled.

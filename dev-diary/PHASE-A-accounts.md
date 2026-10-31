@@ -85,3 +85,13 @@ Reviewed candidate `7c463e1` composes owner/device middleware, channel-local pub
 TA.3 implementation is reviewed from `cb0bd7a` and `6b6c63c`: account/OBS setup, persistent revocable device cookies, owner deletion and typed status are implemented. Offline gate and focused race tests pass; dashboard and pairing panel were visually reviewed. A build-tagged loopback acceptance harness now supports a real OBS pairing rehearsal with a synthetic account and no provider calls; automated harness evidence is recorded separately from owner-reported OBS observations. Actual local OBS acceptance passed: the owner confirmed source refresh, OBS restart and server restart without re-pairing, restored appeal countdown/counts and immediate clearing after revocation. Synthetic process-restart tests verify persistent device authorization. See [OBS evidence](../docs/evidence/t33-ta3-obs.json). Fresh real-owner onboarding on the deployed origin remains TA.4. T4.4 now supplies verified session lifecycle activation; actual audio capture remains unavailable until T5.1.
 
 TA.4 anonymous demo implementation is reviewed and integrated in `431ca1e`: separate bounded disposable visitor ledgers run real recorded product services without provider clients, and replay/reset/keyboard browser checks pass. Regression tests cover two-visitor isolation, no provider calls with credentials configured, expiry during a request, contention and shutdown. Full TA.4 completion remains dependent on T6.1 and fresh deployed-owner/two-owner acceptance.
+
+### Open UX follow-up: four-character OBS pairing code
+
+Owner feedback from hosted setup: the current pairing code is too long. Replace
+it with exactly four easy-to-distinguish characters. Keep the code short-lived,
+single-use and bound to its requesting OBS browser. Bound failed confirmation
+attempts and handle active-code collisions so the smaller code space does not
+allow guessing or pair the wrong source. This is recorded work, not implemented
+or accepted yet. The owner confirmed entering the hosted code and successfully pairing the
+source. Hosted playback acceptance is still pending.
