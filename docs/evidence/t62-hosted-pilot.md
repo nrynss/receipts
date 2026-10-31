@@ -58,3 +58,12 @@ and intelligence race tests passed.
 This fixes a demonstrated compatibility gap, not a proven cause of the hosted
 failure: the actual extraction request and response were not retained. No live
 retry has run, and the paid allowance remains zero.
+
+The reviewed follow-up is deployed as `receipts:7ef4199`, image
+`sha256:1259c02fe674bfaf134df01eb91c125418dca6efd04c5cc4d48bc5ed6ad942e8`.
+A fresh protected SQLite backup preceded replacement; the prior image remains
+as `receipts:before-validator`. Hosted health returned 200, the anonymous private
+snapshot returned 401, and all nine other tenant container IDs were unchanged.
+The durable global limit and spent value both remain 238930200 nanodollars,
+with zero pending attempts and no fresh capture authority before replacement.
+No new live test or model call was performed.
