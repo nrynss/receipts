@@ -18,7 +18,7 @@ acceptance.
   message or stream capture was used. The replay endpoints use fixture-backed
   demo services and have no provider adapters.
 
-## Fresh-human rehearsal still required
+## Human-owner acceptance procedure
 
 Use two human-owned Twitch accounts and separate browser profiles. Existing
 Twitch accounts are sufficient; fresh onboarding means new to this Receipts
@@ -32,6 +32,42 @@ loses snapshot and stream access while B's source continues. Complete hosted pla
 actual capture/overlay audio-feedback rehearsal belongs to T6.2. Record the result and limitations without tokens,
 codes, cookies, transcript content or other secrets.
 
-This rehearsal is deliberately outstanding: production account/device state
-was not changed by the anonymous smoke check, and synthetic account seeding or
+The anonymous smoke alone does not satisfy this procedure. Human-owner
+results and remaining limits are recorded below. Synthetic account seeding or
 direct SQL auth injection cannot substitute for human owner acceptance.
+
+## Hosted human-owner and device checks
+
+The owner completed hosted OAuth onboarding for `nrynss` and `nrynproton`.
+Read-only ledger inspection verified both connected accounts have distinct
+channels. Existing `nrynss` OBS pairing was owner-confirmed earlier.
+
+The owner confirmed a temporary browser-bound read-only source from
+`nrynproton` setup using the four-character pairing flow. The continuously
+polling receiver collected the resulting device cookie into a private temporary
+cookie jar. Read-only comparison of its credential hash verified exactly one
+active device bound to `nrynproton`. The credential and hash are not recorded.
+
+- `/auth/device` returned 204 before revocation.
+- `/api/overlay` returned 503 with the runtime unavailable because the channel
+  was offline; this is not evidence of populated cross-channel overlay isolation.
+- Device access to private health, snapshot and control mutation returned 403;
+  the owner device-management endpoint returned 401. These were application
+  denials, not Cloudflare challenges.
+- The owner revoked the temporary `nrynproton` sources through setup. The same
+  device cookie then received 401 from `/auth/device`, `/api/overlay` and
+  `/api/events`.
+- Read-only ledger inspection confirmed zero active `nrynproton` sources and
+  the original active `nrynss` source retained.
+
+The first test receiver missed the short collection window after confirmation;
+that attempt is not counted as completed device acceptance. The retry used an
+automatically polling receiver. Both temporary sources were revoked afterward.
+No synthetic accounts, direct authorization injection, paid calls, Twitch chat,
+stream capture or production receipt edits were used. Temporary test cookie
+jars were removed after revocation verification.
+
+Remaining acceptance includes populated channel-data isolation and actual
+hosted OBS playback or truthful fallback. A temporary HTTP source verifies
+device authorization but does not establish a second owner's real OBS playback.
+The T6.1 prerequisite remains binding for full TA.4 completion.

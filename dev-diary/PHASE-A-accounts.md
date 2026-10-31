@@ -100,7 +100,7 @@ format, collisions/exhaustion, expiry, browser binding, CSRF, single use,
 account limits, session rotation and recovery after the rate-limit window.
 
 TA.4 anonymous hosted smoke verified recorded demo replay/reset behavior and
-private API protection. Results and the remaining second-owner rehearsal are
+private API protection. Results, completed two-owner device checks and remaining acceptance are
 in [hosted smoke evidence](../docs/evidence/ta4-hosted-smoke.md). The principal
 verified hosted nrynss sign-in and owner-confirmed OBS pairing separately.
 TA.4 remains in progress; the T6.1 prerequisite and remaining hosted owner
