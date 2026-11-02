@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -89,8 +88,7 @@ func (s *captureSink) HandleEvent(ctx context.Context, raw json.RawMessage, at t
 	if json.Unmarshal(raw, &message) != nil {
 		return nil
 	}
-	words := strings.Fields(message.Message.Text)
-	if len(words) == 0 || !strings.EqualFold(words[0], "!receipt") {
+	if !chat.IsCommand(message.Message.Text) {
 		return nil
 	}
 	event := queuedEvent{raw: append(json.RawMessage(nil), raw...), at: at}

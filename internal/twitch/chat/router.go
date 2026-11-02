@@ -71,6 +71,20 @@ type event struct {
 	} `json:"badges"`
 }
 
+// IsCommand is shared by the production queue and router so supported commands
+// cannot be silently filtered before authority and role validation.
+func IsCommand(text string) bool {
+	fields := strings.Fields(text)
+	if len(fields) == 0 {
+		return false
+	}
+	switch strings.ToLower(fields[0]) {
+	case "!receipt", "!uphold", "!overturn", "!void", "!receipts", "!lore":
+		return true
+	}
+	return false
+}
+
 // HandleEvent drops non-command chat, rejects mismatched broadcasters and
 // derives role only from the payload's broadcaster identity and Twitch badges.
 func (r *Router) HandleEvent(ctx context.Context, raw json.RawMessage, receivedAt time.Time) error {
@@ -90,9 +104,7 @@ func (r *Router) HandleEvent(ctx context.Context, raw json.RawMessage, receivedA
 		return nil
 	}
 	command := strings.ToLower(fields[0])
-	switch command {
-	case "!receipt", "!uphold", "!overturn", "!void", "!receipts", "!lore":
-	default:
+	if !IsCommand(text) {
 		return nil
 	}
 	if !r.admit(e.MessageID) {

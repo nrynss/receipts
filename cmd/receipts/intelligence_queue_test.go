@@ -122,3 +122,41 @@ func TestCaptureQueueCancellationDiscardsPending(t *testing.T) {
 		t.Fatalf("processed %d events after cancellation", calls)
 	}
 }
+
+func TestProductionQueueForwardsAllSupportedChatCommands(t *testing.T) {
+	received := make(chan string, 10)
+	sink := newCaptureSink(context.Background(), eventHandlerFunc(func(_ context.Context, raw json.RawMessage, _ time.Time) error {
+		var event struct {
+			Message struct {
+				Text string `json:"text"`
+			} `json:"message"`
+		}
+		if err := json.Unmarshal(raw, &event); err != nil {
+			return err
+		}
+		received <- event.Message.Text
+		return nil
+	}), 10)
+	defer sink.stop()
+	for _, text := range []string{"hello", "Upload", "!unknown", "!receipt", "!uphold", "!overturn", "!void r", "!receipts off", "!LoRe"} {
+		raw, _ := json.Marshal(map[string]any{"message": map[string]string{"text": text}})
+		if err := sink.HandleEvent(context.Background(), raw, time.Now()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, want := range []string{"!receipt", "!uphold", "!overturn", "!void r", "!receipts off", "!LoRe"} {
+		select {
+		case got := <-received:
+			if got != want {
+				t.Fatalf("got %q want %q", got, want)
+			}
+		case <-time.After(time.Second):
+			t.Fatalf("command %q dropped by production queue", want)
+		}
+	}
+	select {
+	case extra := <-received:
+		t.Fatalf("unexpected command %q", extra)
+	default:
+	}
+}
