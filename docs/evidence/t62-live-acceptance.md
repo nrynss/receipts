@@ -124,3 +124,28 @@ checks the resulting review outcome. Both adapters also test contained-sentence
 acceptance and rejection before provider dispatch for partial sentences.
 This is offline repair evidence. The later live stage still needs a rerun;
 no new live call or automatic-stamp enablement is implied.
+
+## Issue 2 live rerun
+
+The reviewed fix `605176a` was deployed with a fresh protected backup and an
+additional owner-approved $0.25 ceiling. The owner reported a quiet voice-only
+stream and spoke the red-card line. After HLS/transcription delay, the existing
+receipt reached the judge and produced two private review items for repeated
+later segments. The owner explicitly approved one test stamp; one review was
+approved and one stamp-history row was persisted. This verifies the repaired
+sentence-within-segment detection path against the existing saved receipt.
+
+The session became inactive during browser control refreshes, including after
+approval. The owner did not inspect OBS, so playback, fallback and actual stamp
+visibility are unverified. Appeal and lore were not exercised. The run stopped
+with zero pending calls. Accounting moved from 540879280 to 590510000
+nanodollars, an increment of $0.04963072. All three configured ceilings were
+relocked to settled spend. No further model retry was performed.
+
+Offline follow-up reproduced a lifecycle bug: aborting an in-flight browser
+status poll could cancel runtime authority. Status requests now return their
+cancellation without revoking the runtime; the independent status monitor and
+freshness watchdog retain their existing fail-closed behavior. A focused
+regression checks cancellation preserves authority while genuine provider
+failure still cancels it. This is a demonstrated defect, but without stop-reason
+telemetry it does not establish every cause of the observed session drops.

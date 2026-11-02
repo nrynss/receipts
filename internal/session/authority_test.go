@@ -79,11 +79,16 @@ func TestConfirmedBroadcastActivatesOwnerSessionAndOfflineCancels(t *testing.T) 
 	}
 	var live atomic.Bool
 	var unknown atomic.Bool
+	var cancelStatus context.CancelFunc
+	var cancelDuringStatus atomic.Bool
 	live.Store(true)
 	httpClient, providerURL := testHTTP(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/streams" {
 			http.NotFound(w, r)
 			return
+		}
+		if cancelDuringStatus.Load() {
+			cancelStatus()
 		}
 		if unknown.Load() {
 			http.Error(w, "provider unavailable", http.StatusBadGateway)
@@ -115,8 +120,22 @@ func TestConfirmedBroadcastActivatesOwnerSessionAndOfflineCancels(t *testing.T) 
 	if _, err = manager.Resolve(authority); err != nil {
 		t.Fatalf("request cancellation stopped runtime: %v", err)
 	}
+	statusCtx, abortStatus := context.WithCancel(ctx)
+	cancelStatus = abortStatus
+	cancelDuringStatus.Store(true)
+	state, statusErr := a.Status(statusCtx, identity)
+	cancelDuringStatus.Store(false)
+	if state != "unknown" || !errors.Is(statusErr, context.Canceled) {
+		t.Fatalf("aborted poll state=%q err=%v", state, statusErr)
+	}
+	if _, err = manager.Resolve(authority); err != nil {
+		t.Fatalf("aborted browser poll cancelled runtime: %v", err)
+	}
+	if err = ledger.VerifyLiveSession(ctx, "owner", channel.ID, sessionID); err != nil {
+		t.Fatalf("aborted browser poll revoked ledger: %v", err)
+	}
 	unknown.Store(true)
-	state, err := a.Status(ctx, identity)
+	state, err = a.Status(ctx, identity)
 	if state != "unknown" {
 		t.Fatalf("unknown status state=%q err=%v", state, err)
 	}

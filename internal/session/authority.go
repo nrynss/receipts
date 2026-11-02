@@ -101,11 +101,20 @@ func (a *Authority) Status(ctx context.Context, identity auth.ChannelContext) (a
 	if _, channel, release, err := a.Runtime.BindRequest(ctx, identity); err == nil {
 		release()
 		sessionID, broadcastID, checkedAt, _, generation, persistedErr := a.Ledger.CurrentLiveAuthority(ctx, identity.AccountID, identity.ChannelID)
+		// A browser may abort a status poll during refresh or navigation. That
+		// request owns no runtime authority; the independent monitor/watchdog
+		// continue to enforce provider status and freshness.
+		if err := ctx.Err(); err != nil {
+			return api.StateUnknown, err
+		}
 		if persistedErr != nil || sessionID != channel.Authority.LiveSessionID || generation != channel.Authority.Generation || broadcastID == "" || time.Since(checkedAt) > a.freshness() {
 			_ = a.Runtime.Cancel(channel.Authority)
 			return api.StateUnknown, persistedErr
 		}
 		status, probeErr := a.Adapter.ProbeStreamStatus(ctx, channel.Authority)
+		if err := ctx.Err(); err != nil {
+			return api.StateUnknown, err
+		}
 		if _, currentErr := a.Runtime.Resolve(channel.Authority); currentErr != nil {
 			return api.StateUnknown, nil
 		}
