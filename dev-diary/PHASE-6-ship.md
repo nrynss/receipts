@@ -38,7 +38,7 @@ Run the original script on our channel: spoken promise, viewer !receipt, real cl
 requires: T6.2, TA.4
 fixture-ok: yes
 owns: README.md, docs/evidence/, docs/submission.md
-status: not-started
+status: in-progress
 ```
 
 Build the For judges: start here table with working demo, recorded session, evaluation and run instructions. Record the principal Codex build session ID and describe concrete implementation work from this thread. Preserve build footage throughout implementation so this task assembles existing evidence. Write feature/limitation notes and a video script under three minutes showing real Twitch interaction and Codex building it. Use owned assets, English and no credentials in footage.
@@ -98,5 +98,15 @@ Issue 2 is fixed and live-verified. Browser-poll cancellation and production
 chat filtering were also repaired; empty-snapshot cleanup was corrected. TA.4
 is complete. T6.2 still needs explicit actual clip playback/fallback and the
 issue 1 restart observation; a visible verdict alone does not prove those.
-Final settled accounting is $0.590510000, with zero allowance and pending
-calls. See [current live evidence](../docs/evidence/t62-live-acceptance.md).
+At the final rehearsal accounting check, settled spend was $0.590510000 with
+zero pending calls; the then-zero allowance was subsequently increased to
+$20 for each global, channel and session limit. No fresh capture authority was
+active at the latest check. See [current live evidence](../docs/evidence/t62-live-acceptance.md).
+
+
+T6.3 judge documentation now links the hosted recorded fixture demo, local
+keyless setup, live setup, evaluation and acceptance evidence. The Codex app
+verified principal build session `01a187f1-2866-7273-aa07-ea214669f2b4`.
+The user has already prepared the demo script. A separate accessible live or
+build recording has not been verified here, and T6.2 remains in progress, so
+T6.3 is not yet marked done. Submission readiness remains T6.4.

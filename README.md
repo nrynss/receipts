@@ -10,6 +10,43 @@ Implementation phases, task dependencies and acceptance criteria are in the [dev
 Build and run the current server using the [development instructions](docs/development.md).
 Hosted setup, backup and recovery are documented in the [operations guide](docs/operations.md).
 
+## For judges: start here
+
+| Try or inspect | What to expect |
+|---|---|
+| [Hosted recorded demo](https://receipts.nryn.dev/demo/) | Keyless, disposable simulation of the receipt and appeal flow. It is recorded fixture data, not a live Twitch session. |
+| [Live rehearsal evidence](docs/evidence/t62-live-acceptance.md) | Real Twitch capture through an owner-approved stamp and chat verdict, with the synthetic promise and remaining OBS checks disclosed. |
+| [Evaluation and model limits](docs/model-migration.md) | Model path, reviewed evaluation and why automatic stamps remain disabled. |
+| [Run locally without keys](#run-without-keys) | Build the app, preview the overlay and run deterministic replay and tests. |
+| [Connect your own channel](docs/submission.md#try-your-own-twitch-channel) | Twitch sign-in, owner control and OBS pairing, plus current hosting limits. |
+| [Features, limitations and Codex evidence](docs/submission.md) | Claims tied to evidence and the principal Codex build session ID. |
+
+A separately accessible recording of the live rehearsal or Codex build has not yet been verified for this guide. The hosted recorded demo is interactive fixture replay; the live rehearsal evidence is a written record, not a video.
+
+## Run without keys
+
+Install Go 1.27.1 or later in the 1.27 series, Node.js 24 or later, npm and ffmpeg/ffprobe. From the repository root, install dependencies once, then build and run the offline gate:
+
+```sh
+go mod download
+(cd web && npm ci)
+./tools/check.sh
+```
+
+Dependency installation needs network access. The gate itself needs no keys, network or live stream. It builds `bin/receipts`; on a restricted filesystem, set `GOCACHE` to a writable directory.
+
+```sh
+RECEIPTS_MODE=fixture ./bin/receipts serve
+```
+
+Open [the local overlay sequence](http://localhost:8080/?fixture=sequence) to preview its recorded visual states. Stop the server with Ctrl+C. This is a visual fixture, not a live Twitch session. To persist recorded transcript input through the ledger, run the following separately with a database path that does not yet exist:
+
+```sh
+./bin/receipts replay --fixture testdata/replay/foundation.json --db /tmp/receipts-fresh-replay.db
+```
+
+The CLI replay covers transcript persistence, not the whole product loop. The offline gate includes the full-loop acceptance test. See [development instructions](docs/development.md) for details and [operations](docs/operations.md) for a self-hosted live deployment.
+
 ## Implementation tracks
 
 | Track | Progress | Scope |
@@ -26,20 +63,9 @@ Hosted setup, backup and recovery are documented in the [operations guide](docs/
 
 [TA implementation phase and acceptance criteria](dev-diary/PHASE-A-accounts.md), with [account scope](docs/accounts-scope.md). TA.1 identity/sessions and TA.2 channel isolation are implemented, TA.3 joins the overlay work, and TA.4 has verified the deployed judge experience. The remaining full rehearsal is tracked under T6.2.
 
-## Current commands
+## Streamer experience
 
-```
-RECEIPTS_MODE=fixture ./bin/receipts serve
-./bin/receipts replay --fixture testdata/replay/foundation.json --db /tmp/receipts-fresh.db
-```
-
-The replay database path must be new. The CLI replay persists transcript fixtures through the real ledger. The T2.4 offline acceptance test exercises the full product loop through real services. Hosted auth setup is documented in [the TA.1 handoff](docs/ta1-auth-handoff.md).
-
-## Planned streamer experience
-
-Twitch sign-in and OBS pairing for the owner’s channel are implemented. Owners reach the private control dock at `/control` from account setup. Local OBS pairing/recovery acceptance passed. The anonymous recorded demo is available at `/demo/`. Verified session lifecycle and audio/intelligence integration are implemented. Contradictions require owner approval before a stamp appears. Hosted judge acceptance remains open.
-
-Add the overlay to OBS as a browser source. Chat commands: `!receipt`, `!lore`, `!uphold`, `!overturn`; the streamer and mods also have `!receipts off` and `!void`.
+Sign in with Twitch and use the private control dock at `/control`. Pair a Browser Source in OBS through setup. Chat can use `!receipt`, `!lore`, `!uphold` and `!overturn`; the streamer and mods also have `!receipts off` and `!void`. Contradictions are reviewed privately and need owner approval before a stamp appears. See the [judge guide](docs/submission.md) for the verified live path and its limits.
 
 ## Licence
 
