@@ -2,7 +2,7 @@
 
 **Goal:** Let judges try Receipts immediately and streamers connect their own channel safely.
 
-**Status:** in-progress (3/4)
+**Status:** done (4/4)
 
 Read [the phase index](README.md), [account scope](../docs/accounts-scope.md), [product](../product.md) and [agent protocol](../AGENTS.md). The scope defines product boundaries; this document owns TA task status, dependencies and implementation evidence.
 
@@ -51,7 +51,7 @@ Build connection/setup dashboard with offline, live, listening, paused, missing-
 requires: TA.2, TA.3, T1.4, T2.4, T3.3, T6.1
 fixture-ok: yes
 owns: internal/replay/, web/src/lib/demo/, web/src/routes/, docs/evidence/, docs/operations.md
-status: in-progress
+status: done
 ```
 
 Offer a clearly labelled recorded demo without login. Run the real application services in bounded disposable visitor-isolated state with no provider calls. Verify the deployed HTTPS candidate, fresh Twitch onboarding, two-owner isolation and lifecycle behavior. Record limitations and evidence separately from offline fixtures.
@@ -121,3 +121,12 @@ TA.4 remains in progress for populated channel-data isolation. Hosted
 owner-to-device binding and revocation passed for nrynproton while the original
 nrynss source remained active. T6.1 completed hosted deployment, recorded OBS
 fallback and actual backup/restore acceptance; it no longer blocks TA.4.
+
+TA.4 completion: populated two-owner isolation passed in the subsequent live
+run, and the original paired OBS source displayed the approved saved receipt
+after refresh without pairing again. Together with the earlier hosted demo,
+onboarding, revocation and recovery evidence, TA.4 is complete. See
+[hosted acceptance](../docs/evidence/ta4-hosted-smoke.md) and
+[live evidence](../docs/evidence/t62-live-acceptance.md). T6.2 retains playback
+and remaining full-rehearsal obligations. Earlier handoff entries above are
+historical rather than the current acceptance status.

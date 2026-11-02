@@ -149,3 +149,88 @@ freshness watchdog retain their existing fail-closed behavior. A focused
 regression checks cancellation preserves authority while genuine provider
 failure still cancels it. This is a demonstrated defect, but without stop-reason
 telemetry it does not establish every cause of the observed session drops.
+
+## Control and chat follow-ups
+
+The browser-poll cancellation fix was deployed as `8ed972f`, preserving zero
+paid allowance. The original OBS source then displayed the approved saved
+receipt after the owner refreshed its page, without another pairing code.
+The control runtime remained active through subsequent refreshes with
+speech-to-text off.
+
+The first appeal closed inconclusive with zero votes. The owner reported
+sending `!uphold`; offline inspection found the production EventSub queue
+filtered every command except `!receipt`, despite the downstream router already
+supporting votes, lore and moderator commands. The queue and router now share
+`chat.IsCommand`. Queue regression coverage verifies all supported commands
+reach the handler and ordinary/unknown messages do not. The full gate and
+startup/chat race tests passed. This fix was deployed as `b4b11d1`.
+
+The owner explicitly authorized approving the second recorded red-card review
+and a replacement appeal without new transcription or model calls. One
+`!uphold` from nrynproton reached that open appeal. Both the durable vote row
+and refreshed control dock showed 1 uphold / 0 overturn. Paid accounting
+remained 590510000 nanodollars with zero pending calls.
+
+The replacement appeal closed as `upheld` with exactly one uphold vote and no
+overturn votes. The owner refreshed the paired OBS source and confirmed the
+visible verdict: “Upheld by Chat”. The principal separately verified the
+closed durable appeal, vote count and upheld control-ledger outcome. Owner
+pause and resume controls were exercised successfully afterward.
+
+Two recorded detection latencies were 2.763 s and 3.304 s after the source
+segment's approximate ingest-clock end. These exclude unknown HLS delay and
+are not precise speech-to-detection timings. The first stamp was approved
+71.765 s after detection; the replacement review was approved 687.994 s after
+detection because diagnosis and deployment intervened. These are human-driven
+approval timings, not automatic-stamp performance claims.
+
+The original promise remains the disclosed synthetic stock voice. The later
+red-card line in this rerun was owner-spoken. Clip/browser-source audio was
+required to remain muted and the owner confirmed a quiet voice-only room;
+no claim of unrestricted speaker diarization or audible feedback-loop playback
+is made. Actual clip autoplay versus transcript fallback has not been confirmed
+by the owner. Source refresh was required to display the recovered state; an
+unattended source reconnect after host deployment is not claimed to have passed.
+
+The owner supplied the actual Twitch lore replies: “Lore: 1 total | 0 open,
+1 broken, 0 overturned, 0 context changed, 0 inconclusive. Claims:
+\"I promise I will always pick the blue card.\" (broken)”. Two owner-reported
+`!lore` commands each received that result. Upholding the contradiction maps
+to the `broken` lore tag; it is consistent with the upheld appeal.
+
+The principal exercised pause/resume, then voided the disposable test receipt.
+Read-only inspection confirmed its validity is `void`. The subsequent empty
+snapshot exposed a serialization defect: publisher cloning changed an empty
+receipt slice into JSON null. The clone now preserves a JSON empty array;
+regression coverage checks both nil and empty input snapshots. Events/API race
+tests and the full offline gate passed before deployment.
+
+The hosted status page subsequently reported the channel offline. Final
+inspection found zero fresh capture authority, zero pending paid calls, and
+limit equal to spent at 590510000 nanodollars. A historical persisted live row
+with cleared freshness remains; this is not an active capture grant. No budget
+rows or interrupted-call markers were removed in this rerun.
+
+### Current acceptance boundary
+
+The core live path now passes across the disclosed staged runs: captured
+promise, real clip creation and chat confirmation, owner-spoken later line,
+private contradiction review, explicit approval, actual OBS receipt/verdict,
+one viewer vote, closed upheld outcome, lore, pause/resume and durable void.
+TA.4 is complete. T6.2 remains in progress for explicit confirmation of actual
+OBS clip playback or labelled fallback and the issue 1 restart-recovery
+observation; neither is inferred from a visible “Upheld by Chat” verdict.
+No new paid run is required to inspect a future saved overlay, but a new
+capture would require a bounded allocation. The prior synthetic-promise and
+unknown interrupted-call accounting disclosures remain applicable.
+
+Final deployment: `receipts:abfccf5`, image
+`sha256:88bb675aef20c734a89cfae9ea12e47404f2d30c1e71dfd36586a2830284bac4`.
+The Go-only follow-up images reuse the prior verified Alpine/ffmpeg/streamlink
+runtime and unchanged built frontend, replacing the locally compiled static
+Linux/amd64 binary from each reviewed revision. Exact source archives were
+staged on the host. Protected backups and rollback tags preceded replacements.
+Final hosted health returned 200, anonymous private snapshot returned 401,
+and all nine shared tenant container IDs were unchanged. The completed TA.4
+tracking automation was deleted. No further paid capture is scheduled.

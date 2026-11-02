@@ -16,7 +16,7 @@ Hosted setup, backup and recovery are documented in the [operations guide](docs/
 |---|---|---|
 | P0 — Feasibility | 4/4 | Twitch, audio and OBS probes |
 | P1 — Foundation | 4/4 | Settings, ledger, contracts and deterministic replay driver |
-| TA — Accounts and onboarding | 3/4 | Identity, isolation and OBS pairing verified; anonymous recorded demo implemented; hosted judge acceptance pending |
+| TA: Accounts and onboarding | 4/4 | Hosted demo, onboarding, populated owner isolation, revocation and OBS display acceptance verified |
 | P2 — Offline receipt loop | 4/4 | Capture, detection, appeals, lore and deterministic full-loop replay verified |
 | P3 — Overlay/controls | 3/3 | Overlay, owner controls and actual local OBS/SSE recovery verified |
 | P4 — Twitch integration | 4/4 | Authorized adapters, chat, local clip fallback and real stream-end capture exit verified |
@@ -24,7 +24,7 @@ Hosted setup, backup and recovery are documented in the [operations guide](docs/
 | PU: UI and copy | 4/4 | Brand, overlay/demo, streamer setup and bounded chat feedback verified |
 | P6: Release | 1/4 | Deployment and recovery verified; live rehearsal and judge readiness remain |
 
-[TA implementation phase and acceptance criteria](dev-diary/PHASE-A-accounts.md), with [account scope](docs/accounts-scope.md). TA.1 identity/sessions and TA.2 channel isolation are implemented, TA.3 joins the overlay work, and TA.4 verifies the deployed judge experience before submission preparation.
+[TA implementation phase and acceptance criteria](dev-diary/PHASE-A-accounts.md), with [account scope](docs/accounts-scope.md). TA.1 identity/sessions and TA.2 channel isolation are implemented, TA.3 joins the overlay work, and TA.4 has verified the deployed judge experience. The remaining full rehearsal is tracked under T6.2.
 
 ## Current commands
 

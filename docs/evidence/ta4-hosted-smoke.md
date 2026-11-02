@@ -74,3 +74,20 @@ device authorization but does not establish a second owner's real OBS playback.
 T6.1 subsequently completed its hosted deployment, fixture fallback and actual
 backup/restore checks. Populated channel-data isolation remains outstanding
 for full TA.4 completion.
+
+## Completion of populated hosted acceptance
+
+The subsequent owner-authorized live run populated nrynss with a real captured
+receipt and ready Twitch clip. While that channel was active, the separately
+signed-in nrynproton control dock did not expose the claim or owner actions;
+its owner-scoped private endpoints remained runtime-unavailable rather than
+returning nrynss data. The complete run and synthetic-promise disclosure are
+in [live acceptance evidence](t62-live-acceptance.md).
+
+After issue 2's detection repair, the owner approved a real private review.
+The original paired OBS source displayed the saved receipt after refreshing
+its page, without re-pairing. This completes the previously outstanding
+populated isolation and hosted OBS-display acceptance for TA.4, together with
+the earlier onboarding, device revocation, anonymous-demo and recovery checks.
+OBS video playback and the remaining full rehearsal steps are tracked under
+T6.2 rather than inferred from a visible receipt.

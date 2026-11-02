@@ -91,3 +91,12 @@ and transcription worked; no receipt or clip was created. Final durable
 accounting was $0.2389302 under the approved $0.25 cap, with zero unresolved
 attempts. Further paid work is locked pending offline diagnosis and renewed
 approval. See [partial pilot evidence](../docs/evidence/t62-hosted-pilot.md).
+
+The subsequent staged run verified the core real path through owner approval,
+OBS verdict, one chat vote, upheld appeal, lore, pause/resume and durable void.
+Issue 2 is fixed and live-verified. Browser-poll cancellation and production
+chat filtering were also repaired; empty-snapshot cleanup was corrected. TA.4
+is complete. T6.2 still needs explicit actual clip playback/fallback and the
+issue 1 restart observation; a visible verdict alone does not prove those.
+Final settled accounting is $0.590510000, with zero allowance and pending
+calls. See [current live evidence](../docs/evidence/t62-live-acceptance.md).
