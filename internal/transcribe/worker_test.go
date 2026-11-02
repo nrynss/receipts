@@ -10,6 +10,7 @@ import (
 
 	"github.com/nrynss/keel/cost"
 	"github.com/nrynss/keel/sqlite"
+	"receipts/internal/audio"
 	"receipts/internal/auth"
 	"receipts/internal/receipt"
 	runtime "receipts/internal/runtime"
@@ -222,4 +223,86 @@ func TestWorkerNotifiesOnlyPersistedBroadcasterSegments(t *testing.T) {
 	if len(notified) != 1 {
 		t.Fatal("notified uncertain speech")
 	}
+}
+
+type windowLedger struct {
+	fakeLedger
+	windows [][3]time.Duration
+}
+
+func (l *windowLedger) ClaimTranscriptionWindow(_ context.Context, _, _, _ string, _ uint64, start, split, end time.Duration) error {
+	l.windows = append(l.windows, [3]time.Duration{start, split, end})
+	return nil
+}
+
+func TestOverlapWindowUsesOriginalPCMAndDeduplicatesSharedSpeech(t *testing.T) {
+	ctx := context.Background()
+	m := &fakeMeter{active: true}
+	l := &windowLedger{}
+	calls := 0
+	w := Worker{Authority: auth.ChannelContext{AccountID: "a", ChannelID: "one", LiveSessionID: "s", Generation: 1}, Meter: m, Ledger: l, SoleBroadcaster: true, Overlap: true, NowOffset: func() time.Duration { return time.Hour }, Transcriber: fakeTranscriber(func(_ context.Context, b []byte) (string, error) {
+		calls++
+		duration, err := audio.WAVDuration(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if calls == 1 {
+			if duration != 5*time.Second {
+				t.Fatal(duration)
+			}
+			return "I promise I", nil
+		}
+		if duration != 10*time.Second {
+			t.Fatalf("joint audio duration %v", duration)
+		}
+		if calls == 2 && (b[44] != 11 || b[44+160000] != 22) {
+			t.Fatal("original PCM changed or reordered")
+		}
+		return "I promise I will always pick the blue card.", nil
+	})}
+	first := fiveSecondWAV()
+	first[44] = 11
+	second := fiveSecondWAV()
+	second[44] = 22
+	for i, b := range [][]byte{first, second, fiveSecondWAV()} {
+		if err := w.Submit(ctx, Chunk{Sequence: uint64(i + 1), Start: time.Duration(i) * 5 * time.Second, End: time.Duration(i+1) * 5 * time.Second, WAV: b}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(l.windows) != 2 || l.windows[0] != [3]time.Duration{0, 5 * time.Second, 10 * time.Second} {
+		t.Fatalf("windows %#v", l.windows)
+	}
+	if len(l.segments) != 2 || l.segments[1].Start != 0 || l.segments[1].End != 10*time.Second || l.segments[1].Attribution != "broadcaster" {
+		t.Fatalf("segments %#v", l.segments)
+	}
+	if m.calls != 3 {
+		t.Fatalf("calls %d", m.calls)
+	}
+}
+
+func TestOverlapDoesNotBridgeAudioGaps(t *testing.T) {
+	m := &fakeMeter{active: true}
+	l := &windowLedger{}
+	w := Worker{Authority: auth.ChannelContext{LiveSessionID: "s", Generation: 1}, Meter: m, Ledger: l, Overlap: true, NowOffset: func() time.Duration { return time.Hour }, Transcriber: fakeTranscriber(func(_ context.Context, b []byte) (string, error) {
+		d, _ := audio.WAVDuration(b)
+		if d != time.Second {
+			t.Fatal("gap joined")
+		}
+		return "words", nil
+	})}
+	for i, start := range []time.Duration{0, 3 * time.Second} {
+		if err := w.Submit(context.Background(), Chunk{Sequence: uint64(i + 1), Start: start, End: start + time.Second, WAV: testWAV()}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(l.windows) != 0 || len(l.segments) != 2 {
+		t.Fatal("gap provenance incorrect")
+	}
+}
+
+func fiveSecondWAV() []byte {
+	b := append(testWAV(), make([]byte, 4*32000)...)
+	binary.LittleEndian.PutUint32(b[4:], uint32(len(b)-8))
+	binary.LittleEndian.PutUint32(b[40:], 160000)
+	return b
 }

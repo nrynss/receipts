@@ -42,3 +42,40 @@ func WAVDuration(b []byte) (time.Duration, error) {
 	}
 	return time.Duration(samples) * time.Second / 16000, nil
 }
+
+// JoinWAV joins verified mono PCM recordings without changing their samples.
+func JoinWAV(a, b []byte) ([]byte, error) {
+	da, ea := WAVDuration(a)
+	db, eb := WAVDuration(b)
+	if ea != nil || eb != nil || da+db > 12*time.Second {
+		return nil, errors.New("audio: invalid overlap window")
+	}
+	pcm := func(wav []byte) []byte {
+		for i := 12; i+8 <= len(wav); {
+			size := int(binary.LittleEndian.Uint32(wav[i+4 : i+8]))
+			start := i + 8
+			if string(wav[i:i+4]) == "data" {
+				return wav[start : start+size]
+			}
+			i = start + size + (size & 1)
+		}
+		return nil
+	}
+	left, right := pcm(a), pcm(b)
+	out := make([]byte, 44+len(left)+len(right))
+	copy(out, "RIFF")
+	binary.LittleEndian.PutUint32(out[4:], uint32(len(out)-8))
+	copy(out[8:], "WAVEfmt ")
+	binary.LittleEndian.PutUint32(out[16:], 16)
+	binary.LittleEndian.PutUint16(out[20:], 1)
+	binary.LittleEndian.PutUint16(out[22:], 1)
+	binary.LittleEndian.PutUint32(out[24:], 16000)
+	binary.LittleEndian.PutUint32(out[28:], 32000)
+	binary.LittleEndian.PutUint16(out[32:], 2)
+	binary.LittleEndian.PutUint16(out[34:], 16)
+	copy(out[36:], "data")
+	binary.LittleEndian.PutUint32(out[40:], uint32(len(left)+len(right)))
+	copy(out[44:], left)
+	copy(out[44+len(left):], right)
+	return out, nil
+}

@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	"receipts/internal/auth"
 	"receipts/internal/events"
 	channelruntime "receipts/internal/runtime"
+	"receipts/internal/store"
 )
 
 type Reader interface {
@@ -105,7 +107,33 @@ func NewForOwner(cfg Config, sessions *auth.Service, supervisor *channelruntime.
 	if sessions == nil || supervisor == nil {
 		return unavailableHandler()
 	}
-	return sessions.ChannelMiddleware(supervisor.Middleware(server))
+	return reviewDiagnostics(sessions.ChannelMiddleware(supervisor.Middleware(server)))
+}
+
+// Observe only the bounded review route, including middleware refusals.
+// Never log request bodies, cookies, identifiers or raw database errors.
+func reviewDiagnostics(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/control/review" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		observed := &reviewStatusWriter{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(observed, r)
+		if observed.status >= 400 {
+			slog.Warn("owner review HTTP refusal", "status", observed.status)
+		}
+	})
+}
+
+type reviewStatusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *reviewStatusWriter) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
 }
 
 func unavailableHandler() http.Handler {
@@ -421,6 +449,14 @@ func (s *Server) control(action string) http.HandlerFunc {
 			}
 		}
 		if err != nil {
+			if action == "review" {
+				reason := "application_authority"
+				var refusal *store.ReviewRefusal
+				if errors.As(err, &refusal) {
+					reason = refusal.Reason
+				}
+				slog.Warn("owner review refused", "reason", reason)
+			}
 			if errors.Is(err, ErrUnimplemented) {
 				apiError(w, http.StatusNotImplemented, "not_implemented", "This control action is not implemented")
 				return

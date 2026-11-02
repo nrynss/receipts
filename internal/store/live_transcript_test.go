@@ -84,3 +84,68 @@ func TestDetectionTimingSurvivesTranscriptRetention(t *testing.T) {
 		t.Fatalf("retained provenance: %#v %v", d, err)
 	}
 }
+
+func TestTranscriptionWindowRequiresAdjacentOwnedRawClaims(t *testing.T) {
+	ctx := context.Background()
+	s, _, channel, _ := setup(t, Retention{})
+	now := time.Now().UTC()
+	_, err := s.db.Writer().ExecContext(ctx, `INSERT INTO accounts(id,provider,provider_subject,login,channel_id,token_ciphertext,token_expires_at,scopes,status,updated_at) VALUES('owner','twitch','subject','login',?,X'00',?,'[]','connected',?)`, channel.ID, now.Add(time.Hour).UnixMilli(), now.UnixMilli())
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := s.StartOwnedLiveSession(ctx, "owner", channel.ID, "broadcast", now, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claim := func(start, end time.Duration) error {
+		return s.ClaimAudioChunk(ctx, "owner", channel.ID, a.Session.ID, a.Generation, start, end)
+	}
+	window := func(owner string, generation uint64) error {
+		return s.ClaimTranscriptionWindow(ctx, owner, channel.ID, a.Session.ID, generation, 0, time.Second, 2*time.Second)
+	}
+	if err = window("owner", a.Generation); !errors.Is(err, ErrConflict) {
+		t.Fatalf("missing roots %v", err)
+	}
+	if err = claim(0, time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if err = claim(time.Second, 2*time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if err = window("other", a.Generation); !errors.Is(err, ErrConflict) {
+		t.Fatalf("foreign window %v", err)
+	}
+	if err = window("owner", a.Generation+1); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale window %v", err)
+	}
+	seg := receipt.Segment{ID: "first", SessionID: a.Session.ID, Start: 0, End: time.Second, Text: "I promise I", Attribution: "broadcaster", TimingBasis: "coarse_pcm_ingest_hls_delay_unknown"}
+	if err = s.AddLiveSegment(ctx, "owner", channel.ID, a.Session.ID, a.Generation, seg); err != nil {
+		t.Fatal(err)
+	}
+	joint := seg
+	joint.ID = "joint"
+	joint.End = 2 * time.Second
+	joint.Text = "I promise I will always pick the blue card."
+	if err = s.AddLiveSegment(ctx, "owner", channel.ID, a.Session.ID, a.Generation, joint); !errors.Is(err, ErrConflict) {
+		t.Fatalf("unclaimed overlap %v", err)
+	}
+	if err = window("owner", a.Generation); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.AddLiveSegment(ctx, "owner", channel.ID, a.Session.ID, a.Generation, joint); err != nil {
+		t.Fatal(err)
+	}
+	joint.ID = "duplicate"
+	if err = s.AddLiveSegment(ctx, "owner", channel.ID, a.Session.ID, a.Generation, joint); !errors.Is(err, ErrConflict) {
+		t.Fatalf("duplicate window %v", err)
+	}
+	if err = claim(0, time.Second); !errors.Is(err, ErrConflict) {
+		t.Fatalf("raw replay %v", err)
+	}
+	if err = claim(3*time.Second, 4*time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.ClaimTranscriptionWindow(ctx, "owner", channel.ID, a.Session.ID, a.Generation, time.Second, 3*time.Second, 4*time.Second); !errors.Is(err, ErrConflict) {
+		t.Fatalf("gap joined %v", err)
+	}
+}

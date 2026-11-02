@@ -10,6 +10,16 @@ import (
 	"receipts/internal/receipt"
 )
 
+// ReviewRefusal identifies the failed approval stage without exposing evidence.
+// Unwrap preserves the existing eligibility and conflict error contracts.
+type ReviewRefusal struct {
+	Reason string
+	Cause  error
+}
+
+func (e *ReviewRefusal) Error() string { return "review refused: " + e.Reason }
+func (e *ReviewRefusal) Unwrap() error { return e.Cause }
+
 type ReviewResolution struct {
 	Replayed bool
 	Receipt  *events.PublicReceipt
@@ -31,16 +41,23 @@ func (s *Store) ReviewCandidate(ctx context.Context, accountID, channelID, revie
 
 // ResolveReviewAction accepts a review ID (never a detection ID). Runtime
 // admission and the public publisher lock are held by the application service.
-func (s *Store) ResolveReviewAction(ctx context.Context, a DetectionAuthority, candidate receipt.Receipt, reviewID, key string, approve bool, paused bool, cooldown time.Duration) (ReviewResolution, error) {
-	var result ReviewResolution
+func (s *Store) ResolveReviewAction(ctx context.Context, a DetectionAuthority, candidate receipt.Receipt, reviewID, key string, approve bool, paused bool, cooldown time.Duration) (result ReviewResolution, err error) {
+	stage := "input"
+	defer func() {
+		if err != nil {
+			err = &ReviewRefusal{Reason: stage, Cause: err}
+		}
+	}()
 	if a.AccountID == "" || a.ChannelID == "" || a.LiveSessionID == "" || a.Generation == 0 || candidate.ID == "" || reviewID == "" || key == "" || len(key) > 200 || cooldown < 0 {
 		return result, ErrInvalid
 	}
+	stage = "transaction"
 	tx, err := s.db.BeginWrite(ctx)
 	if err != nil {
 		return result, err
 	}
 	defer tx.Rollback()
+	stage = "live_authority"
 	var active int
 	err = tx.QueryRowContext(ctx, `SELECT count(*) FROM accounts a JOIN live_sessions l ON l.channel_id=a.channel_id WHERE a.id=? AND a.status='connected' AND a.channel_id=? AND l.id=? AND l.state='live' AND l.ended_at IS NULL`, a.AccountID, a.ChannelID, a.LiveSessionID).Scan(&active)
 	if err != nil {
@@ -53,6 +70,7 @@ func (s *Store) ResolveReviewAction(ctx context.Context, a DetectionAuthority, c
 	if approve {
 		decision = "approve"
 	}
+	stage = "action_replay"
 	var priorReview, priorDecision string
 	err = tx.QueryRowContext(ctx, `SELECT review_id,decision FROM review_actions WHERE channel_id=? AND action_key=?`, a.ChannelID, key).Scan(&priorReview, &priorDecision)
 	if err == nil {
@@ -65,6 +83,7 @@ func (s *Store) ResolveReviewAction(ctx context.Context, a DetectionAuthority, c
 	if !errors.Is(err, sql.ErrNoRows) {
 		return result, err
 	}
+	stage = "candidate_version"
 	var state, detectionID, sourceSession, sourceID, text, attribution, claim, clippedBy, clipURL, clipStatus, verdict, validity string
 	var start, end, created int64
 	var sensitive bool
@@ -76,17 +95,21 @@ func (s *Store) ResolveReviewAction(ctx context.Context, a DetectionAuthority, c
 	if err != nil {
 		return result, err
 	}
+	stage = "review_state"
 	if state != "open" {
 		return result, ErrConflict
 	}
 	now := s.now().UTC()
 	if approve {
+		stage = "paused"
 		if paused {
 			return result, ErrNotEligible
 		}
+		stage = "source_session_or_receipt_eligibility"
 		if sourceSession != a.LiveSessionID || validity != "valid" || sensitive || attribution != "broadcaster" || (expires.Valid && expires.Int64 <= millis(now)) {
 			return result, ErrNotEligible
 		}
+		stage = "exact_live_source"
 		var exact int
 		err = tx.QueryRowContext(ctx, `SELECT count(*) FROM transcript_segments t JOIN live_sessions l ON l.id=t.session_id WHERE t.id=? AND t.session_id=? AND t.start_ms=? AND t.end_ms=? AND t.text=? AND t.attribution='broadcaster' AND l.channel_id=? AND l.state='live' AND l.ended_at IS NULL AND l.started_at+t.end_ms<=?`, sourceID, a.LiveSessionID, start, end, text, a.ChannelID, millis(now)).Scan(&exact)
 		if err != nil {
@@ -95,6 +118,7 @@ func (s *Store) ResolveReviewAction(ctx context.Context, a DetectionAuthority, c
 		if exact != 1 {
 			return result, ErrNotEligible
 		}
+		stage = "stamp_cooldown"
 		var recent int
 		if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM stamp_history WHERE channel_id=? AND stamped_at>?`, a.ChannelID, millis(now.Add(-cooldown))).Scan(&recent); err != nil {
 			return result, err
@@ -102,11 +126,13 @@ func (s *Store) ResolveReviewAction(ctx context.Context, a DetectionAuthority, c
 		if recent != 0 {
 			return result, ErrNotEligible
 		}
+		stage = "stamp_write"
 		if _, err = tx.ExecContext(ctx, `INSERT INTO stamp_history(detection_id,channel_id,stamped_at) VALUES(?,?,?)`, detectionID, a.ChannelID, millis(now)); err != nil {
 			return result, err
 		}
 		result.Receipt = &events.PublicReceipt{ID: candidate.ID, Claim: claim, ClippedBy: clippedBy, ClipURL: clipURL, ClipStatus: clipStatus, Verdict: verdict, CreatedAt: time.UnixMilli(created).UTC()}
 	}
+	stage = "decision_write"
 	nextState, outcome := "rejected", "dismissed"
 	if approve {
 		nextState, outcome = "approved", "stamp"
@@ -123,5 +149,6 @@ func (s *Store) ResolveReviewAction(ctx context.Context, a DetectionAuthority, c
 	if err = ctx.Err(); err != nil {
 		return result, err
 	}
+	stage = "commit"
 	return result, tx.Commit()
 }

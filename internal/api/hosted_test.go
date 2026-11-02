@@ -124,6 +124,68 @@ func TestProductionHostedCompositionScopesSessionsDevicesAndRevocation(t *testin
 	if response.Code != 200 || snapshot.Channel != a.authority.ChannelID || len(snapshot.Receipts) != 1 || snapshot.Receipts[0].Claim != "a-promise" {
 		t.Fatalf("snapshot status=%d value=%+v", response.Code, snapshot)
 	}
+	// Exercise the real authenticated review route before the appeal flow.
+	now = now.Add(5 * time.Second)
+	later := receipt.Segment{ID: "later-a", SessionID: a.authority.LiveSessionID, Text: "I am taking that shortcut now.", Start: 2 * time.Second, End: 3 * time.Second, Attribution: "broadcaster"}
+	if err := ledger.AddSegment(ctx, later); err != nil {
+		t.Fatal(err)
+	}
+	candidate, err := ledger.GetReceipt(ctx, snapshot.Receipts[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ledger.ApplyDetection(ctx, store.DetectionAuthority{AccountID: a.authority.AccountID, ChannelID: a.authority.ChannelID, LiveSessionID: a.authority.LiveSessionID, Generation: a.authority.Generation}, candidate, later, receipt.NeedsReview, 30*time.Second); err != nil {
+		t.Fatal(err)
+	}
+	reviews, err := ledger.PendingReviews(ctx, a.authority.AccountID, a.authority.ChannelID, 10)
+	if err != nil || len(reviews) != 1 {
+		t.Fatalf("pending reviews: %v %v", reviews, err)
+	}
+	// A previous session left an older open review. It must not displace
+	// actionable current-session reviews or become approvable on restart.
+	for _, statement := range []struct {
+		query string
+		args  []any
+	}{
+		{`INSERT INTO live_sessions(id,channel_id,started_at,ended_at,state) VALUES('old-session',?,0,1000,'ended')`, []any{a.authority.ChannelID}},
+		{`INSERT INTO detections(id,channel_id,receipt_id,session_id,source_id,start_ms,end_ms,evidence_text,attribution,outcome,created_at) VALUES('old-detection',?,?,'old-session','old-source',0,1000,'old line','broadcaster','review',1000)`, []any{a.authority.ChannelID, candidate.ID}},
+		{`INSERT INTO reviews(id,detection_id,state,created_at) SELECT 'old-review','old-detection','open',1000 WHERE ?<>''`, []any{a.authority.ChannelID}},
+	} {
+		if _, err := db.Writer().ExecContext(ctx, statement.query, statement.args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, req(a, http.MethodGet, "/api/review", "", false))
+	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), "old-review") || !strings.Contains(response.Body.String(), reviews[0].ID) {
+		t.Fatalf("actionable review queue: status=%d body=%s", response.Code, response.Body.String())
+	}
+	beforeApproval := a.channel.Events.Sequence()
+	approval := fmt.Sprintf(`{"review_id":%q,"decision":"approve","action_key":"owner-approval"}`, reviews[0].ID)
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, req(a, http.MethodPost, "/api/control/review", approval, false))
+	if response.Code != http.StatusForbidden || a.channel.Events.Sequence() != beforeApproval {
+		t.Fatalf("CSRF refusal: status=%d sequence=%d", response.Code, a.channel.Events.Sequence())
+	}
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, req(a, http.MethodPost, "/api/control/review", approval, true))
+	if response.Code != http.StatusNoContent || a.channel.Events.Sequence() != beforeApproval+1 {
+		t.Fatalf("review approval: status=%d body=%s sequence=%d", response.Code, response.Body.String(), a.channel.Events.Sequence())
+	}
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, req(a, http.MethodPost, "/api/control/review", approval, true))
+	if response.Code != http.StatusNoContent || a.channel.Events.Sequence() != beforeApproval+1 {
+		t.Fatalf("approval retry: status=%d sequence=%d", response.Code, a.channel.Events.Sequence())
+	}
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, req(a, http.MethodPost, "/api/control/review", `{"review_id":"old-review","decision":"approve","action_key":"old-approval"}`, true))
+	if response.Code != http.StatusConflict || a.channel.Events.Sequence() != beforeApproval+1 {
+		t.Fatalf("historical approval: status=%d sequence=%d", response.Code, a.channel.Events.Sequence())
+	}
+	var approvals int
+	if err := db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM review_actions WHERE action_key='owner-approval' AND decision='approve'`).Scan(&approvals); err != nil || approvals != 1 {
+		t.Fatalf("saved approval: count=%d err=%v", approvals, err)
+	}
 	// Real authenticated owner action and trusted chat vote through the same ledger.
 	receiptID := snapshot.Receipts[0].ID
 	body := fmt.Sprintf(`{"receipt_id":%q,"receipt_decision":"appeal","action_key":"click-1"}`, receiptID)

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { statusRefresh } from '$lib/account/status-refresh';
+  import { controlRefresh } from '$lib/control/refresh';
   import { resolve } from '$app/paths';
-  import { getControl, createActions } from '$lib/control/client';
+  import { createActions } from '$lib/control/client';
   import { liveConfirmation } from '$lib/control/live-status';
   import { fixtureFetch } from '$lib/control/fixture';
   let request: typeof fetch = fetch;
@@ -12,8 +12,8 @@
   let transcriptionEnabled = $state(false);
   let soleBroadcaster = $state(false);
   let uncertainSession = $state(false);
-  let poll: ReturnType<typeof statusRefresh> | undefined;
-  let statusVersion=0;
+  let poll: ReturnType<typeof controlRefresh> | undefined;
+  let ownerScope = '';
   let disposed=false;
   let snapshot = $state<OverlaySnapshot | null>(null);
   let reviews = $state<ReviewItem[]>([]);
@@ -29,22 +29,11 @@
   let verifiedLive = $derived(liveConfirmation(statusValue));
   let appealRemaining = $derived(snapshot?.current_appeal ? Math.max(0, Math.ceil((Date.parse(snapshot.current_appeal.closes_at) - now) / 1000)) : 0);
   let appealUpholdPercent = $derived(snapshot?.current_appeal ? (snapshot.current_appeal.uphold_votes + snapshot.current_appeal.overturn_votes ? snapshot.current_appeal.uphold_votes / (snapshot.current_appeal.uphold_votes + snapshot.current_appeal.overturn_votes) * 100 : 50) : 50);
-  async function load() {
-    const version=++statusVersion; poll?.cancel();
-    try {
-      const data = await getControl(request);
-      if (disposed || version!==statusVersion) return;
-      actions.setScope(data.owner.id, data.owner.channel_id);
-      statusValue = data.state.state; canStart = data.state.can_start === true;
-      transcriptionEnabled = data.state.transcription_enabled === true; uncertainSession=false;
-      listening = data.state.audio_capture_active === true || statusValue === 'listening' || statusValue === 'paused';
-      snapshot = data.snapshot; reviews = data.reviews; available = data.runtimeAvailable;
-    } catch (error) { if (disposed || version!==statusVersion) return; uncertainSession=sessionActive;statusValue='unknown';listening=false;transcriptionEnabled=false;message = error instanceof Error ? error.message : 'Controls unavailable.'; }
-  }
-  function refreshStatus() { if (!busy) { statusVersion++; void poll?.run(); } }
+  async function load() { if (!disposed) await poll?.run(); }
+  function refreshStatus() { if (!busy) void load(); }
   async function act(path: string, body: Record<string, unknown> = {}, keyed = false) {
     if (busy) return;
-    poll?.cancel(); statusVersion++; busy = true; message = '';
+    poll?.cancel(); busy = true; message = '';
     try { await actions.send(path, body, keyed); message = 'Action applied.'; await load(); }
     catch (error) { message = error instanceof Error ? error.message : 'Action failed. Try again.'; }
     finally { busy = false; }
@@ -59,7 +48,24 @@
     if (decision === 'context_changed' && !reason.trim()) { message = 'Enter a reason for the change in context.'; return; }
     void act('/api/control/decision', { receipt_id: snapshot.current_stamp.id, receipt_decision: decision, ...(decision === 'context_changed' ? { note: reason.trim() } : {}) }, true);
   }
-  onMount(() => { if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('fixture') === 'dock') request = fixtureFetch(); actions = createActions(request, () => document.cookie, undefined, sessionStorage); poll=statusRefresh(request, (state) => { if (typeof state.state === 'string') statusValue=state.state;canStart=state.can_start===true;listening=state.audio_capture_active===true;transcriptionEnabled=state.transcription_enabled===true;uncertainSession=false; }, () => { uncertainSession=sessionActive;statusValue='unknown';listening=false;transcriptionEnabled=false; }); void load(); const countdownTimer=window.setInterval(() => { now=Date.now(); },1000); const statusTimer=window.setInterval(() => { void refreshStatus(); },5000); return () => { disposed=true;statusVersion++;poll?.dispose();window.clearInterval(countdownTimer);window.clearInterval(statusTimer); }; });
+  onMount(() => {
+    if (import.meta.env.DEV) { const mode = new URLSearchParams(window.location.search).get('fixture'); if (mode === 'dock' || mode === 'dock-delayed') request = fixtureFetch(mode === 'dock-delayed' ? 1 : 0); }
+    actions = createActions(request, () => document.cookie, undefined, sessionStorage);
+    poll = controlRefresh(request, data => {
+      const scope = JSON.stringify([data.owner.id, data.owner.channel_id]);
+      if (scope !== ownerScope) { actions.setScope(data.owner.id, data.owner.channel_id); ownerScope = scope; }
+      statusValue = data.state.state; canStart = data.state.can_start === true;
+      transcriptionEnabled = data.state.transcription_enabled === true; uncertainSession = false;
+      listening = data.state.audio_capture_active === true || statusValue === 'listening' || statusValue === 'paused';
+      snapshot = data.snapshot; reviews = data.reviews; available = data.runtimeAvailable;
+    }, () => {
+      uncertainSession = sessionActive; statusValue = 'unknown'; listening = false; transcriptionEnabled = false;
+    });
+    void load();
+    const countdownTimer = window.setInterval(() => { now = Date.now(); }, 1000);
+    const statusTimer = window.setInterval(refreshStatus, 3000);
+    return () => { disposed = true; poll?.dispose(); window.clearInterval(countdownTimer); window.clearInterval(statusTimer); };
+  });
 </script>
 <svelte:head><title>Receipts control dock</title></svelte:head>
 <main>

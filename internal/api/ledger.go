@@ -60,7 +60,7 @@ func (l LedgerReader) ReviewQueueFor(r *http.Request, a auth.ChannelContext) ([]
 	if _, err := l.session(r, a); err != nil {
 		return nil, err
 	}
-	values, err := l.Store.PendingReviews(r.Context(), a.AccountID, a.ChannelID, 100)
+	values, err := l.Store.PendingReviewsForSession(r.Context(), a.AccountID, a.ChannelID, a.LiveSessionID, 100)
 	if err != nil {
 		return nil, err
 	}

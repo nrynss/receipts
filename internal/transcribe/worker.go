@@ -47,6 +47,12 @@ type Worker struct {
 	Meter           Meter
 	Ledger          Ledger
 	SoleBroadcaster bool
+	// Overlap includes the preceding capture chunk in each paid transcription.
+	// Capture claims stay disjoint. Persisted windows retain both raw ranges.
+	Overlap     bool
+	previous    *Chunk
+	lastText    string
+	lastTextEnd time.Duration
 	// NowOffset is the current persisted session-clock offset.
 	NowOffset    func() time.Duration
 	mu           sync.Mutex
@@ -56,7 +62,8 @@ type Worker struct {
 }
 
 // Submit accepts only a new contiguous-order, non-overlapping final chunk.
-// It retains no audio after returning and performs no retries. The estimate is
+// Overlap mode retains one verified chunk for context and performs no retries.
+// The estimate is
 // deliberately one full minute at the official gpt-transcribe rate, making
 // each <=30 second request conservatively bounded even when interrupted.
 func (w *Worker) Submit(ctx context.Context, chunk Chunk) error {
@@ -72,6 +79,9 @@ func (w *Worker) Submit(ctx context.Context, chunk Chunk) error {
 	if err != nil || duration != chunk.End-chunk.Start || chunk.End > w.NowOffset() {
 		return errors.New("transcribe: unverified audio duration or future chunk")
 	}
+	if w.Overlap && duration > 6*time.Second {
+		return errors.New("transcribe: overlap capture chunk exceeds six seconds")
+	}
 	if w.started && (chunk.Sequence <= w.lastSequence || chunk.Start < w.lastEnd) {
 		return errors.New("transcribe: duplicate, out-of-order or overlapping chunk")
 	}
@@ -86,11 +96,34 @@ func (w *Worker) Submit(ctx context.Context, chunk Chunk) error {
 	w.started = true
 	w.lastSequence = chunk.Sequence
 	w.lastEnd = chunk.End
+	wav := chunk.WAV
+	segmentStart := chunk.Start
+	if w.Overlap {
+		if previous := w.previous; previous != nil && previous.End == chunk.Start && previous.Sequence+1 == chunk.Sequence {
+			windows, ok := w.Ledger.(interface {
+				ClaimTranscriptionWindow(context.Context, string, string, string, uint64, time.Duration, time.Duration, time.Duration) error
+			})
+			if !ok {
+				return errors.New("transcribe: window provenance unavailable")
+			}
+			wav, err = audio.JoinWAV(previous.WAV, chunk.WAV)
+			if err != nil {
+				return err
+			}
+			if err = windows.ClaimTranscriptionWindow(ctx, w.Authority.AccountID, w.Authority.ChannelID, w.Authority.LiveSessionID, w.Authority.Generation, previous.Start, chunk.Start, chunk.End); err != nil {
+				return err
+			}
+			segmentStart = previous.Start
+		}
+		copyChunk := chunk
+		copyChunk.WAV = append([]byte(nil), chunk.WAV...)
+		w.previous = &copyChunk
+	}
 	var text string
 	var callErr error
 	ref := fmt.Sprintf("audio:%s:%d:%d", w.Authority.LiveSessionID, w.Authority.Generation, chunk.Sequence)
 	err = w.Meter.Spend(ctx, w.Authority, "transcription", ref, cost.Price(4_500_000), func(callCtx context.Context) (cost.Usage, error) {
-		text, callErr = w.Transcriber.Transcribe(callCtx, chunk.WAV)
+		text, callErr = w.Transcriber.Transcribe(callCtx, wav)
 		// Once an HTTP attempt begins, a canceled or failed response can still be
 		// billable. Settle the conservative reservation even on an ambiguous error.
 		return cost.Usage{}, nil
@@ -108,6 +141,9 @@ func (w *Worker) Submit(ctx context.Context, chunk Chunk) error {
 	if text == "" {
 		return nil
 	}
+	if w.Overlap && segmentStart < w.lastTextEnd && text == w.lastText {
+		return nil
+	}
 	attribution := "uncertain"
 	speaker := ""
 	if w.SoleBroadcaster {
@@ -118,13 +154,17 @@ func (w *Worker) Submit(ctx context.Context, chunk Chunk) error {
 	if err != nil {
 		return err
 	}
-	seg := receipt.Segment{ID: segmentID, SessionID: w.Authority.LiveSessionID, Start: chunk.Start, End: chunk.End, Text: text, SpeakerID: speaker, Attribution: attribution, TimingBasis: "coarse_pcm_ingest_hls_delay_unknown"}
+	seg := receipt.Segment{ID: segmentID, SessionID: w.Authority.LiveSessionID, Start: segmentStart, End: chunk.End, Text: text, SpeakerID: speaker, Attribution: attribution, TimingBasis: "coarse_pcm_ingest_hls_delay_unknown"}
 	err = w.Meter.WithActive(w.Authority, func(_ *runtime.Channel) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		return w.Ledger.AddLiveSegment(ctx, w.Authority.AccountID, w.Authority.ChannelID, w.Authority.LiveSessionID, w.Authority.Generation, seg)
 	})
+	if err == nil {
+		w.lastText = text
+		w.lastTextEnd = chunk.End
+	}
 	if err == nil && w.OnSegment != nil && seg.Attribution == "broadcaster" {
 		w.OnSegment(seg)
 	}

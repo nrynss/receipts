@@ -110,3 +110,15 @@ verified principal build session `01a187f1-2866-7273-aa07-ea214669f2b4`.
 The user has already prepared the demo script. A separate accessible live or
 build recording has not been verified here, and T6.2 remains in progress, so
 T6.3 is not yet marked done. Submission readiness remains T6.4.
+
+### Capture and review regressions
+
+Issues #3 through #5 exposed split audio context, stale dock reads and historical review entries.
+
+Overlapping PCM windows now preserve adjacent source context. The dock refreshes its private read model every three seconds.
+
+The actionable queue now excludes historical sessions. Approval retains current-session authority and exact source checks.
+
+Authenticated HTTP tests verify approval, one stamp, safe retries and historical refusal. The full offline gate and targeted races passed.
+
+See [the regression evidence](../docs/evidence/issues-3-4-5.md) for limits and verification.

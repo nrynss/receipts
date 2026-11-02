@@ -91,7 +91,7 @@ func (a *audioAttachment) attach(ctx context.Context, authority auth.ChannelCont
 		if a.onSegment != nil {
 			a.onSegment(authority, seg)
 		}
-	}, Authority: authority, Transcriber: transcriber, Meter: a.runtime, Ledger: a.ledger, SoleBroadcaster: sole, NowOffset: func() time.Duration { return time.Since(started) }}
+	}, Authority: authority, Transcriber: transcriber, Meter: a.runtime, Ledger: a.ledger, SoleBroadcaster: sole, Overlap: true, NowOffset: func() time.Duration { return time.Since(started) }}
 	go func() {
 		defer close(done)
 		defer os.RemoveAll(dir)

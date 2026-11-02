@@ -42,7 +42,20 @@ func (s *Store) AddLiveSegment(ctx context.Context, accountID, channelID, sessio
 		return err
 	}
 	if overlap != 0 {
-		return ErrConflict
+		var duplicate int
+		if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM transcript_segments WHERE session_id=? AND start_ms=? AND end_ms=?`, sessionID, seg.Start.Milliseconds(), seg.End.Milliseconds()).Scan(&duplicate); err != nil {
+			return err
+		}
+		if duplicate != 0 {
+			return ErrConflict
+		}
+		var window int
+		if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM transcription_windows WHERE session_id=? AND start_ms=? AND end_ms=? AND generation=?`, sessionID, seg.Start.Milliseconds(), seg.End.Milliseconds(), generation).Scan(&window); err != nil {
+			return err
+		}
+		if window != 1 {
+			return ErrConflict
+		}
 	}
 	now := s.now().UTC()
 	_, err = tx.ExecContext(ctx, `INSERT INTO transcript_segments(id,session_id,start_ms,end_ms,text,speaker_id,attribution,created_at,timing_basis) VALUES(?,?,?,?,?,?,?,?,?)`, seg.ID, seg.SessionID, seg.Start.Milliseconds(), seg.End.Milliseconds(), seg.Text, seg.SpeakerID, seg.Attribution, millis(now), seg.TimingBasis)
@@ -99,4 +112,33 @@ func (s *Store) LiveAudioSource(ctx context.Context, accountID, channelID, sessi
 		return "", time.Time{}, ErrConflict
 	}
 	return login, time.UnixMilli(started).UTC(), nil
+}
+
+// ClaimTranscriptionWindow records adjacent raw claims before their joint paid call.
+// The raw claims remain disjoint and retain their original replay protection.
+func (s *Store) ClaimTranscriptionWindow(ctx context.Context, accountID, channelID, sessionID string, generation uint64, start, split, end time.Duration) error {
+	if start < 0 || split <= start || end <= split || split-start > 6*time.Second || end-split > 6*time.Second {
+		return ErrInvalid
+	}
+	tx, err := s.db.BeginWrite(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var valid int
+	err = tx.QueryRowContext(ctx, `SELECT count(*) FROM live_sessions l JOIN accounts a ON a.channel_id=l.channel_id
+ JOIN audio_chunks first ON first.session_id=l.id AND first.start_ms=? AND first.end_ms=? AND first.generation=?
+ JOIN audio_chunks second ON second.session_id=l.id AND second.start_ms=? AND second.end_ms=? AND second.generation=?
+ WHERE a.id=? AND a.channel_id=? AND a.status='connected' AND l.id=? AND l.state='live' AND l.ended_at IS NULL AND l.runtime_generation=?`, start.Milliseconds(), split.Milliseconds(), generation, split.Milliseconds(), end.Milliseconds(), generation, accountID, channelID, sessionID, generation).Scan(&valid)
+	if err != nil {
+		return err
+	}
+	if valid != 1 {
+		return ErrConflict
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO transcription_windows(session_id,start_ms,end_ms,split_ms,generation) VALUES(?,?,?,?,?)`, sessionID, start.Milliseconds(), end.Milliseconds(), split.Milliseconds(), generation)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }

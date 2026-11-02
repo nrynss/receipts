@@ -2,6 +2,7 @@ package intelligence
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io"
@@ -24,6 +25,7 @@ import (
 	"receipts/internal/retrieval"
 	runtime "receipts/internal/runtime"
 	"receipts/internal/store"
+	"receipts/internal/transcribe"
 )
 
 type judgeFunc func(context.Context, receipt.Receipt, receipt.Evidence, receipt.Segment) (judge.Result, error)
@@ -70,10 +72,20 @@ func mockedLunaHTTP(t *testing.T) (*http.Client, *atomic.Int64, *atomic.Int64, *
 				t.Fatalf("invalid mocked Luna extraction request: %v", err)
 			}
 			var sources []receipt.Segment
-			if err := json.Unmarshal([]byte(request.Messages[1].Content), &sources); err != nil || len(sources) != 1 {
+			if err := json.Unmarshal([]byte(request.Messages[1].Content), &sources); err != nil || len(sources) == 0 {
 				t.Fatalf("invalid mocked extraction sources: %v", err)
 			}
-			content, _ := json.Marshal(map[string]any{"eligible": true, "claim": strings.TrimPrefix(sources[0].Text, "Blue card. "), "source_id": sources[0].ID, "topic": "promise", "sensitive": false})
+			var chosen receipt.Segment
+			for _, source := range sources {
+				if receipt.IsSourcePromise(source.Text, "I will never play this map.") {
+					chosen = source
+					break
+				}
+			}
+			if chosen.ID == "" {
+				t.Fatal("no complete source in recorded extraction input")
+			}
+			content, _ := json.Marshal(map[string]any{"eligible": true, "claim": "I will never play this map.", "source_id": chosen.ID, "topic": "promise", "sensitive": false})
 			body, _ := json.Marshal(map[string]any{
 				"model": claims.LunaModel, "service_tier": "default",
 				"usage":   map[string]int{"prompt_tokens": 200, "completion_tokens": 10, "total_tokens": 210},
@@ -125,11 +137,12 @@ func mockedLunaHTTP(t *testing.T) (*http.Client, *atomic.Int64, *atomic.Int64, *
 
 func TestCaptureReindexAndRetrieveWithDurableBudget(t *testing.T) {
 	for _, prefix := range []string{"", "Blue card. "} {
-		t.Run(prefix, func(t *testing.T) { testCaptureReindexAndRetrieve(t, prefix) })
+		t.Run(prefix, func(t *testing.T) { testCaptureReindexAndRetrieve(t, prefix, false) })
 	}
+	t.Run("overlapping transcription window", func(t *testing.T) { testCaptureReindexAndRetrieve(t, "", true) })
 }
 
-func testCaptureReindexAndRetrieve(t *testing.T, prefix string) {
+func testCaptureReindexAndRetrieve(t *testing.T, prefix string, overlap bool) {
 	ctx := context.Background()
 	db, err := sqlite.Open(ctx, sqlite.Config{Path: filepath.Join(t.TempDir(), "ledger.db")})
 	if err != nil {
@@ -167,7 +180,37 @@ func testCaptureReindexAndRetrieve(t *testing.T, prefix string) {
 	}
 	defer manager.Stop(a)
 	original := receipt.Segment{ID: "original", SessionID: a.LiveSessionID, Start: time.Second, End: 2 * time.Second, Text: prefix + "I will never play this map.", SpeakerID: c.ID, Attribution: "broadcaster", TimingBasis: "coarse_pcm_ingest_hls_delay_unknown"}
-	if err = ledger.AddLiveSegment(ctx, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation, original); err != nil {
+	if overlap {
+		clock.Store(sessionStart.Add(5 * time.Second).UnixMilli())
+		calls := 0
+		worker := transcribe.Worker{Authority: a, Meter: manager, Ledger: ledger, Overlap: true, SoleBroadcaster: true, NowOffset: func() time.Duration { return 5 * time.Second }, Transcriber: transcriptionFunc(func(context.Context, []byte) (string, error) {
+			calls++
+			if calls == 1 {
+				return "I will never", nil
+			}
+			return original.Text, nil
+		})}
+		for i := 0; i < 2; i++ {
+			if err = worker.Submit(ctx, transcribe.Chunk{Sequence: uint64(i + 1), Start: time.Duration(i+1) * time.Second, End: time.Duration(i+2) * time.Second, WAV: oneSecondPCM()}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		sources, e := ledger.Transcript(ctx, a.LiveSessionID)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if len(sources) != 2 {
+			t.Fatalf("overlap sources %#v", sources)
+		}
+		for _, source := range sources {
+			if source.End == 3*time.Second {
+				original = source
+			}
+		}
+		if original.Start != time.Second || original.End != 3*time.Second {
+			t.Fatal("window lost raw source bounds")
+		}
+	} else if err = ledger.AddLiveSegment(ctx, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation, original); err != nil {
 		t.Fatal(err)
 	}
 	captureTime := sessionStart.Add(10 * time.Second)
@@ -290,4 +333,26 @@ func testCaptureReindexAndRetrieve(t *testing.T, prefix string) {
 	if _, err = svc.Nearest(ctx, later, 3); !errors.Is(err, runtime.ErrStale) {
 		t.Fatalf("stale runtime: %v", err)
 	}
+}
+
+type transcriptionFunc func(context.Context, []byte) (string, error)
+
+func (f transcriptionFunc) Transcribe(ctx context.Context, b []byte) (string, error) {
+	return f(ctx, b)
+}
+func oneSecondPCM() []byte {
+	b := make([]byte, 44+32000)
+	copy(b, "RIFF")
+	binary.LittleEndian.PutUint32(b[4:], uint32(len(b)-8))
+	copy(b[8:], "WAVEfmt ")
+	binary.LittleEndian.PutUint32(b[16:], 16)
+	binary.LittleEndian.PutUint16(b[20:], 1)
+	binary.LittleEndian.PutUint16(b[22:], 1)
+	binary.LittleEndian.PutUint32(b[24:], 16000)
+	binary.LittleEndian.PutUint32(b[28:], 32000)
+	binary.LittleEndian.PutUint16(b[32:], 2)
+	binary.LittleEndian.PutUint16(b[34:], 16)
+	copy(b[36:], "data")
+	binary.LittleEndian.PutUint32(b[40:], 32000)
+	return b
 }
