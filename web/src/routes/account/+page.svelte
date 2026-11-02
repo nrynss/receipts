@@ -65,6 +65,7 @@
 <svelte:head><title>Receipts setup</title></svelte:head>
 <main>
   <p class="eyebrow">BROADCAST SETUP</p><h1>Receipts setup</h1>
+  <p><a href="https://nrynss.github.io/receipts/connect/" target="_blank" rel="noreferrer">Read the Twitch and OBS setup guide</a></p>
   {#if account}
     <p>Connected as <strong>@{account.login}</strong> · <a href={resolve("/control")}>Open streamer control dock</a></p>
     <section aria-labelledby="broadcast-heading"><h2 id="broadcast-heading">Broadcast &amp; Listening Status</h2>

@@ -21,6 +21,10 @@ Hosted setup, backup and recovery are documented in the [operations guide](docs/
 | [Connect your own channel](docs/submission.md#try-your-own-twitch-channel) | Twitch sign-in, owner control and OBS pairing, plus current hosting limits. |
 | [Features, limitations and Codex evidence](docs/submission.md) | Claims tied to evidence and the principal Codex build session ID. |
 
+Read the [Receipts documentation](https://nrynss.github.io/receipts/) for setup, architecture and verified evidence.
+
+The Starlight documentation site lives in [`site/`](site/). Install its pinned dependencies with `cd site && npm ci`, then build and check it with `npm run build && npm run check:links`.
+
 A separately accessible recording of the live rehearsal or Codex build has not yet been verified for this guide. The hosted recorded demo is interactive fixture replay; the live rehearsal evidence is a written record, not a video.
 
 ## Run without keys

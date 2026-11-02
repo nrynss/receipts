@@ -12,3 +12,10 @@ fi
 go vet ./...
 go test ./...
 go build -o bin/receipts ./cmd/receipts
+if [ -f site/package.json ]; then
+    if [ ! -x site/node_modules/.bin/astro ]; then
+        printf 'Documentation site dependencies are missing. Run (cd site && npm ci) before the full gate.\n' >&2
+        exit 1
+    fi
+    (cd site && npm run build && npm run check:links)
+fi

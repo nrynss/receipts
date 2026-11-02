@@ -1,0 +1,33 @@
+---
+title: How it works
+description: From a Twitch command to a reviewed verdict.
+---
+
+## Six steps through the ring
+
+<div class="pipeline" role="list" aria-label="Receipts processing stages">
+  <div role="listitem"><b>01</b><strong>Capture</strong><span>`!receipt` saves a source sentence and requests a Twitch clip.</span></div>
+  <div role="listitem"><b>02</b><strong>Transcribe</strong><span>Speech becomes broadcaster-attributed transcript evidence.</span></div>
+  <div role="listitem"><b>03</b><strong>Retrieve</strong><span>New source text retrieves related saved promises.</span></div>
+  <div role="listitem"><b>04</b><strong>Classify</strong><span>Safety and contradiction checks can raise a private review.</span></div>
+  <div role="listitem"><b>05</b><strong>Review</strong><span>The owner can approve a stamp or open an appeal.</span></div>
+  <div role="listitem"><b>06</b><strong>Resolve</strong><span>Chat votes on the appeal, and OBS shows the verdict.</span></div>
+</div>
+
+The sequence above describes the intended flow. Hosted evidence verifies capture, review, approval, appeal voting, and the verdict across staged runs.
+
+## Evidence stays attached to its source
+
+The ASR path combines adjacent raw chunks of about five seconds each into overlapping windows. A window spans nominally ten seconds and has a twelve-second hard limit. Raw claims stay disjoint. Durable `transcription_windows` rows reference both audio ranges. Exact full ASR text and window bounds remain evidence. Receipts does not rewrite transcript fragments. It skips identical text from shared overlap. It rejects gaps, stale ownership, duplicate raw submissions, partial claims, paraphrases, joined claims, and unsafe quotation context.
+
+Longer promises and ASR errors can still abstain. Offline checks passed, but paid live verification remains pending.
+
+## Models assist review
+
+Production uses GPT-6 Luna for promise extraction, sensitivity checks, and contradiction classification. The system also uses `text-embedding-3-small` for retrieval and `gpt-transcribe` for transcription.
+
+Sensitive or uncertain outcomes fail closed. A classification never creates a public stamp by itself. The owner controls approval, and chat controls the appeal outcome.
+
+## Current stack
+
+Go 1.27 and Keel 0.9 power the server and SQLite ledger. Svelte 5 and Chaaya 0.5 power the overlay and owner dock. Twitch EventSub, Helix, and clips provide the stream integration.

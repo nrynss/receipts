@@ -1,0 +1,7 @@
+{
+  "name": "receipts-docs",
+  "private": true,
+  "type": "module",
+  "scripts": { "prebuild": "node scripts/generate-evidence.mjs", "build": "astro build", "check:links": "node scripts/check-output.mjs" },
+  "dependencies": { "@astrojs/starlight": "0.42.7", "astro": "7.3.5" }
+}

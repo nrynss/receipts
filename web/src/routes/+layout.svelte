@@ -22,6 +22,7 @@
           <a href={resolve('/demo/')} aria-current={page.url.pathname === '/demo/' ? 'page' : undefined}>Demo</a>
           <a href={resolve('/account')} aria-current={page.url.pathname === '/account' ? 'page' : undefined}>Account</a>
           <a href={resolve('/control')} aria-current={page.url.pathname === '/control' ? 'page' : undefined}>Control</a>
+          <a href="https://nrynss.github.io/receipts/" target="_blank" rel="noreferrer">Docs</a>
         </nav>
       </div>
     </header>

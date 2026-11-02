@@ -1,0 +1,5 @@
+[
+  { "source": "demo-shoot/receipts/screenshots/cards/title.png", "output": "src/assets/title.png", "status": "illustration", "caption": "Original poster artwork for the home hero. This is not live evidence." },
+  { "source": "demo-shoot/receipts/screenshots/13-B-chat-reply.png", "output": "public/media/chat-reply.png", "status": "live capture", "caption": "A viewer command and the channel confirmation for one saved promise." },
+  { "source": "demo-shoot/receipts/screenshots/20-A-dock-populated.png", "output": "public/media/dock-populated.png", "status": "live capture", "caption": "The saved blue-card promise appears in the owner ledger. The empty review area is not a successful review." }
+]

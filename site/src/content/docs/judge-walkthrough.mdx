@@ -1,0 +1,48 @@
+---
+title: Judge walkthrough
+description: Follow a real capture, owner review, chat appeal, and evidence boundaries.
+---
+
+## Start with the recorded demo
+
+The [hosted recorded demo](https://receipts.nryn.dev/demo/) uses disposable fixture data. It needs no account, Twitch access, or model key. It demonstrates the interface without claiming a live provider run.
+
+## Follow the verified live path
+
+1. A viewer sent `!receipt` during a staged broadcast.
+2. Receipts captured the promise and created a ready Twitch clip.
+3. Chat received a capture confirmation.
+4. The owner spoke a later contradictory line in a quiet voice-only room.
+5. Receipts opened private review items after the source-matching repair.
+6. The owner approved one review before Receipts saved the stamp.
+7. The owner opened an appeal, and one viewer sent `!uphold`.
+8. The appeal closed upheld, and the paired OBS source showed “Upheld by Chat”.
+9. `!lore` reported the promise as broken.
+
+The original promise used a disclosed synthetic stock voice. The later contradiction came from the owner. The owner muted clip audio during the run.
+
+<img src={import.meta.env.BASE_URL + 'media/chat-reply.png'} alt="Chat confirms a saved blue-card promise after a viewer sends the receipt command." width="2366" height="1378" loading="lazy" />
+
+*Live capture evidence. This screenshot shows the chat confirmation, not the later verdict.*
+
+<img src={import.meta.env.BASE_URL + 'media/dock-populated.png'} alt="The owner ledger shows the saved promise while the review area has no items." width="2348" height="1295" loading="lazy" />
+
+*Live capture evidence. The saved claim appears in the ledger. The empty review area does not represent a successful detection.*
+
+## What remains unverified
+
+The run did not confirm actual clip playback or the labelled fallback in OBS. It also did not confirm recovery after the latest hosted restart. The visible verdict alone does not prove either behavior.
+
+The run verifies a staged path, not prospective model accuracy. Automatic stamps remain disabled. Every detected contradiction stays in owner review.
+
+Production combines adjacent raw chunks of about five seconds each into overlapping ASR windows. A window spans nominally ten seconds and has a twelve-second hard limit. Raw claims stay disjoint, and durable `transcription_windows` rows reference both audio ranges. Exact full ASR text and window bounds remain evidence. Receipts skips identical text from shared overlap. It rejects gaps, stale ownership, and duplicate raw submissions.
+
+Longer promises or ASR errors can still produce abstentions. The private control read model polls every three seconds and preserves typed reasons and action state. A delayed fixture showed new reviews without refresh. These fixes passed offline checks, but paid live verification remains pending.
+
+The approval in this walkthrough succeeded during its staged run. An offline regression later reproduced a failure when ended-session reviews appeared before current-session reviews.
+
+The queue now selects reviews from the current live session. Authenticated HTTP regressions verify approval returns 204, creates one stamp, and prevents duplicate retries. Tests also reject ended-session reviews and requests without CSRF protection.
+
+The fixes are deployed. Fresh hosted verification remains pending. Available logs cannot tie the historical failure to a review ID because the response and click record omitted IDs.
+
+See the [full hosted acceptance record](https://github.com/nrynss/receipts/blob/main/docs/evidence/t62-live-acceptance.md) and [safety boundaries](../safety/).

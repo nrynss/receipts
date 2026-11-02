@@ -1,0 +1,50 @@
+---
+title: Receipts
+description: The stream remembers what you said.
+template: splash
+hero:
+  title: The streamer <span class="versus">vs</span> chat
+  tagline: A promise meets its replay. The owner decides what counts.
+  image:
+    file: ../../assets/title.png
+    alt: Wrestling-poster title card for Receipts, with a streamer versus chat motif.
+  actions:
+    - text: Judge walkthrough
+      link: judge-walkthrough/
+      icon: right-arrow
+    - text: Open recorded demo
+      link: https://receipts.nryn.dev/demo/
+      variant: minimal
+    - text: Connect your channel
+      link: https://receipts.nryn.dev/account
+      variant: minimal
+      attrs: { target: _blank, rel: noreferrer }
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+<div class="match-banner"><span>Tonight on Twitch</span><strong>RECEIPTS</strong><span>The stream remembers what you said.</span></div>
+
+## A claim. A clip. A call for review.
+
+Receipts lets a viewer save a streamer’s promise with `!receipt`. The service captures transcript evidence and requests a Twitch clip. Later speech can create a private review for the channel owner.
+
+The owner can approve a stamp or open an appeal. Chat can vote on an appeal. The overlay displays the resulting verdict, and `!lore` reports channel history.
+
+Recent fixes improve split promises, review updates and the actionable review queue. Offline checks passed. [Read the verification limits](./evidence/).
+
+<CardGrid stagger>
+  <LinkCard title="Walk through the evidence" href="./judge-walkthrough/" description="Follow a verified live run and its remaining unknowns." />
+  <LinkCard title="Try the recorded demo" href="https://receipts.nryn.dev/demo/" description="Explore disposable fixture data without an account." />
+  <LinkCard title="Set up your channel" href="./connect/" description="Pair a read-only OBS source and review owner controls." />
+</CardGrid>
+
+<div class="pull-quote"><span class="stamp">OWNER REVIEW</span><p>Models can raise a question. Only the owner can approve a stamp.</p></div>
+
+## What the live run established
+
+One staged run saved a promise, created a ready Twitch clip, and confirmed capture in chat. A later owner-spoken line produced private reviews after a sentence-matching repair. The owner approved a review, then chat upheld an appeal with one vote.
+
+The paired OBS source displayed the upheld verdict. The final run did not confirm clip playback or its labelled fallback. Restart recovery also needs another hosted observation. [Read the evidence and limits](./evidence/).
+
+<div class="callout">The recorded demo uses isolated fixture data. It does not connect to Twitch or call a model.</div>
