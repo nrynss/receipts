@@ -37,7 +37,7 @@ type Result struct {
 // Judge compares one receipt and its original evidence to one later source. It
 // validates the model's references rather than trusting generated quotations.
 func (c Client) Judge(ctx context.Context, claim receipt.Receipt, evidence receipt.Evidence, later receipt.Segment) (Result, error) {
-	if (c.Model != "" && c.Model != Model) || c.APIKey == "" || claim.ID == "" || claim.Claim == "" || len(claim.Claim) > 2048 || evidence.SourceID == "" || evidence.ReceiptID != claim.ID || evidence.Text != claim.Claim || evidence.Attribution != "broadcaster" || later.ID == "" || later.ID == evidence.SourceID || later.Attribution != "broadcaster" || later.Text == "" || len(later.Text) > 2048 {
+	if (c.Model != "" && c.Model != Model) || c.APIKey == "" || claim.ID == "" || claim.Claim == "" || len(claim.Claim) > 2048 || evidence.SourceID == "" || evidence.ReceiptID != claim.ID || !receipt.IsSourcePromise(evidence.Text, claim.Claim) || evidence.Attribution != "broadcaster" || later.ID == "" || later.ID == evidence.SourceID || later.Attribution != "broadcaster" || later.Text == "" || len(later.Text) > 2048 {
 		return Result{}, errors.New("judge: invalid evidence")
 	}
 	input, err := json.Marshal(map[string]string{"claim": claim.Claim, "claim_source_id": evidence.SourceID, "later": later.Text, "later_source_id": later.ID})

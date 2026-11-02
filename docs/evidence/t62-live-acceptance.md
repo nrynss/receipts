@@ -109,3 +109,18 @@ no session, and the other host containers were unchanged.
   outcome, and `!lore`.
 - Actual OBS clip playback or the labelled fallback.
 - Refresh and restart recovery without re-pairing.
+
+## Issue 2 offline repair
+
+Extraction, the intelligence service and both judge adapters now share
+`receipt.IsSourcePromise`. A claim must be one complete exact promise sentence
+in the full original evidence segment. Stored source text, source IDs,
+attribution, chronology and authority checks remain intact. Partial sentences,
+paraphrases, joined claims and unsafe quotation context remain rejected.
+
+The real-SQLite capture/retrieval/detection regression runs both whole-segment
+and sentence-within-segment evidence through the mocked Decisions adapter and
+checks the resulting review outcome. Both adapters also test contained-sentence
+acceptance and rejection before provider dispatch for partial sentences.
+This is offline repair evidence. The later live stage still needs a rerun;
+no new live call or automatic-stamp enablement is implied.

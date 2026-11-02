@@ -73,7 +73,7 @@ func mockedLunaHTTP(t *testing.T) (*http.Client, *atomic.Int64, *atomic.Int64, *
 			if err := json.Unmarshal([]byte(request.Messages[1].Content), &sources); err != nil || len(sources) != 1 {
 				t.Fatalf("invalid mocked extraction sources: %v", err)
 			}
-			content, _ := json.Marshal(map[string]any{"eligible": true, "claim": sources[0].Text, "source_id": sources[0].ID, "topic": "promise", "sensitive": false})
+			content, _ := json.Marshal(map[string]any{"eligible": true, "claim": strings.TrimPrefix(sources[0].Text, "Blue card. "), "source_id": sources[0].ID, "topic": "promise", "sensitive": false})
 			body, _ := json.Marshal(map[string]any{
 				"model": claims.LunaModel, "service_tier": "default",
 				"usage":   map[string]int{"prompt_tokens": 200, "completion_tokens": 10, "total_tokens": 210},
@@ -124,6 +124,12 @@ func mockedLunaHTTP(t *testing.T) (*http.Client, *atomic.Int64, *atomic.Int64, *
 }
 
 func TestCaptureReindexAndRetrieveWithDurableBudget(t *testing.T) {
+	for _, prefix := range []string{"", "Blue card. "} {
+		t.Run(prefix, func(t *testing.T) { testCaptureReindexAndRetrieve(t, prefix) })
+	}
+}
+
+func testCaptureReindexAndRetrieve(t *testing.T, prefix string) {
 	ctx := context.Background()
 	db, err := sqlite.Open(ctx, sqlite.Config{Path: filepath.Join(t.TempDir(), "ledger.db")})
 	if err != nil {
@@ -160,7 +166,7 @@ func TestCaptureReindexAndRetrieveWithDurableBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer manager.Stop(a)
-	original := receipt.Segment{ID: "original", SessionID: a.LiveSessionID, Start: time.Second, End: 2 * time.Second, Text: "I will never play this map.", SpeakerID: c.ID, Attribution: "broadcaster", TimingBasis: "coarse_pcm_ingest_hls_delay_unknown"}
+	original := receipt.Segment{ID: "original", SessionID: a.LiveSessionID, Start: time.Second, End: 2 * time.Second, Text: prefix + "I will never play this map.", SpeakerID: c.ID, Attribution: "broadcaster", TimingBasis: "coarse_pcm_ingest_hls_delay_unknown"}
 	if err = ledger.AddLiveSegment(ctx, a.AccountID, a.ChannelID, a.LiveSessionID, a.Generation, original); err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +189,7 @@ func TestCaptureReindexAndRetrieveWithDurableBudget(t *testing.T) {
 		t.Fatalf("capture=%#v sensitivity calls=%d extraction calls=%d err=%v", result, sensitivityCalls.Load(), extractionCalls.Load(), err)
 	}
 	evidence, err := ledger.Evidence(ctx, result.Receipt.ID)
-	if err != nil || len(evidence) != 1 || evidence[0].TimingBasis != "coarse_pcm_ingest_hls_delay_unknown" {
+	if err != nil || len(evidence) != 1 || evidence[0].Text != original.Text || evidence[0].TimingBasis != "coarse_pcm_ingest_hls_delay_unknown" {
 		t.Fatalf("provenance=%#v %v", evidence, err)
 	}
 	if err = svc.Reindex(ctx); err != nil {

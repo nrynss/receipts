@@ -326,7 +326,7 @@ func (s *Service) JudgeSource(ctx context.Context, source receipt.Segment) error
 		if err != nil {
 			return err
 		}
-		if len(evidence) != 1 || evidence[0].Text != candidate.Claim || evidence[0].Attribution != "broadcaster" {
+		if len(evidence) != 1 || !receipt.IsSourcePromise(evidence[0].Text, candidate.Claim) || evidence[0].Attribution != "broadcaster" {
 			continue
 		}
 		if err = s.DetectionStore.ValidateJudgmentPair(ctx, s.indexAuthority(), candidate, evidence[0], source); err != nil {
