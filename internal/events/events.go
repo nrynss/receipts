@@ -156,7 +156,7 @@ func cloneSnapshot(value OverlaySnapshot) OverlaySnapshot {
 		copy := *value.CurrentAppeal
 		value.CurrentAppeal = &copy
 	}
-	value.Receipts = append([]PublicReceipt(nil), value.Receipts...)
+	value.Receipts = append([]PublicReceipt{}, value.Receipts...)
 	if value.CurrentStamp != nil {
 		copy := *value.CurrentStamp
 		value.CurrentStamp = &copy

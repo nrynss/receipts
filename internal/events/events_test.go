@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
@@ -121,5 +122,26 @@ func TestAppealPublicationAndSnapshotOwnTheirData(t *testing.T) {
 	appeal.ReceiptID = "changed"
 	if snapshot.CurrentAppeal.ReceiptID != "receipt-a" {
 		t.Fatal("appeal snapshot aliases read model")
+	}
+}
+
+func TestEmptySnapshotReceiptsRemainJSONArray(t *testing.T) {
+	for _, receipts := range [][]PublicReceipt{nil, {}} {
+		p := NewPublisher("empty-epoch")
+		got, err := p.Snapshot(func() (OverlaySnapshot, error) { return OverlaySnapshot{Channel: "channel", Receipts: receipts}, nil })
+		if err != nil {
+			t.Fatal(err)
+		}
+		encoded, err := json.Marshal(got)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var fields map[string]json.RawMessage
+		if err = json.Unmarshal(encoded, &fields); err != nil {
+			t.Fatal(err)
+		}
+		if string(fields["receipts"]) != "[]" {
+			t.Fatalf("empty receipts must be an array: %s", encoded)
+		}
 	}
 }
