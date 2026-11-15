@@ -2,6 +2,8 @@
 
 **The stream remembers what you said.** Built with OpenAI Codex.
 
+> **Not live anymore.** The hosted app at receipts.nryn.dev was stopped on 15 Nov 2026, after the Codex × TwitchCon Hackathon. The hosted demo, sign-in and control links below no longer load, and no channel is being listened to. This repository is kept as the record of the build.
+
 Chat types `!receipt` when a streamer promises something on stream. Receipts clips the moment and keeps the claim. When the streamer later goes back on it, a **RECEIPT** stamp lands on the overlay with the old clip, and chat votes on the appeal. `!lore` gives new viewers the channel's running promises and the ones that broke.
 
 > **Status:** entry for the Codex × TwitchCon Hackathon, in development. P0 feasibility, P1 foundation and the offline receipt loop are complete. Account isolation, onboarding/OBS pairing and owner controls are implemented. Verified live-session lifecycle and Twitch adapter checks pass. Production text intelligence now uses GPT-6 Luna for extraction and Decisions sensitivity/judging; transcription and embeddings remain unchanged. Contradictions still route to private review and automatic stamps remain disabled; see the [model migration and evaluation limits](docs/model-migration.md) and [development diary](dev-diary/README.md).
