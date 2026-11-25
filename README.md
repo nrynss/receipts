@@ -2,7 +2,7 @@
 
 **The stream remembers what you said.** Built with OpenAI Codex.
 
-> **Not live anymore.** The hosted app at receipts.nryn.dev was stopped on 15 Nov 2026, after the Codex × TwitchCon Hackathon. The hosted demo, sign-in and control links below no longer load, and no channel is being listened to. This repository is kept as the record of the build.
+> **Not live anymore.** The hosted app at receipts.nryn.dev was stopped on 15 Nov 2026, after the Codex × TwitchCon Hackathon. It was removed from the server, with its data, on 25 Nov 2026. The hosted demo, sign-in and control links below no longer load, and no channel is being listened to. This repository is kept as the record of the build.
 
 Chat types `!receipt` when a streamer promises something on stream. Receipts clips the moment and keeps the claim. When the streamer later goes back on it, a **RECEIPT** stamp lands on the overlay with the old clip, and chat votes on the appeal. `!lore` gives new viewers the channel's running promises and the ones that broke.
 
